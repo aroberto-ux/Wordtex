@@ -27,6 +27,32 @@ const adaptar = (t) => t.replace(/\\usepackage\[([^\]]*)\]\{babel\}/, (m, o) => 
 const casos = {};
 for (const p of PLANTILLAS) { const d = crearDesdePlantilla(p.id, 'X'); casos[`plantilla-${p.id}`] = generarTex(d, d.bloques).tex; }
 
+// LaTeX avanzado: tabla con [H], booktabs, \multirow y macros propias (necesita float, booktabs y multirow)
+{
+  const raw = String.raw`\begin{table}[H]
+\centering
+\caption{Ensayo (ec.~\ref{eq:a}).}
+\label{tab:avanzada}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\multirow{2}{*}{Ciclo} & \multicolumn{2}{c}{Valores} & $E_c$ \\
+\cmidrule(lr){2-3}
+ & $\varepsilon$ & $\sigma$ & (GPa) \\
+\midrule
+1 & $50.2\times10^{-6}$ & 2.336 & 43.10 \\
+\bottomrule
+\end{tabular}
+\notatabla{Esfuerzo cercano a $0.40\,\fc$.}
+\end{table}`;
+  const extra = String.raw`\newcommand{\fc}{f'_c}
+\newcommand{\notatabla}[1]{\par\footnotesize\textit{Nota:} #1}`;
+  const d = { cfg: { ...cfgPorDefecto(), idioma: 'spanish' }, biblio: [], extra };
+  casos['avanzado-tabla-H'] = generarTex(d, [{ ...bloqueNuevo('eq'), tex: 'x = 1', num: true, label: 'eq:a' }, { t: 'raw', tex: raw }]).tex;
+}
+
 const todos = ['p', 'h', 'lista', 'eq', 'tabla', 'cod', 'cita', 'resumen', 'toc', 'raw', 'salto'].map((t) => bloqueNuevo(t));
 todos[0].c = [{ br: 1 }, { s: 'Símbolos: α ≤ β · 30° √2 − 1 ∞ « » … § © ¿¡ <a> "b" ' }, { s: 'tachado', st: 1 }, { s: ' x', sub: 1 }, { nota: [{ s: 'nota' }] },
   { s: ' ' }, { url: 'https://x.org/a_b%20c#d', c: [] }, { s: ' ' }, { mate: '\\frac{a}{b}' }, { br: 1 }];
