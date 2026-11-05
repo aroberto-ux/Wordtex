@@ -28,7 +28,7 @@
 //  su propia colección («documentos») y no se mezclan con nada.
 // ─────────────────────────────────────────────────────────────
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyC4m8cBXjbNg6fG2Bfn1usD4cZSjAkcTXo",
   authDomain: "wordtex-98c23.firebaseapp.com",
   projectId: "wordtex-98c23",
