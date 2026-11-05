@@ -28,7 +28,15 @@
 //  su propia colección («documentos») y no se mezclan con nada.
 // ─────────────────────────────────────────────────────────────
 
-export const firebaseConfig = null;
+const firebaseConfig = {
+  apiKey: "AIzaSyC4m8cBXjbNg6fG2Bfn1usD4cZSjAkcTXo",
+  authDomain: "wordtex-98c23.firebaseapp.com",
+  projectId: "wordtex-98c23",
+  storageBucket: "wordtex-98c23.firebasestorage.app",
+  messagingSenderId: "870891536615",
+  appId: "1:870891536615:web:412893dcf0090028dee242",
+  measurementId: "G-VGBL89B8VS"
+};
 
 export const opciones = {
   // 'anonima': quien abre el enlace entra directo y elige un nombre.
