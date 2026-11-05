@@ -1,20 +1,20 @@
 // Vista del editor: une la cinta, la página, el código, el panel lateral y la colaboración.
 
-import { S, E } from './estado.js?v=2026.11.04-a';
-import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.04-a';
-import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.04-a';
-import { rotulos } from './numerar.js?v=2026.11.04-a';
+import { S, E } from './estado.js?v=2026.11.04-b';
+import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.04-b';
+import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.04-b';
+import { rotulos } from './numerar.js?v=2026.11.04-b';
 import {
   bus, limpiarEstado, recibirBloques, guardarPendientes, haySinGuardar, deshacer, rehacer, refrescarDerivados, reconciliar, aplicarCambios,
-} from './ops.js?v=2026.11.04-a';
-import { instalarEventos } from './eventos.js?v=2026.11.04-a';
+} from './ops.js?v=2026.11.04-b';
+import { instalarEventos } from './eventos.js?v=2026.11.04-b';
 import {
   seguirSeleccion, restaurarRango, formato, estadoFormato, alinear, alternarLista, sangria, accionMate, accionNota, accionCita, accionRef,
   accionEnlace, accionSimbolo, accionSaltoLinea, accionTabla, accionFig, accionImagen, menuInsertar, alElegirEstilo, edDe, celdaActual,
-} from './acciones.js?v=2026.11.04-a';
-import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.04-a';
-import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.04-a';
-import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON } from './exportar.js?v=2026.11.04-a';
+} from './acciones.js?v=2026.11.04-b';
+import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.04-b';
+import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.04-b';
+import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON } from './exportar.js?v=2026.11.04-b';
 
 let unsubs = [];
 let listo = false;

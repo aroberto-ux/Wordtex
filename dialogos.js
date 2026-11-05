@@ -1,6 +1,6 @@
 // Diálogos pequeños para insertar notas, citas, referencias, enlaces y símbolos.
 
-import { h, modal } from './ui.js?v=2026.11.04-a';
+import { h, modal } from './ui.js?v=2026.11.04-b';
 
 function simple({ titulo, cuerpo, ok = 'Aceptar', ancho = 460, valor, extraAcc = [] }) {
   return new Promise((res) => {
@@ -63,7 +63,7 @@ export function dlgCita(biblio, actual = '') {
 }
 
 /** `candidatos`: [{ id, tipo, num, texto, label }] de secciones, ecuaciones, figuras y tablas. */
-export function dlgRef(candidatos, actual = '') {
+export function dlgRef(candidatos, actual = '', { conQuitar = false } = {}) {
   let elegido = candidatos.find((c) => c.label && c.label === actual) || null;
   const lista = h('div', { class: 'lista-radio', role: 'listbox' }, candidatos.map((c) => {
     const b = h('button', { type: 'button', role: 'option', class: 'item-radio', onclick: () => { elegido = c; lista.querySelectorAll('.item-radio').forEach((x) => x.setAttribute('aria-selected', String(x === b))); } },
@@ -76,8 +76,12 @@ export function dlgRef(candidatos, actual = '') {
       titulo: 'Referencia cruzada', ancho: 520,
       cuerpo: h('div', {}, h('p', { class: 'vacio-panel' }, 'Se insertará el número de la sección, ecuación, figura o tabla elegida, y se actualizará solo si cambia.'),
         candidatos.length ? lista : h('p', { class: 'vacio-panel' }, 'Aún no hay nada a lo que referirse: añade una sección, ecuación, figura o tabla.')),
-      acciones: [{ texto: 'Cancelar', fn: (c) => c(null) }, { texto: 'Insertar', primario: true, fn: (c) => c(true) }],
-      alCerrar: (v) => res(v === true ? elegido : null),
+      acciones: [
+        ...(conQuitar ? [{ texto: 'Quitar referencia', peligro: true, fn: (c) => c('quitar') }] : []),
+        { texto: 'Cancelar', fn: (c) => c(null) },
+        { texto: conQuitar ? 'Cambiar' : 'Insertar', primario: true, fn: (c) => c(true) },
+      ],
+      alCerrar: (v) => res(v === 'quitar' ? { quitar: true } : v === true ? elegido : null),
     });
   });
 }

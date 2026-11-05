@@ -1,14 +1,17 @@
 // Pestaña «Código»: el documento como LaTeX, editable. Lo que se escribe aquí se interpreta y
 // pasa a la vista visual (y al revés). Lo que no se entiende se conserva como «LaTeX avanzado».
 
-import { S, E } from './estado.js?v=2026.11.04-a';
-import { generarTex } from './latex-gen.js?v=2026.11.04-a';
-import { parsearTex } from './latex-parse.js?v=2026.11.04-a';
-import { diffBloques } from './sync.js?v=2026.11.04-a';
-import { aplicarCambios, guardarPendientes, bus } from './ops.js?v=2026.11.04-a';
+import { S, E } from './estado.js?v=2026.11.04-b';
+import { generarTex } from './latex-gen.js?v=2026.11.04-b';
+import { parsearTex } from './latex-parse.js?v=2026.11.04-b';
+import { diffBloques } from './sync.js?v=2026.11.04-b';
+import { aplicarCambios, guardarPendientes, bus } from './ops.js?v=2026.11.04-b';
 
 let tPeg = null, tGen = null;
 let aplicando = false;
+// Último texto que se escribió desde el modelo o que ya se aplicó. Si el área de código sigue igual, no se
+// vuelve a interpretar: así entrar y salir de la vista de código nunca cambia el documento.
+let ultimoAplicado = null;
 
 export function textoActual() {
   return generarTex({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques).tex;
@@ -37,6 +40,7 @@ export function actualizarCodigo(forzar = false) {
   if (!forzar && document.activeElement === E.codigoTa) return;
   const t = textoActual();
   if (E.codigoTa.value !== t) { E.codigoTa.value = t; }
+  ultimoAplicado = t;
   gutter();
   if (forzar || document.activeElement !== E.codigoTa) mostrarAvisos([]);
 }
@@ -49,6 +53,7 @@ export function programarActualizacion() {
 
 function aplicarTexto() {
   const texto = E.codigoTa.value;
+  if (texto === ultimoAplicado) return;
   let m;
   try { m = parsearTex(texto); } catch (e) { console.error(e); mostrarAvisos([], 'No se pudo interpretar el código.'); return; }
   aplicando = true;
@@ -70,6 +75,7 @@ function aplicarTexto() {
     const d = diffBloques(S.bloques, nuevos);
     if (d.crear.length || d.actualizar.length || d.eliminar.length || d.mover.length) aplicarCambios(null, { diff: d });
     mostrarAvisos(m.avisos);
+    ultimoAplicado = texto;
   } finally { aplicando = false; }
 }
 

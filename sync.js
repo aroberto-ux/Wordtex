@@ -2,7 +2,8 @@
 // el código LaTeX o de pegar contenido): calcula el mínimo de cambios para que quienes editan a la vez
 // no pisen todo el documento. Funciones puras (se prueban en Node).
 
-import { nuevoId } from './modelo.js?v=2026.11.04-a';
+import { nuevoId } from './modelo.js?v=2026.11.04-b';
+import { archivoDe } from './latex-gen.js?v=2026.11.04-b';
 
 export const firma = (b) => { const { id, orden, ...r } = b; return JSON.stringify(r); };
 
@@ -22,8 +23,10 @@ export function necesitaReindexar(bloques) {
 
 /** Las imágenes se guardan dentro del bloque; el código LaTeX solo sabe el nombre del archivo. */
 export function conservarImagenes(viejos, nuevos) {
+  // mismo nombre de archivo que escribe latex-gen.js en \includegraphics (puede llevar «-2», «-3»…)
   const porNombre = new Map();
-  for (const b of viejos) if (b.t === 'fig' && b.src) porNombre.set(b.nombre, b.src);
+  const imagenes = [];
+  for (const b of viejos) if (b.t === 'fig' && b.src) porNombre.set(archivoDe(b, imagenes), b.src);
   return nuevos.map((b) => (b.t === 'fig' && !b.src && porNombre.has(b.nombre) ? { ...b, src: porNombre.get(b.nombre) } : b));
 }
 

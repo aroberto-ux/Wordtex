@@ -1,7 +1,7 @@
 // Numeración como la haría LaTeX (secciones, ecuaciones, figuras, tablas, teoremas, citas y
 // referencias cruzadas). Se usa para que la vista de página muestre los mismos números que tendrá el PDF.
 
-import { TEOREMAS, textoPlano } from './modelo.js?v=2026.11.04-a';
+import { TEOREMAS, textoPlano } from './modelo.js?v=2026.11.04-b';
 
 export const ROTULOS = {
   spanish: { fig: 'Figura', tab: 'Tabla', resumen: 'Resumen', indice: 'Índice general', refs: 'Referencias', cap: 'Capítulo', teo: 'es' },
@@ -16,8 +16,8 @@ export const rotulos = (idioma) => ROTULOS[idioma] || ROTULOS.english;
 /** Número de filas numeradas de un entorno align/gather (una por cada «\\»). */
 function filasEq(b) {
   if (b.env === 'equation') return 1;
-  const t = String(b.tex || '').replace(/\\nonumber|\\notag/g, '');
-  const partes = t.split(/\\\\/).filter((x) => x.trim());
+  // las filas con \nonumber o \notag no llevan número
+  const partes = String(b.tex || '').split(/\\\\/).filter((x) => x.trim() && !/\\(nonumber|notag)\b/.test(x));
   return Math.max(1, partes.length);
 }
 
@@ -57,12 +57,15 @@ export function numerar(cfg, bloques, biblio = []) {
         if (b.label) etiquetas.set(b.label, `${pref}${a}`);
       } else info.set(b.id, { num: '' });
     } else if (b.t === 'fig') {
-      fig++;
-      const num = `${capitulos && c[0] ? c[0] + '.' : ''}${fig}`;
-      info.set(b.id, { num, nombre: `${ro.fig} ${num}` });
-      if (b.label) etiquetas.set(b.label, num);
+      // como en LaTeX: solo las figuras con pie (\caption) llevan número
+      if (b.pie && b.pie.length) {
+        fig++;
+        const num = `${capitulos && c[0] ? c[0] + '.' : ''}${fig}`;
+        info.set(b.id, { num, nombre: `${ro.fig} ${num}` });
+        if (b.label) etiquetas.set(b.label, num);
+      } else info.set(b.id, { num: '' });
     } else if (b.t === 'tabla') {
-      if ((b.pie && b.pie.length) || b.label) {
+      if (b.pie && b.pie.length) {
         tab++;
         const num = `${capitulos && c[0] ? c[0] + '.' : ''}${tab}`;
         info.set(b.id, { num, nombre: `${ro.tab} ${num}` });

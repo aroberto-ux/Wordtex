@@ -1,18 +1,18 @@
 // Teclado, pegado, clics y arrastre dentro de la página de edición.
 
-import { S, E } from './estado.js?v=2026.11.04-a';
-import { abrirMenu, aviso } from './ui.js?v=2026.11.04-a';
-import { nuevoId, bloqueNuevo } from './modelo.js?v=2026.11.04-a';
-import { leerInline } from './inline-dom.js?v=2026.11.04-a';
-import { autoAlto, marcarLista } from './bloques-dom.js?v=2026.11.04-a';
+import { S, E } from './estado.js?v=2026.11.04-b';
+import { abrirMenu, aviso } from './ui.js?v=2026.11.04-b';
+import { nuevoId, bloqueNuevo, urlSegura } from './modelo.js?v=2026.11.04-b';
+import { leerInline } from './inline-dom.js?v=2026.11.04-b';
+import { autoAlto, marcarLista } from './bloques-dom.js?v=2026.11.04-b';
 import {
   mapa, bloqueDe, indiceDe, editablesDe, colocarCursor, marcarSucio, guardarPendientes, editarLista, modificar, reconciliar, enfocar,
   dividirBloque, fusionarConAnterior, eliminarBloque, moverBloqueA, deshacer, rehacer, insertarBloque, convertirBloque,
-} from './ops.js?v=2026.11.04-a';
+} from './ops.js?v=2026.11.04-b';
 import {
   edDe, menuBloque, accionEq, accionImagen, editarExistente, celdaVecina, accionTabla, itemsInsertar, cambiarNivelItem, crearFiguraDesde,
   accionEnlace, formato,
-} from './acciones.js?v=2026.11.04-a';
+} from './acciones.js?v=2026.11.04-b';
 
 const FILA_DE = (ed) => ed.closest('.bq');
 
@@ -152,6 +152,7 @@ function indiceItem(li) { return Array.from(li.parentElement.querySelectorAll('.
 function enterEnLista(li, bq, b) {
   const id = b.id;
   const k = indiceItem(li);
+  if (esVacio(li) && (+li.dataset.n || 0) > 0) { cambiarNivelItem(li, -1); return; } // como en Word: primero sube de nivel
   if (esVacio(li)) { // salir de la lista
     const nid = nuevoId('b');
     editarLista((l) => {
@@ -161,7 +162,12 @@ function enterEnLista(li, bq, b) {
       const resto = lb.items.slice(k + 1);
       const p = { ...bloqueNuevo('p'), id: nid };
       if (!items.length) { l.splice(i, 1, p); return; }
-      l[i] = { ...lb, items: lb.items.slice(0, k) };
+      const antes = lb.items.slice(0, k);
+      if (!antes.length) { // era el primer elemento: el párrafo queda encima y la lista sigue debajo
+        l.splice(i, 1, { ...p, orden: lb.orden }, { ...lb, id: nuevoId('b'), items: resto });
+        return;
+      }
+      l[i] = { ...lb, items: antes };
       const piezas = [p];
       if (resto.length) piezas.push({ ...lb, id: nuevoId('b'), items: resto.map((x) => ({ ...x, n: Math.min(x.n, 2) })), label: '' });
       l.splice(i + 1, 0, ...piezas);
@@ -181,9 +187,6 @@ function enterEnLista(li, bq, b) {
 
 function borrarItem(li, bq, b) {
   const id = b.id; const k = indiceItem(li);
-  if (k === 0 && b.items.length >= 1 && esVacio(li)) {
-    // primer elemento vacío: la lista se convierte en párrafo si no queda nada
-  }
   editarLista((l) => {
     const i = l.findIndex((x) => x.id === id);
     const lb = l[i];
@@ -208,7 +211,8 @@ function borrarItem(li, bq, b) {
 // ── Pegar ───────────────────────────────────────────────────────────────
 
 function alPegar(e) {
-  const t = e.target;
+  // el destino puede ser un <b>, <i> o enlace dentro del campo: lo que importa es el campo editable
+  const t = (e.target.nodeType === 1 ? e.target : e.target.parentElement)?.closest('.ed') || e.target;
   const cd = e.clipboardData;
   if (cd && cd.files && cd.files.length && /^image\//.test(cd.files[0].type)) { e.preventDefault(); crearFiguraDesde(cd.files[0]); return; }
   if (!t.classList || !t.classList.contains('ed')) return;
@@ -242,7 +246,11 @@ function alClic(e) {
   const inl = t.closest('.i-mate,.i-nota,.i-cita,.i-ref,.i-raw');
   if (inl && E.bloques.contains(inl)) { e.preventDefault(); editarExistente(inl); return; }
   const url = t.closest('a.i-url');
-  if (url) { if (e.ctrlKey || e.metaKey) { window.open(url.getAttribute('data-url'), '_blank', 'noopener'); } e.preventDefault(); return; }
+  if (url) {
+    const dir = urlSegura(url.getAttribute('data-url'));
+    if ((e.ctrlKey || e.metaKey) && dir) window.open(dir, '_blank', 'noopener');
+    e.preventDefault(); return;
+  }
   if (!act || !bq) return;
   const id = bq.dataset.id;
   const a = act.dataset.accion;

@@ -68,15 +68,35 @@ La página **no compila LaTeX dentro del navegador**. Opciones:
 | `exportar.js`, `plantillas.js` | Exportaciones y plantillas |
 | `firebase-config.js`, `firestore.rules` | Configuración y reglas de Firebase |
 | `vendor/katex/` | KaTeX (ecuaciones y tipografía de la vista de página) |
+| `tests/` | Pruebas automáticas (no hace falta subirlas a GitHub Pages, pero no estorban) |
+
+## Calidad del LaTeX generado
+
+- **Compila siempre** con pdfLaTeX en TeX Live, MiKTeX u Overleaf: cada paquete se carga solo si hace falta (también los que usa tu LaTeX avanzado), una figura sin imagen sale como recuadro «Imagen pendiente», la clase *Libro* recibe un entorno de resumen, los saltos de línea dentro de celdas usan una tabla anidada y nunca se escribe `\\` al principio de un párrafo.
+- **Tipografía cuidada**: `microtype`, `lmodern`, `booktabs` para tablas con líneas horizontales, pie de tabla arriba y de figura abajo, flotantes `[htbp]`, metadatos del PDF (título y autor) y, en español, «Tabla» en vez de «Cuadro» (`es-tabla`).
+- **Ida y vuelta estable**: lo que genera la página lo vuelve a leer sin perder nada (símbolos como α, ≤ o ° incluidos) y entrar o salir de la vista de código no cambia el documento si no se editó.
+- **Misma numeración que el PDF**: figuras y tablas se numeran solo si tienen pie, y en `align` las filas con `\nonumber` no cuentan.
+
+## Pruebas
+
+Con [Node.js](https://nodejs.org) 18 o más reciente, desde la carpeta del proyecto:
+
+```bash
+node --test tests/*.test.mjs   # núcleo: modelo ⇄ LaTeX, ida y vuelta, numeración (segundos)
+node tests/compilar.mjs        # compila con pdflatex las plantillas y un documento con todo, en 3 clases y 6 idiomas
+```
+
+La segunda necesita `pdflatex`; si a tu instalación le falta algún idioma de babel o `ulem`, lo avisa y lo sustituye para probar el resto.
 
 ## Límites que conviene conocer
 
 - No hay compilación real a PDF en el navegador (ver arriba). La vista de página es una aproximación.
 - «Abrir en Overleaf» y el modo Firebase se probaron de forma limitada: el primero depende de Overleaf, el segundo requiere tu proyecto de Firebase.
-- Al **importar un `.tex`**, los comentarios al final de una línea (`texto % nota`) se pierden; los comentarios de línea completa se conservan. La `~` (espacio fijo) pasa a ser un espacio normal. Lo que el editor no reconoce se conserva como LaTeX crudo.
-- La vista de código vuelve a formatear el `.tex` al salir de ella.
+- Al **importar un `.tex`**, los comentarios al final de una línea (`texto % nota`) se descartan; los comentarios de línea completa se conservan. La `~` (espacio fijo) pasa a ser un espacio normal. Lo que el editor no reconoce se conserva como LaTeX crudo, y los paquetes que ese LaTeX necesita se siguen cargando.
+- Si **editas** en la vista de código, al salir se vuelve a formatear el `.tex`. Si solo lo miras, no se toca nada.
+- Al importar, `\newtheorem` con contador compartido (`\newtheorem{lemma}[theorem]{Lema}`) pasa a usar un contador propio por tipo de enunciado.
 - Deshacer/rehacer cubre el contenido de los bloques; los cambios de ajustes del documento no se deshacen.
-- El tachado usa el paquete `ulem` y el español `babel`; deben estar instalados al compilar (Overleaf los trae).
+- El tachado usa el paquete `ulem` y los idiomas usan `babel`; deben estar instalados al compilar (Overleaf y las instalaciones completas de TeX Live/MiKTeX los traen).
 - Las imágenes se incrustan en el documento (se reducen a un tamaño razonable); no es un gestor de archivos grandes.
 
 ## Problemas frecuentes
@@ -85,3 +105,17 @@ La página **no compila LaTeX dentro del navegador**. Opciones:
 - **«No se pudo conectar con Firebase; se usa el modo local»**: revisa `firebase-config.js`, que Anónimo esté activado y que tu dominio esté en los dominios autorizados.
 - **No se guardan los cambios en Firebase**: revisa las reglas de Firestore (el aviso de estado arriba muestra errores de permisos).
 - **No aparece la lista de documentos de otra persona**: en modo local cada navegador tiene los suyos; hace falta Firebase para compartir.
+
+## Cambios
+
+**2026.11.04-b**
+- La vista de código ya no altera el documento al entrar y salir sin editar (antes podía borrar símbolos del título, convertir símbolos del texto en LaTeX crudo y desactivar la portada).
+- Corregidos `.tex` que no compilaban: resumen en la clase *Libro*, `\newtheorem{…}[…]{…}` importado, paquetes descartados al importar que el LaTeX crudo necesitaba, figuras sin imagen y saltos de línea al inicio de un párrafo.
+- Paleta de fórmulas: los botones |x| y ‖x‖ dejaban el cursor en mal sitio y producían errores.
+- Márgenes de 0,5 a 6 cm respetados; Enter en el primer elemento vacío de una lista ya no deja una lista invisible; Enter en un elemento vacío anidado primero sube de nivel; pegar dentro de texto en negrita o cursiva se trata igual que en texto normal.
+- Clic en una referencia cruzada abre un diálogo para cambiarla o quitarla (antes la borraba al instante).
+- Numeración igual que en el PDF; etiquetas de `align` en la primera fila numerada; nombres de imagen repetidos ya no se pisan en el `.zip`.
+- El documento en blanco usa como título el nombre escrito; la plantilla Carta no muestra portada.
+- Los enlaces con esquemas peligrosos (`javascript:`) se descartan.
+- Mejor tipografía: `microtype`, `es-tabla`, pies de tabla arriba, `[htbp]`, metadatos del PDF.
+- Pruebas automáticas en `tests/`.

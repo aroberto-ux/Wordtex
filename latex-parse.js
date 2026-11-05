@@ -5,7 +5,11 @@
 
 import {
   cfgPorDefecto, CLASES, IDIOMAS, ALIAS_TEOREMA, compactar, sanearBloque, sanearCfg, sanearBiblio, nuevoId,
-} from './modelo.js?v=2026.11.04-a';
+} from './modelo.js?v=2026.11.04-b';
+import { SIMBOLOS, ABSTRACT_BOOK } from './latex-gen.js?v=2026.11.04-b';
+
+// \ensuremath{\alpha} → α (lo contrario de lo que hace latex-gen.js con los símbolos Unicode)
+const SIMBOLO_DE = new Map(Object.entries(SIMBOLOS).map(([u, cmd]) => [cmd, u]));
 
 // ── Utilidades de texto ─────────────────────────────────────────────────
 
@@ -55,7 +59,12 @@ function comando(s, i) {
 function sinComentarios(s) {
   return s.split('\n').map((l) => {
     for (let k = 0; k < l.length; k++) {
-      if (l[k] === '\\') { k++; continue; }
+      if (l[k] === '\\') {
+        // \verb|…%…| no es un comentario
+        const v = /^\\verb\*?([^a-zA-Z\s*])/.exec(l.slice(k, k + 8));
+        if (v) { const f = l.indexOf(v[1], k + v[0].length); if (f > 0) { k = f; continue; } }
+        k++; continue;
+      }
       if (l[k] === '%') return l.slice(0, k).replace(/\s+$/, '');
     }
     return l;
@@ -80,7 +89,10 @@ function entorno(s, i) {
   if (!m) return null;
   const nombre = m[1];
   let j = i + m[0].length;
-  const c = cerrarEntorno(s, nombre, j);
+  // en los entornos literales (código) no hay anidamiento: termina en el primer \end{…}
+  const literal = /^(lstlisting|verbatim\*?|Verbatim|minted|comment)$/.test(nombre);
+  const f = literal ? s.indexOf(`\\end{${nombre}}`, j) : -1;
+  const c = literal ? (f < 0 ? null : { cuerpo: s.slice(j, f), fin: f + nombre.length + 6 }) : cerrarEntorno(s, nombre, j);
   if (!c) return null;
   return { nombre, cuerpoCompleto: c.cuerpo, fin: c.fin, raw: s.slice(i, c.fin), inicioCuerpo: j };
 }
@@ -119,6 +131,13 @@ export function parsearInline(src, marcas = {}) {
         }
         if (letra) { buf += (letra + ACENTOS[n]).normalize('NFC'); i = fin; continue; }
       }
+      // \verb|…| (el delimitador puede ser cualquier carácter): se conserva entero
+      if (s.startsWith('verb', i + 1) && !esLetra(s[i + 5] === '*' ? s[i + 6] : s[i + 5])) {
+        const ini = i + 5 + (s[i + 5] === '*' ? 1 : 0);
+        const delim = s[ini];
+        const f = delim ? s.indexOf(delim, ini + 1) : -1;
+        if (f > 0) { vaciar(); nodos.push({ raw: s.slice(i, f + 1) }); i = f + 1; continue; }
+      }
       const cm = comando(s, i);
       if (cm && !cm.simbolo) {
         let j = cm.fin;
@@ -131,6 +150,10 @@ export function parsearInline(src, marcas = {}) {
             const m2 = MARCA_CMD[nombre] ? { ...marcas, [MARCA_CMD[nombre]]: 1 } : marcas;
             nodos.push(...parsearInline(a, m2)); i = j; continue;
           }
+        }
+        if (nombre === 'ensuremath') {
+          const k = saltarEsp(s, j), g = grupo(s, k);
+          if (g && SIMBOLO_DE.has(g.txt.trim())) { buf += SIMBOLO_DE.get(g.txt.trim()); i = g.fin; continue; }
         }
         if (nombre === 'footnote') { const a = arg(); if (a != null) { vaciar(); nodos.push({ nota: compactar(parsearInline(a)) }); i = j; continue; } }
         if (/^cite[pt]?$/.test(nombre) || nombre === 'nocite') {
@@ -191,7 +214,7 @@ export function parsearInline(src, marcas = {}) {
 }
 
 const inlineLimpio = (s) => {
-  const c = compactar(parsearInline(s));
+  const c = compactar(parsearInline(sinComentarios(s)));
   // recorta espacios en los extremos
   while (c.length && c[0].s != null && /^\s+$/.test(c[0].s)) c.shift();
   if (c.length && c[0].s != null) c[0].s = c[0].s.replace(/^\s+/, '');
@@ -226,8 +249,9 @@ function parsearItems(cuerpo, nivel, items) {
   if (ini >= 0) trozos.push(cuerpo.slice(ini));
   for (let t of trozos) {
     let etiqueta = '';
+    // \item[etiqueta]: LaTeX también lo lee así aunque haya un espacio antes del corchete
     const o = opcional(t, saltarEsp(t, 0));
-    if (o && saltarEsp(t, 0) === saltarEsp(t, 0)) { etiqueta = o.txt; t = t.slice(o.fin); }
+    if (o) { etiqueta = o.txt; t = t.slice(o.fin); }
     // separar listas anidadas
     let texto = '', resto = '';
     let k = 0, anidadas = [];
@@ -262,6 +286,15 @@ function dividirNivel(s, sep) {
   return out;
 }
 
+// Celda con saltos de línea, tal como la escribe latex-gen.js: {\begin{tabular}[t]{@{}l@{}}a\\ b\end{tabular}}
+const CELDA_MULTI = /^(\\textbf\{)?\{\\begin\{tabular\}\[t\]\{@\{\}[lcr]@\{\}\}([\s\S]*)\\end\{tabular\}\}(\})?$/;
+function celdaLimpia(c) {
+  const m = CELDA_MULTI.exec(c.trim());
+  if (!m || !!m[1] !== !!m[3]) return inlineLimpio(c);
+  const n = inlineLimpio(m[2]);
+  return m[1] ? n.map((x) => (x.s != null ? { ...x, b: 1 } : x)) : n;
+}
+
 function parsearTabular(cuerpo, spec) {
   if (/[*>@<!]/.test(spec)) return null;
   const letras = [];
@@ -276,7 +309,7 @@ function parsearTabular(cuerpo, spec) {
   const filasTxt = dividirNivel(limpio, '\\\\').map((r) => r.trim()).filter((r, idx, arr) => r !== '' || idx < arr.length - 1);
   while (filasTxt.length && filasTxt[filasTxt.length - 1] === '') filasTxt.pop();
   if (!filasTxt.length) return null;
-  const filas = filasTxt.map((f) => dividirNivel(f, '&').map((c) => inlineLimpio(c)));
+  const filas = filasTxt.map((f) => dividirNivel(f, '&').map((c) => celdaLimpia(c)));
   const cols = Math.max(letras.length, ...filas.map((f) => f.length));
   filas.forEach((f) => { while (f.length < cols) f.push([]); });
   while (letras.length < cols) letras.push('l');
@@ -321,10 +354,17 @@ function parsearFloatTabla(cuerpo) {
   return { ...t.tabla, pie, label };
 }
 
+const FIG_PENDIENTE = /\\fbox\{\\parbox\[c\]\[[^\]]*\]\[c\]\{([\d.]+)\\linewidth\}\{\\centering Imagen pendiente\}\}/;
+
 function parsearFigura(cuerpo) {
   cuerpo = sinPosicion(cuerpo);
-  const m = /\\includegraphics\s*(\[[^\]]*\])?\s*\{([^}]*)\}/.exec(cuerpo);
-  if (!m) return null;
+  let m = /\\includegraphics\s*(\[[^\]]*\])?\s*\{([^}]*)\}/.exec(cuerpo);
+  if (!m) {
+    // recuadro «Imagen pendiente» que genera latex-gen.js para una figura sin imagen
+    const p = FIG_PENDIENTE.exec(cuerpo);
+    if (!p) return null;
+    m = [p[0], `[width=${p[1]}\\linewidth]`, 'imagen.png'];
+  }
   let resto = cuerpo.replace(m[0], '');
   let pie = [];
   const cap = /\\caption(?:\[[^\]]*\])?\s*\{/.exec(resto);
@@ -378,7 +418,7 @@ function bloqueEntorno(e, ctx) {
         const o = opcional(src, 0);
         if (o) { const l = /language\s*=\s*\{?([\w+#]+)/i.exec(o.txt); lang = l ? l[1] : ''; num = /numbers\s*=\s*(left|right)/.test(o.txt); src = src.slice(o.fin); }
       }
-      src = src.replace(/^\r?\n/, '').replace(/\s+$/, '');
+      src = src.replace(/^\r?\n/, '').replace(/\s+$/, '').replace(/\\end \{lstlisting\}/g, '\\end{lstlisting}');
       return [{ t: 'cod', lang, src, num }];
     }
     case 'quote': case 'quotation': return [{ t: 'cita', c: inlineLimpio(sinComentarios(cuerpo)) }];
@@ -417,7 +457,7 @@ function bloqueEntorno(e, ctx) {
   }
 }
 
-const RAW_SUELTOS = /^\\(vspace|hspace|bigskip|medskip|smallskip|noindent|clearpage|cleardoublepage|centering|hrule|hrulefill|pagebreak|newpage|input|include|bibliographystyle|bibliography|appendix|printbibliography|listoffigures|listoftables|setcounter|pagenumbering|raggedright|vfill|hfill|part|paragraph|subparagraph|usepackage|newcommand|renewcommand|def)\b/;
+const RAW_SUELTOS = /^\\(vspace|hspace|bigskip|medskip|smallskip|clearpage|cleardoublepage|centering|hrule|hrulefill|pagebreak|newpage|input|include|bibliographystyle|bibliography|appendix|printbibliography|listoffigures|listoftables|setcounter|pagenumbering|raggedright|vfill|hfill|part|paragraph|subparagraph|usepackage|newcommand|renewcommand|def)\b/;
 
 /** Parte el cuerpo del documento en bloques. */
 export function parsearBloques(cuerpo, ctx = { biblio: [], cfg: {} }) {
@@ -508,22 +548,38 @@ export function parsearBloques(cuerpo, ctx = { biblio: [], cfg: {} }) {
 
 // ── Preámbulo ───────────────────────────────────────────────────────────
 
-const PAQUETES_PROPIOS = new Set(['inputenc', 'fontenc', 'lmodern', 'babel', 'amsmath', 'amssymb', 'amsthm', 'amsfonts', 'graphicx', 'booktabs', 'ulem', 'setspace', 'listings', 'hyperref', 'geometry']);
+const PAQUETES_PROPIOS = new Set(['inputenc', 'fontenc', 'lmodern', 'microtype', 'babel', 'amsmath', 'amssymb', 'amsthm', 'amsfonts', 'graphicx', 'booktabs', 'ulem', 'setspace', 'listings', 'hyperref', 'geometry']);
+
+/** Salta espacios y tabuladores, pero no el cambio de línea. */
+const saltarEspLinea = (s, i) => { while (i < s.length && (s[i] === ' ' || s[i] === '\t')) i++; return i; };
 
 function parsearPreambulo(pre, cfg, ctx) {
   const extra = [];
+  // El «preámbulo propio» que escribe latex-gen.js se conserva tal cual (ni se reordena ni se depura)
+  let literal = '';
+  pre = pre.replace(/^% --- Preámbulo propio ---\n([\s\S]*?)\n% ---[ \t]*$/m, (m, x) => { literal = x.trim(); return ''; });
+  // líneas que añade latex-gen.js por su cuenta (se vuelven a generar si hacen falta)
+  pre = pre.split('\n').filter((l) => !ABSTRACT_BOOK.includes(l.trim())).join('\n');
   let i = 0;
   while (i < pre.length) {
     i = saltarEsp(pre, i);
     if (i >= pre.length) break;
-    if (pre[i] === '%') { const nl = pre.indexOf('\n', i); const linea = pre.slice(i, nl < 0 ? pre.length : nl).trim(); if (!/^% ?(---|!|Preámbulo)/.test(linea) || /Preámbulo propio/.test(linea) === false) { if (!/^% ?---/.test(linea)) extra.push(linea); } i = nl < 0 ? pre.length : nl + 1; continue; }
+    if (pre[i] === '%') {
+      // los separadores «% --- Preámbulo propio ---» y «% ---» los pone latex-gen.js
+      const nl = pre.indexOf('\n', i); const linea = pre.slice(i, nl < 0 ? pre.length : nl).trim();
+      if (!/^% ?---/.test(linea)) extra.push(linea);
+      i = nl < 0 ? pre.length : nl + 1; continue;
+    }
     if (pre[i] !== '\\') { const nl = pre.indexOf('\n', i); extra.push(pre.slice(i, nl < 0 ? pre.length : nl).trim()); i = nl < 0 ? pre.length : nl + 1; continue; }
     const ini = i;
     const cm = comando(pre, i);
     let j = cm.fin;
     const opciones = [];
     const argumentos = [];
-    const maxArgs = { documentclass: 1, usepackage: 1, title: 1, author: 1, date: 1, newtheorem: 3, theoremstyle: 1, setstretch: 1, pagestyle: 1, lstset: 1 }[cm.nombre] ?? 0;
+    const conocidos = { documentclass: 1, usepackage: 1, title: 1, author: 1, date: 1, newtheorem: 2, theoremstyle: 1, setstretch: 1, pagestyle: 1, lstset: 1, onehalfspacing: 0, doublespacing: 0, singlespacing: 0 };
+    // Los comandos desconocidos se conservan con todos sus argumentos de la misma línea (\definecolor{a}{RGB}{…})
+    const desconocido = !(cm.nombre in conocidos);
+    const maxArgs = desconocido ? 9 : conocidos[cm.nombre];
     if (cm.nombre === 'newcommand' || cm.nombre === 'renewcommand' || cm.nombre === 'DeclareMathOperator' || cm.nombre === 'def') {
       // se conservan completos: nombre + (opcionales) + cuerpo
       let k = j;
@@ -535,9 +591,11 @@ function parsearPreambulo(pre, cfg, ctx) {
       extra.push(pre.slice(ini, k).trim()); i = k; continue;
     }
     for (;;) {
-      const k = saltarEsp(pre, j);
+      // los argumentos pueden ir en otra línea solo en los comandos conocidos y antes del primero
+      const k = desconocido || argumentos.length ? saltarEspLinea(pre, j) : saltarEsp(pre, j);
       const o = opcional(pre, k);
-      if (o && !argumentos.length) { opciones.push(o.txt); j = o.fin; continue; }
+      // \newtheorem{lemma}[theorem]{Lema} y \newtheorem{teo}{Teorema}[section] llevan opcionales entre argumentos
+      if (o && (!argumentos.length || cm.nombre === 'newtheorem' || desconocido)) { opciones.push(o.txt); j = o.fin; continue; }
       const g = grupo(pre, k);
       if (g && argumentos.length < maxArgs) { argumentos.push(g.txt); j = g.fin; continue; }
       break;
@@ -569,8 +627,8 @@ function parsearPreambulo(pre, cfg, ctx) {
         else extra.push(raw.trim());
         break;
       }
-      case 'title': cfg.titulo = compactar(parsearInline(argumentos[0] || '')).map((n) => n.s ?? '').join('').trim(); break;
-      case 'author': cfg.autor = compactar(parsearInline((argumentos[0] || '').replace(/\s*\\and\b\s*/g, ', '))).map((n) => n.s ?? (n.br ? ', ' : '')).join('').trim(); break;
+      case 'title': cfg.titulo = compactar(parsearInline(argumentos[0] || '')).map((n) => n.s ?? (n.br ? ' ' : '')).join('').replace(/\s+/g, ' ').trim(); break;
+      case 'author': cfg.autor = compactar(parsearInline((argumentos[0] || '').replace(/\s*\\and\b\s*/g, ', '))).map((n) => n.s ?? (n.br ? ', ' : '')).join('').replace(/\s+,/g, ',').replace(/\s+/g, ' ').trim(); break;
       case 'date': cfg.fecha = a0 === '' ? 'ninguna' : (a0 === '\\today' ? '' : compactar(parsearInline(argumentos[0])).map((n) => n.s ?? '').join('')); break;
       case 'newtheorem': if (!ALIAS_TEOREMA[a0]) extra.push(raw.trim()); break;
       case 'theoremstyle': break;
@@ -580,11 +638,17 @@ function parsearPreambulo(pre, cfg, ctx) {
       case 'singlespacing': cfg.interlineado = 1; break;
       case 'pagestyle': if (a0 === 'empty') cfg.numPag = false; else extra.push(raw.trim()); break;
       case 'lstset': if (!/literate/.test(raw)) extra.push(raw.trim()); break;
+      case 'hypersetup': {
+        // pdftitle y pdfauthor salen del título y el autor; lo demás se conserva
+        const claves = a0.replace(/\{[^{}]*\}/g, '').split(',').map((x) => x.split('=')[0].trim()).filter(Boolean);
+        if (!claves.every((k) => k === 'pdftitle' || k === 'pdfauthor')) extra.push(raw.trim());
+        break;
+      }
       default: extra.push(raw.trim());
     }
     i = j;
   }
-  return extra.filter(Boolean).join('\n');
+  return { extra: extra.filter(Boolean).join('\n'), literal };
 }
 
 /**
@@ -605,10 +669,13 @@ export function parsearTex(src) {
     cfg.mostrarTitulo = false;
     cfg.margen = 'extra';
   } else cfg.margen = cfgPorDefecto().margen;
-  const extra = ini >= 0 ? parsearPreambulo(pre, cfg, ctx) : '';
+  const { extra, literal } = ini >= 0 ? parsearPreambulo(pre, cfg, ctx) : { extra: '', literal: '' };
   const bloques = parsearBloques(cuerpo, ctx).map((b) => sanearBloque(b)).filter(Boolean);
+  // sin título no se genera \maketitle: eso no significa que la portada esté desactivada
+  if (!cfg.titulo) cfg.mostrarTitulo = true;
   let extraFinal = extra;
   if (bloques.some((b) => b.t === 'cod')) extraFinal = extra.split('\n').filter((l) => l.trim() !== '\\usepackage{xcolor}').join('\n');
+  extraFinal = [extraFinal, literal].filter(Boolean).join('\n');
   return {
     cfg: sanearCfg(cfg), biblio: sanearBiblio(ctx.biblio), extra: extraFinal, avisos,
     bloques: bloques.map((b) => ({ ...b, id: nuevoId() })),

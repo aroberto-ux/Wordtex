@@ -1,6 +1,6 @@
 // Texto en línea del modelo ⇄ DOM editable (contenteditable).
 
-import { compactar } from './modelo.js?v=2026.11.04-a';
+import { compactar } from './modelo.js?v=2026.11.04-b';
 
 const K = () => (typeof window !== 'undefined' ? window.katex : null);
 

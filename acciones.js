@@ -1,17 +1,17 @@
 // Acciones de la cinta y de los bloques: formato, inserciones en el texto, tablas, figuras, menús.
 
-import { S, E } from './estado.js?v=2026.11.04-a';
-import { h, abrirMenu, aviso } from './ui.js?v=2026.11.04-a';
-import { nuevoId } from './modelo.js?v=2026.11.04-a';
-import { nodoInline, renderMate, leerInline, rellenar } from './inline-dom.js?v=2026.11.04-a';
-import { editarMate } from './matematica.js?v=2026.11.04-a';
-import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.04-a';
-import { etiquetaNueva } from './numerar.js?v=2026.11.04-a';
-import { procesarImagen, marcarLista } from './bloques-dom.js?v=2026.11.04-a';
+import { S, E } from './estado.js?v=2026.11.04-b';
+import { h, abrirMenu, aviso } from './ui.js?v=2026.11.04-b';
+import { nuevoId } from './modelo.js?v=2026.11.04-b';
+import { nodoInline, renderMate, leerInline, rellenar } from './inline-dom.js?v=2026.11.04-b';
+import { editarMate } from './matematica.js?v=2026.11.04-b';
+import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.04-b';
+import { etiquetaNueva } from './numerar.js?v=2026.11.04-b';
+import { procesarImagen, marcarLista } from './bloques-dom.js?v=2026.11.04-b';
 import {
   mapa, bloqueDe, modificar, insertarBloque, eliminarBloque, duplicarBloque, moverBloque, convertirBloque, editarLista,
   guardarPendientes, marcarSucio, numeracion, refrescarDerivados, enfocar, aplicarCambios,
-} from './ops.js?v=2026.11.04-a';
+} from './ops.js?v=2026.11.04-b';
 
 // ── Selección ───────────────────────────────────────────────────────────
 
@@ -124,7 +124,8 @@ export async function accionCita() {
   refrescarDerivados();
 }
 
-export async function accionRef() {
+/** Secciones, ecuaciones, figuras y tablas numeradas a las que se puede hacer referencia. */
+function candidatosRef() {
   const cands = [];
   for (const b of S.bloques) {
     if (!['h', 'eq', 'fig', 'tabla'].includes(b.t)) continue;
@@ -135,15 +136,21 @@ export async function accionRef() {
       texto: b.t === 'h' ? leerTexto(b.c) : b.t === 'eq' ? b.tex.slice(0, 40) : leerTexto(b.pie || []),
     });
   }
-  const c = await dlgRef(cands);
+  return cands;
+}
+
+/** Etiqueta del bloque elegido; si no tiene, se le crea una. */
+function etiquetaDe(c) {
+  if (c.label) return c.label;
+  const label = etiquetaNueva(S.bloques, bloqueDe(c.id));
+  modificar(c.id, (x) => ({ ...x, label }), { sinUndo: true });
+  return label;
+}
+
+export async function accionRef() {
+  const c = await dlgRef(candidatosRef());
   if (!c) return;
-  let label = c.label;
-  if (!label) {
-    const b = bloqueDe(c.id);
-    label = etiquetaNueva(S.bloques, b);
-    modificar(c.id, (x) => ({ ...x, label }), { sinUndo: true });
-  }
-  insertarEnLinea(nodoInline({ ref: label }));
+  insertarEnLinea(nodoInline({ ref: etiquetaDe(c) }));
   refrescarDerivados();
 }
 
@@ -207,8 +214,10 @@ export async function editarExistente(el) {
     if (r.nueva) { const bib = S.doc.biblio.filter((x) => x.key !== r.nueva.key).concat([r.nueva]); S.doc.biblio = bib; await S.store.actualizarDocumento(S.did, { biblio: bib }); }
     el.setAttribute('data-cita', r.claves); fin(); refrescarDerivados();
   } else if (el.classList.contains('i-ref')) {
-    el.remove(); fin();
-    aviso('Referencia quitada. Usa «Referencia» para insertar otra.', 'info');
+    const r = await dlgRef(candidatosRef(), el.getAttribute('data-ref') || '', { conQuitar: true });
+    if (!r) return;
+    if (r.quitar) { el.remove(); fin(); return; }
+    el.setAttribute('data-ref', etiquetaDe(r)); fin(); refrescarDerivados();
   } else if (el.classList.contains('i-raw')) {
     const t = await dlgRaw(el.getAttribute('data-raw') || '');
     if (t === null) return;

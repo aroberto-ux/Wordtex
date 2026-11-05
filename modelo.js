@@ -117,6 +117,12 @@ const cadena = (v, max) => String(v == null ? '' : v).slice(0, max);
 const entre = (v, a, b, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(b, Math.max(a, n)) : d; };
 const etiqueta = (v) => cadena(v, 60).replace(/[^\w:.-]/g, '');
 
+/** Solo direcciones web, correo o relativas: un «javascript:» de un .tex importado no debe poder abrirse. */
+export function urlSegura(u) {
+  const v = String(u || '').trim();
+  return /^[a-z][\w+.-]*:/i.test(v) && !/^(https?|mailto|ftp):/i.test(v) ? '' : v;
+}
+
 export function sanearInline(c, prof = 0) {
   if (!Array.isArray(c) || prof > 4) return [];
   const out = [];
@@ -131,7 +137,7 @@ export function sanearInline(c, prof = 0) {
     else if (Array.isArray(n.nota)) out.push({ nota: sanearInline(n.nota, prof + 1) });
     else if (typeof n.cita === 'string') out.push({ cita: cadena(n.cita, 200).replace(/[^\w:.,\- ]/g, '') });
     else if (typeof n.ref === 'string') out.push({ ref: etiqueta(n.ref) });
-    else if (typeof n.url === 'string') out.push({ url: cadena(n.url, 2000), c: sanearInline(n.c, prof + 1) });
+    else if (typeof n.url === 'string') out.push({ url: urlSegura(cadena(n.url, 2000)), c: sanearInline(n.c, prof + 1) });
     else if (typeof n.raw === 'string') out.push({ raw: cadena(n.raw, 4000) });
     else if (n.br) out.push({ br: 1 });
   }
@@ -176,7 +182,7 @@ export function sanearCfg(c) {
     clase: CLASES.some(([v]) => v === c.clase) ? c.clase : d.clase,
     fuente: TAMANOS.includes(Number(c.fuente)) ? Number(c.fuente) : d.fuente,
     papel: PAPELES.some(([v]) => v === c.papel) ? c.papel : d.papel,
-    margen: c.margen === 'extra' ? 'extra' : entre(c.margen, 1, 5, d.margen),
+    margen: c.margen === 'extra' ? 'extra' : entre(c.margen, 0.5, 6, d.margen), // mismo rango que el panel
     idioma: IDIOMAS.some(([v]) => v === c.idioma) ? c.idioma : d.idioma,
     interlineado: entre(c.interlineado, 1, 2.5, 1),
     columnas: Number(c.columnas) === 2 ? 2 : 1,

@@ -1,11 +1,11 @@
 // Lista de documentos: crear (con plantillas), importar .tex / .json, renombrar, duplicar, descargar, eliminar.
 
-import { S, E } from './estado.js?v=2026.11.04-a';
-import { h, aviso, pedir, confirmar, abrirMenu, hace, modal, descargar, nombreArchivo } from './ui.js?v=2026.11.04-a';
-import { PLANTILLAS, crearDesdePlantilla } from './plantillas.js?v=2026.11.04-a';
-import { parsearTex } from './latex-parse.js?v=2026.11.04-a';
-import { generarTex } from './latex-gen.js?v=2026.11.04-a';
-import { sanearBloque } from './modelo.js?v=2026.11.04-a';
+import { S, E } from './estado.js?v=2026.11.04-b';
+import { h, aviso, pedir, confirmar, abrirMenu, hace, modal, descargar, nombreArchivo } from './ui.js?v=2026.11.04-b';
+import { PLANTILLAS, crearDesdePlantilla } from './plantillas.js?v=2026.11.04-b';
+import { parsearTex } from './latex-parse.js?v=2026.11.04-b';
+import { generarTex } from './latex-gen.js?v=2026.11.04-b';
+import { sanearBloque } from './modelo.js?v=2026.11.04-b';
 
 let unsub = null;
 let cableado = false;
@@ -78,7 +78,8 @@ async function nueva() {
   try {
     const nombre = titulo.value.trim() || 'Documento sin título';
     const d = crearDesdePlantilla(elegida, nombre);
-    if (elegida === 'blanco' || !d.cfg.titulo) d.cfg.titulo = d.cfg.titulo || (elegida === 'blanco' ? nombre : '');
+    // en el documento en blanco el título de la portada es el nombre que se escribió
+    if (elegida === 'blanco' && nombre !== 'Documento sin título') d.cfg.titulo = nombre;
     const id = await S.store.crearDocumento({ titulo: nombre, cfg: d.cfg, biblio: d.biblio, extra: d.extra }, d.bloques);
     location.hash = `#documentos/${id}`;
   } catch (e) {

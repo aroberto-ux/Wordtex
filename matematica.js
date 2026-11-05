@@ -1,8 +1,9 @@
 // Editor de fórmulas: se escribe o se arma con una paleta de símbolos y se ve al instante.
-// El «|» de cada plantilla marca dónde queda el cursor.
+// El «‸» de cada plantilla marca dónde queda el cursor (no se usa «|» porque es un símbolo real: |x|, ‖x‖).
+const CURSOR = '‸';
 
-import { h, modal } from './ui.js?v=2026.11.04-a';
-import { renderMate } from './inline-dom.js?v=2026.11.04-a';
+import { h, modal } from './ui.js?v=2026.11.04-b';
+import { renderMate } from './inline-dom.js?v=2026.11.04-b';
 
 const G = (...l) => l.map((x) => [x[0], x[1] || x[0]]);
 const griegas = [
@@ -13,11 +14,11 @@ const griegas = [
 
 export const PALETA = [
   ['Básico', [
-    ['a⁄b', '\\frac{|}{}', 'Fracción'], ['√', '\\sqrt{|}', 'Raíz cuadrada'], ['ⁿ√', '\\sqrt[n]{|}', 'Raíz n-ésima'], ['xⁿ', '^{|}', 'Potencia'], ['xₙ', '_{|}', 'Subíndice'],
-    ['Σ', '\\sum_{i=1}^{n} |', 'Sumatoria'], ['∏', '\\prod_{i=1}^{n} |', 'Productoria'], ['∫', '\\int_{a}^{b} | \\, dx', 'Integral'], ['∮', '\\oint |', 'Integral de línea'], ['lim', '\\lim_{x \\to |}', 'Límite'],
-    ['(  )', '\\left( | \\right)', 'Paréntesis que se ajustan'], ['[  ]', '\\left[ | \\right]', 'Corchetes'], ['|x|', '\\left| | \\right|', 'Valor absoluto'], ['‖x‖', '\\left\\| | \\right\\|', 'Norma'],
-    ['(n k)', '\\binom{n}{|}', 'Combinatoria'], ['∂', '\\frac{\\partial |}{\\partial x}', 'Derivada parcial'], ['d/dx', '\\frac{d|}{dx}', 'Derivada'],
-    ['Matriz', '\\begin{pmatrix} | & \\\\ & \\end{pmatrix}', 'Matriz 2×2'], ['Sistema', '\\begin{cases} | & \\text{si } \\\\ & \\text{si } \\end{cases}', 'Definición por casos'],
+    ['a⁄b', '\\frac{‸}{}', 'Fracción'], ['√', '\\sqrt{‸}', 'Raíz cuadrada'], ['ⁿ√', '\\sqrt[n]{‸}', 'Raíz n-ésima'], ['xⁿ', '^{‸}', 'Potencia'], ['xₙ', '_{‸}', 'Subíndice'],
+    ['Σ', '\\sum_{i=1}^{n} ‸', 'Sumatoria'], ['∏', '\\prod_{i=1}^{n} ‸', 'Productoria'], ['∫', '\\int_{a}^{b} ‸ \\, dx', 'Integral'], ['∮', '\\oint ‸', 'Integral de línea'], ['lim', '\\lim_{x \\to ‸}', 'Límite'],
+    ['(  )', '\\left( ‸ \\right)', 'Paréntesis que se ajustan'], ['[  ]', '\\left[ ‸ \\right]', 'Corchetes'], ['|x|', '\\left| ‸ \\right|', 'Valor absoluto'], ['‖x‖', '\\left\\| ‸ \\right\\|', 'Norma'],
+    ['(n k)', '\\binom{n}{‸}', 'Combinatoria'], ['∂', '\\frac{\\partial ‸}{\\partial x}', 'Derivada parcial'], ['d/dx', '\\frac{d‸}{dx}', 'Derivada'],
+    ['Matriz', '\\begin{pmatrix} ‸ & \\\\ & \\end{pmatrix}', 'Matriz 2×2'], ['Sistema', '\\begin{cases} ‸ & \\text{si } \\\\ & \\text{si } \\end{cases}', 'Definición por casos'],
   ]],
   ['Griegas', griegas],
   ['Operadores', G(['±', '\\pm'], ['∓', '\\mp'], ['×', '\\times'], ['÷', '\\div'], ['·', '\\cdot'], ['∘', '\\circ'], ['≤', '\\leq'], ['≥', '\\geq'], ['≠', '\\neq'], ['≈', '\\approx'], ['≡', '\\equiv'], ['∼', '\\sim'], ['∝', '\\propto'],
@@ -26,8 +27,8 @@ export const PALETA = [
   ['Flechas', G(['→', '\\to'], ['←', '\\leftarrow'], ['↔', '\\leftrightarrow'], ['⇒', '\\Rightarrow'], ['⇐', '\\Leftarrow'], ['⇔', '\\Leftrightarrow'], ['↦', '\\mapsto'], ['↑', '\\uparrow'], ['↓', '\\downarrow'])],
   ['Funciones', G(['sen', '\\sin'], ['cos', '\\cos'], ['tan', '\\tan'], ['ln', '\\ln'], ['log', '\\log'], ['exp', '\\exp'], ['máx', '\\max'], ['mín', '\\min'], ['det', '\\det'], ['mcd', '\\gcd'], ['arcsen', '\\arcsin'], ['senh', '\\sinh'])],
   ['Estilos', [
-    ['ℝ', '\\mathbb{R}', 'Reales'], ['ℕ', '\\mathbb{N}'], ['ℤ', '\\mathbb{Z}'], ['ℚ', '\\mathbb{Q}'], ['ℂ', '\\mathbb{C}'], ['𝐱', '\\mathbf{|}', 'Negrita'], ['x⃗', '\\vec{|}', 'Vector'], ['x̂', '\\hat{|}'], ['x̄', '\\bar{|}'],
-    ['x̄̄', '\\overline{|}', 'Barra larga'], ['ẋ', '\\dot{|}'], ['texto', '\\text{|}', 'Texto normal dentro de la fórmula'], ['𝒜', '\\mathcal{|}'],
+    ['ℝ', '\\mathbb{R}', 'Reales'], ['ℕ', '\\mathbb{N}'], ['ℤ', '\\mathbb{Z}'], ['ℚ', '\\mathbb{Q}'], ['ℂ', '\\mathbb{C}'], ['𝐱', '\\mathbf{‸}', 'Negrita'], ['x⃗', '\\vec{‸}', 'Vector'], ['x̂', '\\hat{‸}'], ['x̄', '\\bar{‸}'],
+    ['x̄̄', '\\overline{‸}', 'Barra larga'], ['ẋ', '\\dot{‸}'], ['texto', '\\text{‸}', 'Texto normal dentro de la fórmula'], ['𝒜', '\\mathcal{‸}'],
   ]],
 ];
 
@@ -43,7 +44,7 @@ const EJEMPLOS = [
 function insertar(ta, snippet) {
   const a = ta.selectionStart, b = ta.selectionEnd;
   const sel = ta.value.slice(a, b);
-  const i = snippet.indexOf('|');
+  const i = snippet.indexOf(CURSOR);
   let txt = snippet, cursor = a + snippet.length;
   if (i >= 0) {
     txt = snippet.slice(0, i) + sel + snippet.slice(i + 1);
@@ -92,7 +93,7 @@ export function editarMate({ tex = '', titulo = 'Fórmula', bloque = false, opc 
     const mostrar = (k) => {
       pestanas.querySelectorAll('button').forEach((b, i) => b.setAttribute('aria-selected', String(i === k)));
       cuerpo.replaceChildren(...PALETA[k][1].map(([etq, snip, tip]) => h('button', {
-        type: 'button', class: 'sim', title: tip || snip.replace('|', ''), style: etq.length > 3 ? { gridColumn: 'span 2' } : null,
+        type: 'button', class: 'sim', title: tip || snip.replace(CURSOR, ''), style: etq.length > 3 ? { gridColumn: 'span 2' } : null,
         onmousedown: (e) => e.preventDefault(),
         onclick: () => insertar(ta, snip),
       }, etq)));

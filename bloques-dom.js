@@ -1,9 +1,9 @@
 // Cada bloque del modelo ⇄ su representación editable en la página.
 
-import { h } from './ui.js?v=2026.11.04-a';
-import { TEOREMAS, LENGUAJES_COD, textoPlano } from './modelo.js?v=2026.11.04-a';
-import { rellenar, leerInline, renderMate } from './inline-dom.js?v=2026.11.04-a';
-import { rotulos } from './numerar.js?v=2026.11.04-a';
+import { h } from './ui.js?v=2026.11.04-b';
+import { TEOREMAS, LENGUAJES_COD, textoPlano } from './modelo.js?v=2026.11.04-b';
+import { rellenar, leerInline, renderMate } from './inline-dom.js?v=2026.11.04-b';
+import { rotulos } from './numerar.js?v=2026.11.04-b';
 
 const PH = {
   p: 'Escribe aquí… (pulsa «/» para insertar algo)', h: 'Título', teo: 'Enunciado…', cita: 'Texto de la cita…', resumen: 'Escribe el resumen…',

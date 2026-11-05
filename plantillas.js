@@ -1,7 +1,7 @@
 // Plantillas de documentos. Están escritas en LaTeX y se interpretan con el mismo lector que
 // usa la pestaña «Código», así que lo que se ve aquí es exactamente lo que se podrá editar.
 
-import { parsearTex } from './latex-parse.js?v=2026.11.04-a';
+import { parsearTex } from './latex-parse.js?v=2026.11.04-b';
 
 const CABECERA = String.raw`\documentclass[11pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
@@ -205,6 +205,8 @@ export function crearDesdePlantilla(id, titulo) {
   const p = PLANTILLAS.find((x) => x.id === id) || PLANTILLAS[0];
   const m = parsearTex(p.tex);
   if (m.cfg.titulo === '' && titulo) m.cfg.titulo = titulo;
+  // la portada solo se muestra si la plantilla la pide (una carta no lleva bloque de título)
+  m.cfg.mostrarTitulo = /\\maketitle\b/.test(p.tex);
   const bloques = m.bloques.map(({ id: _id, orden, ...r }) => r);
   if (!bloques.length) bloques.push({ t: 'p', c: [], al: 'j' });
   return { titulo: titulo || p.nombre, cfg: m.cfg, biblio: m.biblio, extra: m.extra, bloques };
