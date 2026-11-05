@@ -9,6 +9,7 @@ Es una página estática (HTML + módulos JS, sin compilación) pensada para **G
 - **Edición tipo Word**: negrita, cursiva, subrayado, tachado, superíndice/subíndice, monoespaciado, títulos (sección / subsección / …), listas con viñetas, numeradas y anidadas (Tab / Shift+Tab), alineación, citas, resúmenes, teoremas/definiciones/lemas/demostraciones, bloques de código, tabla de contenidos, saltos de página.
 - **Tablas** (agregar/quitar filas y columnas, encabezado, bordes, alineación por columna) y **figuras** (subir imagen, ancho, pie de figura).
 - **Ecuaciones** con un editor propio: se escribe en LaTeX con vista previa en vivo (KaTeX) y una paleta de símbolos (griegas, operadores, flechas, fracciones, raíces, sumatorias…). También ecuaciones en línea.
+- **LaTeX avanzado con vista previa**: el bloque «LaTeX avanzado» (menú `/`) conserva tu código tal cual y, si contiene tablas (`tabular`, `booktabs`, `\multicolumn`, `\multirow`, `[H]`, pies, notas), las dibuja encima del código con fórmulas en línea. Las macros del panel *Avanzado* (`\newcommand`, `\def`, `\DeclareMathOperator`) funcionan en todas las fórmulas y en esas vistas previas, y las tablas con `\caption` entran en la numeración y se pueden citar con `\ref`.
 - **Notas al pie, referencias cruzadas, citas y bibliografía**, enlaces.
 - **Numeración como en LaTeX** (secciones, ecuaciones, figuras, tablas, teoremas) y **vista de página** con aspecto de documento compilado.
 - **Menú `/`** para insertar bloques escribiendo, atajos de teclado, deshacer/rehacer, arrastrar bloques.
@@ -64,6 +65,7 @@ La página **no compila LaTeX dentro del navegador**. Opciones:
 | `store.js` | Almacenamiento: local o Firebase |
 | `ops.js`, `acciones.js`, `eventos.js` | Estado, deshacer, formato, teclado y arrastre |
 | `bloques-dom.js`, `inline-dom.js`, `numerar.js` | Dibujo de bloques, texto en línea y numeración |
+| `macros.js`, `raw-vista.js` | Macros del preámbulo propio y vista previa del bloque «LaTeX avanzado» |
 | `matematica.js`, `dialogos.js`, `paneles.js`, `codigo.js` | Editor de ecuaciones, ventanas, panel lateral, vista de código |
 | `exportar.js`, `plantillas.js` | Exportaciones y plantillas |
 | `firebase-config.js`, `firestore.rules` | Configuración y reglas de Firebase |
@@ -91,6 +93,7 @@ La segunda necesita `pdflatex`; si a tu instalación le falta algún idioma de b
 ## Límites que conviene conocer
 
 - No hay compilación real a PDF en el navegador (ver arriba). La vista de página es una aproximación.
+- La vista previa del LaTeX avanzado solo dibuja tablas; TikZ, `pgfplots`, algoritmos y demás entornos siguen apareciendo únicamente como código y se ven al compilar. Si un bloque mezcla una tabla con otras cosas, la vista previa muestra solo la tabla.
 - «Abrir en Overleaf» y el modo Firebase se probaron de forma limitada: el primero depende de Overleaf, el segundo requiere tu proyecto de Firebase.
 - Al **importar un `.tex`**, los comentarios al final de una línea (`texto % nota`) se descartan; los comentarios de línea completa se conservan. La `~` (espacio fijo) pasa a ser un espacio normal. Lo que el editor no reconoce se conserva como LaTeX crudo, y los paquetes que ese LaTeX necesita se siguen cargando.
 - Si **editas** en la vista de código, al salir se vuelve a formatear el `.tex`. Si solo lo miras, no se toca nada.
@@ -107,6 +110,13 @@ La segunda necesita `pdflatex`; si a tu instalación le falta algún idioma de b
 - **No aparece la lista de documentos de otra persona**: en modo local cada navegador tiene los suyos; hace falta Firebase para compartir.
 
 ## Cambios
+
+**2026.11.04-c**
+- «LaTeX avanzado» ya se ve: las tablas de un bloque crudo se dibujan encima del código (booktabs, `\multicolumn`, `\multirow`, `\cmidrule`, líneas verticales, `\footnotesize`, `\tabcolsep`, `\arraystretch`, pie, `\ref`, `\cite`, notas con macros). Lo demás sigue mostrándose solo como código.
+- Las macros del panel *Avanzado* (`\newcommand`, `\renewcommand`, `\def`, `\DeclareMathOperator`, con argumentos) se aplican a ecuaciones, fórmulas en línea y vistas previas, y se redibujan al editarlas.
+- Las tablas y figuras con `\caption` dentro de un bloque crudo se numeran como en el PDF (también desplazan a las siguientes) y sus `\label` se pueden citar.
+- Corregido: un bloque con `\begin{table}[H]` no compilaba sin `float`; ahora también se cargan solos `float`, `multirow`, `tabularx` y `longtable` cuando el LaTeX propio los usa.
+- Pruebas nuevas en `tests/raw.test.mjs` y un caso más en `tests/compilar.mjs`.
 
 **2026.11.04-b**
 - La vista de código ya no altera el documento al entrar y salir sin editar (antes podía borrar símbolos del título, convertir símbolos del texto en LaTeX crudo y desactivar la portada).

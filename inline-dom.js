@@ -1,8 +1,13 @@
 // Texto en línea del modelo ⇄ DOM editable (contenteditable).
 
-import { compactar } from './modelo.js?v=2026.11.04-b';
+import { compactar } from './modelo.js?v=2026.11.04-c';
 
 const K = () => (typeof window !== 'undefined' ? window.katex : null);
+
+// Macros del preámbulo propio (\\newcommand…): las usan las fórmulas y las vistas previas.
+let MACROS = {};
+export const setMacros = (m) => { MACROS = m || {}; };
+export const getMacros = () => MACROS;
 
 export function renderMate(el, tex, display = false) {
   const katex = K();
@@ -10,7 +15,7 @@ export function renderMate(el, tex, display = false) {
   if (!tex.trim()) { el.textContent = '▢'; el.classList.add('vacia'); return; }
   el.classList.remove('vacia');
   if (katex) {
-    try { katex.render(tex, el, { throwOnError: false, displayMode: display, output: 'html', strict: 'ignore', trust: false }); return; } catch { /* sigue */ }
+    try { katex.render(tex, el, { throwOnError: false, displayMode: display, output: 'html', strict: 'ignore', trust: false, macros: { ...MACROS } }); return; } catch { /* sigue */ }
   }
   el.textContent = tex;
 }

@@ -4,7 +4,7 @@
 //   · El .tex generado compila con pdfLaTeX en una distribución estándar (TeX Live / MiKTeX / Overleaf).
 //   · Lo que genera esta función lo vuelve a leer latex-parse.js sin perder nada (ida y vuelta estable).
 
-import { TEOREMAS, NIVELES } from './modelo.js?v=2026.11.04-b';
+import { TEOREMAS, NIVELES } from './modelo.js?v=2026.11.04-c';
 
 const ESC = { '\\': '\\textbackslash{}', '&': '\\&', '%': '\\%', '$': '\\$', '#': '\\#', '_': '\\_', '{': '\\{', '}': '\\}', '~': '\\textasciitilde{}', '^': '\\textasciicircum{}', '\u00a0': '~' };
 // Símbolos Unicode que pdfLaTeX no entiende por sí solo: se escriben como comandos de LaTeX.
@@ -67,6 +67,10 @@ const USOS_RAW = [
   [/\\(toprule|midrule|bottomrule|cmidrule|addlinespace)\b/, 'booktabs'],
   [/\\(lstinline|lstinputlisting)\b|\\begin\{lstlisting\}/, 'listings'],
   [/\\(sout|uline|uuline|uwave|xout|dashuline|dotuline)\b/, 'ulem'],
+  [/\\begin\{(table|figure)\*?\}\s*\[[^\]]*H|\\(restylefloat|newfloat|floatstyle)\b/, 'float'],
+  [/\\multirow\b/, 'multirow'],
+  [/\\begin\{tabularx\}/, 'tabularx'],
+  [/\\begin\{longtable\}|\\endhead\b/, 'longtable'],
   [/\\(onehalfspacing|doublespacing|singlespacing|setstretch)\b|\\begin\{(spacing|onehalfspace|doublespace)\}/, 'setspace'],
 ];
 function detectarUsos(tex, ctx) {
@@ -242,7 +246,7 @@ export function generarTex(doc, bloques) {
   // Si el preámbulo propio ya carga el paquete no se repite (con otras opciones daría «Option clash»).
   // listings y setspace se cargan igual cuando hace falta configurarlos antes del preámbulo propio.
   const cargaExtra = (p) => new RegExp(`\\\\usepackage(\\[[^\\]]*\\])?\\{[^}]*\\b${p}\\b`).test(extra);
-  for (const p of ['booktabs', 'ulem']) if (cargaExtra(p)) ctx.usos.delete(p);
+  for (const p of ['booktabs', 'ulem', 'float', 'multirow', 'tabularx', 'longtable']) if (cargaExtra(p)) ctx.usos.delete(p);
   if (cargaExtra('setspace') && cfg.interlineado === 1) ctx.usos.delete('setspace');
 
   const opciones = [`${cfg.fuente}pt`, cfg.papel];
@@ -257,6 +261,7 @@ export function generarTex(doc, bloques) {
   pre.push('\\usepackage{graphicx}');
   if (ctx.usos.has('booktabs')) pre.push('\\usepackage{booktabs}');
   if (ctx.usos.has('ulem')) pre.push('\\usepackage[normalem]{ulem}');
+  for (const p of ['float', 'multirow', 'tabularx', 'longtable']) if (ctx.usos.has(p)) pre.push(`\\usepackage{${p}}`);
   if (cfg.interlineado !== 1 || ctx.usos.has('setspace')) pre.push('\\usepackage{setspace}');
   if (cfg.interlineado !== 1) pre.push(`\\setstretch{${cfg.interlineado}}`);
   if (ctx.usos.has('listings')) {

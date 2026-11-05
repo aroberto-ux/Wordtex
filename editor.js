@@ -1,20 +1,21 @@
 // Vista del editor: une la cinta, la página, el código, el panel lateral y la colaboración.
 
-import { S, E } from './estado.js?v=2026.11.04-b';
-import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.04-b';
-import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.04-b';
-import { rotulos } from './numerar.js?v=2026.11.04-b';
+import { S, E } from './estado.js?v=2026.11.04-c';
+import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.04-c';
+import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.04-c';
+import { rotulos } from './numerar.js?v=2026.11.04-c';
 import {
   bus, limpiarEstado, recibirBloques, guardarPendientes, haySinGuardar, deshacer, rehacer, refrescarDerivados, reconciliar, aplicarCambios,
-} from './ops.js?v=2026.11.04-b';
-import { instalarEventos } from './eventos.js?v=2026.11.04-b';
+  aplicarMacros, redibujarMate,
+} from './ops.js?v=2026.11.04-c';
+import { instalarEventos } from './eventos.js?v=2026.11.04-c';
 import {
   seguirSeleccion, restaurarRango, formato, estadoFormato, alinear, alternarLista, sangria, accionMate, accionNota, accionCita, accionRef,
   accionEnlace, accionSimbolo, accionSaltoLinea, accionTabla, accionFig, accionImagen, menuInsertar, alElegirEstilo, edDe, celdaActual,
-} from './acciones.js?v=2026.11.04-b';
-import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.04-b';
-import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.04-b';
-import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON } from './exportar.js?v=2026.11.04-b';
+} from './acciones.js?v=2026.11.04-c';
+import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.04-c';
+import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.04-c';
+import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON } from './exportar.js?v=2026.11.04-c';
 
 let unsubs = [];
 let listo = false;
@@ -283,13 +284,14 @@ export function entrarEditor(did) {
     if (!d) { aviso('Ese documento no existe o fue eliminado.', 'error', 4000); location.hash = '#documentos'; return; }
     const primera = !S.doc;
     S.doc = d;
+    const macrosNuevas = aplicarMacros(d.extra);
     document.title = (d.titulo || 'Documento') + ' · LaTeX visual';
     if (document.activeElement !== E.titulo) E.titulo.value = d.titulo;
     docRecibido = true;
     aplicarEstiloHoja();
     pintarPanel();
     bus.dispatchEvent(new CustomEvent('doc'));
-    if (primera) { intentarListo(); actualizarCodigo(true); } else if (listo) refrescarDerivados();
+    if (primera) { intentarListo(); actualizarCodigo(true); } else if (listo) { if (macrosNuevas) redibujarMate(); else refrescarDerivados(); }
   }));
   unsubs.push(S.store.suscribirBloques(did, (lista) => {
     ultimaLista = lista;

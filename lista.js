@@ -1,11 +1,11 @@
 // Lista de documentos: crear (con plantillas), importar .tex / .json, renombrar, duplicar, descargar, eliminar.
 
-import { S, E } from './estado.js?v=2026.11.04-b';
-import { h, aviso, pedir, confirmar, abrirMenu, hace, modal, descargar, nombreArchivo } from './ui.js?v=2026.11.04-b';
-import { PLANTILLAS, crearDesdePlantilla } from './plantillas.js?v=2026.11.04-b';
-import { parsearTex } from './latex-parse.js?v=2026.11.04-b';
-import { generarTex } from './latex-gen.js?v=2026.11.04-b';
-import { sanearBloque } from './modelo.js?v=2026.11.04-b';
+import { S, E } from './estado.js?v=2026.11.04-c';
+import { h, aviso, pedir, confirmar, abrirMenu, hace, modal, descargar, nombreArchivo } from './ui.js?v=2026.11.04-c';
+import { PLANTILLAS, crearDesdePlantilla } from './plantillas.js?v=2026.11.04-c';
+import { parsearTex } from './latex-parse.js?v=2026.11.04-c';
+import { generarTex } from './latex-gen.js?v=2026.11.04-c';
+import { sanearBloque } from './modelo.js?v=2026.11.04-c';
 
 let unsub = null;
 let cableado = false;

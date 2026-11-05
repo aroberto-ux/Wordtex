@@ -5,8 +5,8 @@
 
 import {
   cfgPorDefecto, CLASES, IDIOMAS, ALIAS_TEOREMA, compactar, sanearBloque, sanearCfg, sanearBiblio, nuevoId,
-} from './modelo.js?v=2026.11.04-b';
-import { SIMBOLOS, ABSTRACT_BOOK } from './latex-gen.js?v=2026.11.04-b';
+} from './modelo.js?v=2026.11.04-c';
+import { SIMBOLOS, ABSTRACT_BOOK } from './latex-gen.js?v=2026.11.04-c';
 
 // \ensuremath{\alpha} → α (lo contrario de lo que hace latex-gen.js con los símbolos Unicode)
 const SIMBOLO_DE = new Map(Object.entries(SIMBOLOS).map(([u, cmd]) => [cmd, u]));
@@ -548,7 +548,7 @@ export function parsearBloques(cuerpo, ctx = { biblio: [], cfg: {} }) {
 
 // ── Preámbulo ───────────────────────────────────────────────────────────
 
-const PAQUETES_PROPIOS = new Set(['inputenc', 'fontenc', 'lmodern', 'microtype', 'babel', 'amsmath', 'amssymb', 'amsthm', 'amsfonts', 'graphicx', 'booktabs', 'ulem', 'setspace', 'listings', 'hyperref', 'geometry']);
+const PAQUETES_PROPIOS = new Set(['inputenc', 'fontenc', 'lmodern', 'microtype', 'babel', 'amsmath', 'amssymb', 'amsthm', 'amsfonts', 'graphicx', 'booktabs', 'ulem', 'setspace', 'listings', 'hyperref', 'geometry', 'float', 'multirow', 'tabularx', 'longtable']);
 
 /** Salta espacios y tabuladores, pero no el cambio de línea. */
 const saltarEspLinea = (s, i) => { while (i < s.length && (s[i] === ' ' || s[i] === '\t')) i++; return i; };

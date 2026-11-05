@@ -1,7 +1,7 @@
 // Numeración como la haría LaTeX (secciones, ecuaciones, figuras, tablas, teoremas, citas y
 // referencias cruzadas). Se usa para que la vista de página muestre los mismos números que tendrá el PDF.
 
-import { TEOREMAS, textoPlano } from './modelo.js?v=2026.11.04-b';
+import { TEOREMAS, textoPlano } from './modelo.js?v=2026.11.04-c';
 
 export const ROTULOS = {
   spanish: { fig: 'Figura', tab: 'Tabla', resumen: 'Resumen', indice: 'Índice general', refs: 'Referencias', cap: 'Capítulo', teo: 'es' },
@@ -71,6 +71,20 @@ export function numerar(cfg, bloques, biblio = []) {
         info.set(b.id, { num, nombre: `${ro.tab} ${num}` });
         if (b.label) etiquetas.set(b.label, num);
       } else info.set(b.id, { num: '' });
+    } else if (b.t === 'raw') {
+      // \begin{table}…\caption{…} dentro de LaTeX propio: LaTeX también lo numera y se puede citar con \ref
+      const items = [];
+      const src = String(b.tex || '').replace(/(^|[^\\])%.*$/gm, '$1');
+      for (const m of src.matchAll(/\\begin\{(table|figure)\*?\}([\s\S]*?)\\end\{\1\*?\}/g)) {
+        if (!/\\caption(\[[^\]]*\])?\s*\{/.test(m[2])) { items.push({}); continue; }
+        const esTabla = m[1] === 'table';
+        const n = esTabla ? ++tab : ++fig;
+        const num = `${capitulos && c[0] ? c[0] + '.' : ''}${n}`;
+        items.push({ num, nombre: `${esTabla ? ro.tab : ro.fig} ${num}` });
+        const lab = /\\label\{([^}]+)\}/.exec(m[2]);
+        if (lab) etiquetas.set(lab[1], num);
+      }
+      info.set(b.id, { num: (items[0] && items[0].num) || '', nombre: items[0] && items[0].nombre, items });
     } else if (b.t === 'teo') {
       if (b.tipo === 'proof') { info.set(b.id, { num: '', nombre: TEOREMAS.proof[ro.teo] }); continue; }
       teo[b.tipo] = (teo[b.tipo] || 0) + 1;

@@ -1,9 +1,10 @@
 // Cada bloque del modelo ⇄ su representación editable en la página.
 
-import { h } from './ui.js?v=2026.11.04-b';
-import { TEOREMAS, LENGUAJES_COD, textoPlano } from './modelo.js?v=2026.11.04-b';
-import { rellenar, leerInline, renderMate } from './inline-dom.js?v=2026.11.04-b';
-import { rotulos } from './numerar.js?v=2026.11.04-b';
+import { h } from './ui.js?v=2026.11.04-c';
+import { TEOREMAS, LENGUAJES_COD, textoPlano } from './modelo.js?v=2026.11.04-c';
+import { rellenar, leerInline, renderMate, getMacros } from './inline-dom.js?v=2026.11.04-c';
+import { rotulos } from './numerar.js?v=2026.11.04-c';
+import { vistaRaw } from './raw-vista.js?v=2026.11.04-c';
 
 const PH = {
   p: 'Escribe aquí… (pulsa «/» para insertar algo)', h: 'Título', teo: 'Enunciado…', cita: 'Texto de la cita…', resumen: 'Escribe el resumen…',
@@ -114,7 +115,21 @@ export function pintarBloque(b) {
     case 'raw': {
       const ta = h('textarea', { class: 'raw-ta', spellcheck: 'false', rows: 2, 'aria-label': 'Código LaTeX', wrap: 'off' });
       ta.value = b.tex;
-      cuerpo = h('div', { class: 'raw' }, h('div', { class: 'raw-et', contenteditable: 'false' }, 'LaTeX avanzado · se conserva tal cual'), ta);
+      // Vista previa aproximada (tablas, fórmulas, macros del preámbulo). El código de abajo es lo que se exporta.
+      const vista = h('div', { class: 'raw-vista', contenteditable: 'false', title: 'Vista previa aproximada: clic para editar el código' });
+      const caja = h('div', { class: 'raw' });
+      const pintar = () => {
+        const v = vistaRaw(ta.value, getMacros());
+        vista.replaceChildren(...(v ? [v] : []));
+        vista.hidden = !v;
+        caja.classList.toggle('raw-con-vista', !!v);
+      };
+      let tp = null;
+      ta.addEventListener('input', () => { clearTimeout(tp); tp = setTimeout(() => { pintar(); bq.dispatchEvent(new CustomEvent('raw-vista', { bubbles: true })); }, 200); });
+      vista.addEventListener('click', () => ta.focus());
+      pintar();
+      caja.append(h('div', { class: 'raw-et', contenteditable: 'false' }, 'LaTeX avanzado · se conserva tal cual'), vista, ta);
+      cuerpo = caja;
       queueMicrotask(() => autoAlto(ta));
       break;
     }
@@ -156,6 +171,20 @@ export function decorar(raiz, num, cfg) {
     else if (t === 'eq') bq.querySelector('.eq-num').textContent = i.num ? `(${i.num})` : '';
     else if (t === 'tabla' || t === 'fig') { const p = bq.querySelector('.pie'); p.dataset.pref = i.nombre ? `${i.nombre}${p.textContent.trim() ? '. ' : ''}` : ''; }
     else if (t === 'teo') bq.querySelector('.teo-nombre').textContent = i.nombre || '';
+    else if (t === 'raw') {
+      const its = i.items || [];
+      for (const s of bq.querySelectorAll('.rawcap-n')) { const it = its[+s.dataset.k]; s.textContent = it && it.nombre ? `${it.nombre}. ` : ''; }
+      for (const e of bq.querySelectorAll('.rv-ref')) {
+        const v = num.etiquetas.get(e.dataset.ref);
+        e.textContent = v ? (e.dataset.eq ? `(${v})` : v) : '?';
+        e.classList.toggle('rota', !v);
+      }
+      for (const e of bq.querySelectorAll('.rv-cita')) {
+        const n = (e.dataset.cita || '').split(',').map((x) => num.citas.get(x.trim()) || '?');
+        e.textContent = `[${n.join(', ')}]`;
+        e.classList.toggle('rota', n.includes('?'));
+      }
+    }
     else if (t === 'resumen') bq.querySelector('.resumen-t').textContent = ro.resumen;
     else if (t === 'toc') {
       bq.querySelector('.toc-t').textContent = ro.indice;

@@ -1,18 +1,18 @@
 // Teclado, pegado, clics y arrastre dentro de la página de edición.
 
-import { S, E } from './estado.js?v=2026.11.04-b';
-import { abrirMenu, aviso } from './ui.js?v=2026.11.04-b';
-import { nuevoId, bloqueNuevo, urlSegura } from './modelo.js?v=2026.11.04-b';
-import { leerInline } from './inline-dom.js?v=2026.11.04-b';
-import { autoAlto, marcarLista } from './bloques-dom.js?v=2026.11.04-b';
+import { S, E } from './estado.js?v=2026.11.04-c';
+import { abrirMenu, aviso } from './ui.js?v=2026.11.04-c';
+import { nuevoId, bloqueNuevo, urlSegura } from './modelo.js?v=2026.11.04-c';
+import { leerInline } from './inline-dom.js?v=2026.11.04-c';
+import { autoAlto, marcarLista } from './bloques-dom.js?v=2026.11.04-c';
 import {
   mapa, bloqueDe, indiceDe, editablesDe, colocarCursor, marcarSucio, guardarPendientes, editarLista, modificar, reconciliar, enfocar,
-  dividirBloque, fusionarConAnterior, eliminarBloque, moverBloqueA, deshacer, rehacer, insertarBloque, convertirBloque,
-} from './ops.js?v=2026.11.04-b';
+  dividirBloque, fusionarConAnterior, refrescarDerivados, eliminarBloque, moverBloqueA, deshacer, rehacer, insertarBloque, convertirBloque,
+} from './ops.js?v=2026.11.04-c';
 import {
   edDe, menuBloque, accionEq, accionImagen, editarExistente, celdaVecina, accionTabla, itemsInsertar, cambiarNivelItem, crearFiguraDesde,
   accionEnlace, formato,
-} from './acciones.js?v=2026.11.04-b';
+} from './acciones.js?v=2026.11.04-c';
 
 const FILA_DE = (ed) => ed.closest('.bq');
 
@@ -347,6 +347,7 @@ export function instalarEventos() {
   r.addEventListener('click', alClic);
   r.addEventListener('input', alEscribir);
   r.addEventListener('change', alCambiar);
+  r.addEventListener('raw-vista', () => refrescarDerivados());
   r.addEventListener('focusin', alEntrar);
   r.addEventListener('focusout', alSalir);
   // clic en el espacio vacío bajo el último bloque: enfocar el final

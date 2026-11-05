@@ -360,6 +360,23 @@ table.tabx .ed.celda { min-height: 1.3em; white-space: pre-wrap; }
 .raw { border: 1px dashed #b49be0; border-radius: 6px; background: #faf7ff; font-family: system-ui, sans-serif; }
 .raw-et { padding: 3px 10px; font-size: 11px; color: #6d46b8; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px dashed #d9ccf2; }
 .raw-ta { color: #3a2570; }
+/* Vista previa del LaTeX avanzado (tablas, fórmulas en línea, macros) */
+.raw-vista { padding: 10px 14px; background: #fff; color: #111; font-family: "Latin Modern Roman", "CMU Serif", "Times New Roman", serif; border-bottom: 1px dashed #d9ccf2; cursor: text; overflow-x: auto; }
+.raw-vista[hidden] { display: none; }
+.raw-con-vista .raw-ta { font-size: 12px; max-height: 14em; overflow-y: auto; border-top: 0; }
+.rawfig { margin: 0 0 10px; }
+.rawfig:last-child { margin-bottom: 0; }
+.rawfig-c { text-align: center; }
+.rawcap { text-align: center; font-size: .95em; margin: 4px 0 8px; }
+.rawcap-n { font-weight: 700; }
+.rawtab-sc { overflow-x: auto; }
+.rawtab { border-collapse: collapse; margin: 0 auto; font-size: inherit; }
+.rawtab td { padding: calc(var(--str, 1) * .16em) var(--tcs, 6pt); line-height: 1.25; vertical-align: middle; }
+.rawtab td.rt-gruesa { border-top: 1.6px solid #000; } .rawtab td.rt-fina { border-top: .8px solid #000; }
+.rawtab td.rb-gruesa { border-bottom: 1.6px solid #000; } .rawtab td.rb-fina { border-bottom: .8px solid #000; }
+.rawtab td.rv-bl { border-left: .8px solid #000; } .rawtab td.rv-br { border-right: .8px solid #000; }
+.rawnota { text-align: justify; margin-top: 6px; font-size: .9em; }
+.rv-ref.rota, .rv-cita.rota { color: #c0392b; }
 
 /* ── Menús y diálogos ─────────────────────────────────────────────── */
 .menu { position: fixed; z-index: 90; min-width: 200px; max-height: 80vh; overflow: auto; padding: 5px; background: var(--sup); border: 1px solid var(--borde); border-radius: 10px; box-shadow: var(--sombra); }
@@ -433,5 +450,7 @@ table.tabx .ed.celda { min-height: 1.3em; white-space: pre-wrap; }
   body.imprimiendo .i-mate:hover, body.imprimiendo .eq-vista:hover { background: none; }
   body.imprimiendo .raw { border: 0; background: none; }
   body.imprimiendo .raw-et { display: none; }
+  body.imprimiendo .raw-con-vista .raw-ta { display: none; }
+  body.imprimiendo .raw-vista { border: 0; padding: 0; overflow: visible; }
   body.imprimiendo .cod-cab { display: none; }
 }

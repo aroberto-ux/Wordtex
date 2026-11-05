@@ -2,8 +2,8 @@
 // El «‸» de cada plantilla marca dónde queda el cursor (no se usa «|» porque es un símbolo real: |x|, ‖x‖).
 const CURSOR = '‸';
 
-import { h, modal } from './ui.js?v=2026.11.04-b';
-import { renderMate } from './inline-dom.js?v=2026.11.04-b';
+import { h, modal } from './ui.js?v=2026.11.04-c';
+import { renderMate } from './inline-dom.js?v=2026.11.04-c';
 
 const G = (...l) => l.map((x) => [x[0], x[1] || x[0]]);
 const griegas = [

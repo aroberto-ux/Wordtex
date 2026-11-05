@@ -1,17 +1,17 @@
 // Acciones de la cinta y de los bloques: formato, inserciones en el texto, tablas, figuras, menús.
 
-import { S, E } from './estado.js?v=2026.11.04-b';
-import { h, abrirMenu, aviso } from './ui.js?v=2026.11.04-b';
-import { nuevoId } from './modelo.js?v=2026.11.04-b';
-import { nodoInline, renderMate, leerInline, rellenar } from './inline-dom.js?v=2026.11.04-b';
-import { editarMate } from './matematica.js?v=2026.11.04-b';
-import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.04-b';
-import { etiquetaNueva } from './numerar.js?v=2026.11.04-b';
-import { procesarImagen, marcarLista } from './bloques-dom.js?v=2026.11.04-b';
+import { S, E } from './estado.js?v=2026.11.04-c';
+import { h, abrirMenu, aviso } from './ui.js?v=2026.11.04-c';
+import { nuevoId } from './modelo.js?v=2026.11.04-c';
+import { nodoInline, renderMate, leerInline, rellenar } from './inline-dom.js?v=2026.11.04-c';
+import { editarMate } from './matematica.js?v=2026.11.04-c';
+import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.04-c';
+import { etiquetaNueva } from './numerar.js?v=2026.11.04-c';
+import { procesarImagen, marcarLista } from './bloques-dom.js?v=2026.11.04-c';
 import {
   mapa, bloqueDe, modificar, insertarBloque, eliminarBloque, duplicarBloque, moverBloque, convertirBloque, editarLista,
   guardarPendientes, marcarSucio, numeracion, refrescarDerivados, enfocar, aplicarCambios,
-} from './ops.js?v=2026.11.04-b';
+} from './ops.js?v=2026.11.04-c';
 
 // ── Selección ───────────────────────────────────────────────────────────
 

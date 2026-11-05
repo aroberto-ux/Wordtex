@@ -1,9 +1,9 @@
 // Panel lateral: esquema, ajustes del documento, bibliografía y preámbulo propio.
 
-import { S, E } from './estado.js?v=2026.11.04-b';
-import { h, aviso, confirmar } from './ui.js?v=2026.11.04-b';
-import { CLASES, TAMANOS, PAPELES, IDIOMAS, textoPlano } from './modelo.js?v=2026.11.04-b';
-import { numeracion, bus, mapa, enfocar } from './ops.js?v=2026.11.04-b';
+import { S, E } from './estado.js?v=2026.11.04-c';
+import { h, aviso, confirmar } from './ui.js?v=2026.11.04-c';
+import { CLASES, TAMANOS, PAPELES, IDIOMAS, textoPlano } from './modelo.js?v=2026.11.04-c';
+import { numeracion, bus, mapa, enfocar, aplicarMacros, redibujarMate } from './ops.js?v=2026.11.04-c';
 
 const PESTANAS = [['esquema', 'Esquema'], ['doc', 'Documento'], ['bib', 'Referencias'], ['avanzado', 'Avanzado'], ['ayuda', 'Ayuda']];
 let activa = 'esquema';
@@ -100,9 +100,9 @@ function avanzado() {
   const ta = h('textarea', { class: 'mono', rows: 12, spellcheck: 'false', 'aria-label': 'Preámbulo propio', placeholder: '\\usepackage{tikz}\n\\newcommand{\\R}{\\mathbb{R}}' });
   ta.value = S.doc.extra || '';
   let t = null;
-  ta.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { S.doc.extra = ta.value; S.store.actualizarDocumento(S.did, { extra: ta.value }); bus.dispatchEvent(new CustomEvent('doc')); }, 600); });
+  ta.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { S.doc.extra = ta.value; S.store.actualizarDocumento(S.did, { extra: ta.value }); if (aplicarMacros(ta.value)) redibujarMate(); bus.dispatchEvent(new CustomEvent('doc')); }, 600); });
   return h('div', {},
-    h('p', { class: 'vacio-panel' }, 'Paquetes y macros de LaTeX propios (por ejemplo \\usepackage{tikz}). Se copian tal cual antes de «\\begin{document}». Solo hace falta si ya sabes LaTeX.'),
+    h('p', { class: 'vacio-panel' }, 'Paquetes y macros de LaTeX propios (por ejemplo \\usepackage{tikz} o \\newcommand{\\R}{\\mathbb{R}}). Se copian tal cual antes de «\\begin{document}». Las macros con \\newcommand también se usan en las fórmulas y en las vistas previas de la página. Solo hace falta si ya sabes LaTeX.'),
     ta);
 }
 
