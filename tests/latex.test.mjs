@@ -1,0 +1,150 @@
+// Pruebas del núcleo (modelo ⇄ LaTeX). Se ejecutan con:  node --test tests/
+// No necesitan navegador ni dependencias.
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { generarTex } from '../latex-gen.js';
+import { parsearTex } from '../latex-parse.js';
+import { cfgPorDefecto, bloqueNuevo, sanearCfg, urlSegura } from '../modelo.js';
+import { PLANTILLAS, crearDesdePlantilla } from '../plantillas.js';
+import { diffBloques } from '../sync.js';
+import { numerar } from '../numerar.js';
+import { PALETA } from '../matematica.js';
+
+const sinId = (bs) => bs.map(({ id, orden, ...r }) => r);
+const doc = (bloques, cfg = {}) => ({ cfg: { ...cfgPorDefecto(), ...cfg }, biblio: [], extra: '', bloques });
+const tex = (d) => generarTex(d, d.bloques).tex;
+const idaYVuelta = (d) => parsearTex(tex(d));
+
+test('cada plantilla sobrevive a la ida y vuelta sin cambios', () => {
+  for (const p of PLANTILLAS) {
+    const d = crearDesdePlantilla(p.id, 'X');
+    const m = parsearTex(tex(d));
+    if (d.bloques.length === 1 && !d.bloques[0].c?.length) assert.equal(m.bloques.length, 0, p.id);
+    else assert.deepEqual(sinId(m.bloques), sinId(d.bloques), p.id);
+    assert.deepEqual(m.cfg, d.cfg, p.id);
+    assert.equal(m.extra, d.extra, p.id);
+    assert.equal(generarTex(m, m.bloques).tex, tex(d), p.id);
+  }
+});
+
+test('los símbolos Unicode vuelven a ser símbolos (texto, título, autor, bibliografía)', () => {
+  const texto = 'α ≤ β · 30° √2 − 1 ∞';
+  const d = doc([{ t: 'p', c: [{ s: texto }], al: 'j' }], { titulo: 'Ondas α y β', autor: 'Ana · Luis' });
+  d.biblio = [{ key: 'k', texto: 'Δ de ε' }];
+  const m = idaYVuelta(d);
+  assert.deepEqual(m.bloques[0].c, [{ s: texto }]);
+  assert.equal(m.cfg.titulo, 'Ondas α y β');
+  assert.equal(m.cfg.autor, 'Ana · Luis');
+  assert.equal(m.biblio[0].texto, 'Δ de ε');
+});
+
+test('sin título no se desactiva la portada', () => {
+  assert.equal(idaYVuelta(doc([{ t: 'p', c: [{ s: 'a' }], al: 'j' }])).cfg.mostrarTitulo, true);
+  assert.equal(idaYVuelta(doc([], { titulo: 'T', mostrarTitulo: false })).cfg.mostrarTitulo, false);
+});
+
+test('los comentarios al final de línea no pasan al texto', () => {
+  const m = parsearTex('\\begin{document}\n\\section{Uno} % c\n\\begin{itemize}\n\\item a % c\n\\end{itemize}\n\\begin{tabular}{l}\nx % c\n\\end{tabular}\n\\end{document}');
+  assert.deepEqual(m.bloques[0].c, [{ s: 'Uno' }]);
+  assert.deepEqual(m.bloques[1].items[0].c, [{ s: 'a' }]);
+  assert.deepEqual(m.bloques[2].filas[0][0], [{ s: 'x' }]);
+});
+
+test('\\newtheorem con contador compartido no deja texto suelto en el preámbulo', () => {
+  const m = parsearTex('\\documentclass{article}\n\\newtheorem{theorem}{Teorema}\n\\newtheorem{lemma}[theorem]{Lema}\n\\newtheorem{conj}{Conjetura}[section]\n\\begin{document}\nx\n\\end{document}');
+  assert.equal(m.extra, '\\newtheorem{conj}{Conjetura}[section]');
+});
+
+test('los comandos desconocidos del preámbulo se conservan en una sola pieza', () => {
+  const m = parsearTex('\\documentclass{article}\n\\definecolor{azul}{RGB}{0,0,200}\n\\begin{document}\nx\n\\end{document}');
+  assert.equal(m.extra, '\\definecolor{azul}{RGB}{0,0,200}');
+});
+
+test('los paquetes que necesita el LaTeX crudo se vuelven a cargar', () => {
+  const m = parsearTex('\\documentclass{article}\n\\usepackage{booktabs}\n\\usepackage{listings}\n\\begin{document}\n\\begin{tabular}{lc}\\toprule \\multicolumn{2}{c}{X}\\\\ \\bottomrule\\end{tabular}\n\nUsa \\lstinline|x| aquí.\n\\end{document}');
+  const t = generarTex(m, m.bloques).tex;
+  assert.match(t, /\\usepackage\{booktabs\}/);
+  assert.match(t, /\\usepackage\{listings\}/);
+});
+
+test('un paquete del preámbulo propio no se carga dos veces', () => {
+  const d = doc([{ t: 'raw', tex: '\\toprule' }]); d.extra = '\\usepackage{booktabs}';
+  assert.equal(tex(d).match(/\\usepackage\{booktabs\}/g).length, 1);
+});
+
+test('book con resumen define el entorno abstract y la ida y vuelta no lo duplica', () => {
+  const d = doc([{ t: 'resumen', c: [{ s: 'r' }] }], { clase: 'book' });
+  const t1 = tex(d);
+  assert.match(t1, /\\newenvironment\{abstract\}/);
+  const m = parsearTex(t1);
+  assert.equal(m.extra, '');
+  assert.equal(generarTex(m, m.bloques).tex, t1);
+  assert.doesNotMatch(tex(doc([{ t: 'resumen', c: [] }], { clase: 'report' })), /newenvironment/);
+});
+
+test('figura sin imagen: recuadro que compila y vuelve a ser figura', () => {
+  const d = doc([{ ...bloqueNuevo('fig'), ancho: 50, pie: [{ s: 'P' }], label: 'fig:a' }]);
+  const t = tex(d);
+  assert.doesNotMatch(t, /includegraphics/);
+  assert.deepEqual(sinId(parsearTex(t).bloques), sinId(d.bloques));
+});
+
+test('dos figuras con el mismo nombre de archivo conservan su imagen', () => {
+  const f = (src) => ({ t: 'fig', src, nombre: 'imagen.png', ancho: 70, pie: [], label: '' });
+  const viejos = [{ id: 'a', orden: 1, ...f('data:image/png;base64,AAAA') }, { id: 'b', orden: 2, ...f('data:image/png;base64,BBBB') }];
+  const { imagenes } = generarTex(doc([]), viejos);
+  assert.deepEqual(imagenes.map((i) => i.nombre), ['imagen.png', 'imagen-2.png']);
+  const d = diffBloques(viejos, parsearTex(generarTex(doc([]), viejos).tex).bloques);
+  assert.deepEqual(d.final.map((b) => b.src.slice(-4)), ['AAAA', 'BBBB']);
+});
+
+test('saltos de línea: nunca al inicio de un párrafo y sin romper filas de tablas', () => {
+  assert.doesNotMatch(tex(doc([{ t: 'p', c: [{ br: 1 }, { s: 'x' }, { br: 1 }], al: 'j' }])), /\\\\ x|x\\\\/);
+  const tabla = { t: 'tabla', filas: [[[{ s: 'a' }, { br: 1 }, { s: 'b' }], [{ s: 'c' }]], [[{ s: 'd' }], []]], enc: true, al: ['l', 'c'], borde: 'completo', pie: [], label: '' };
+  assert.deepEqual(sinId(idaYVuelta(doc([tabla])).bloques), [tabla]);
+});
+
+test('\\verb, \\noindent y \\end{lstlisting} dentro del código', () => {
+  const m = parsearTex('\\begin{document}\n\\noindent El valor \\verb|a_b%| es\nlargo.\n\\end{document}');
+  assert.equal(m.bloques.length, 1);
+  assert.deepEqual(m.bloques[0].c.filter((n) => n.raw).map((n) => n.raw), ['\\noindent', '\\verb|a_b%|']);
+  const cod = { t: 'cod', lang: 'TeX', src: '\\begin{lstlisting}\nx\n\\end{lstlisting}', num: false };
+  assert.deepEqual(sinId(idaYVuelta(doc([cod])).bloques), [cod]);
+});
+
+test('metadatos del PDF sin caracteres que rompan la compilación', () => {
+  const t = tex(doc([], { titulo: 'Ondas α & β_1', autor: 'José' }));
+  assert.match(t, /\\hypersetup\{pdftitle=\{Ondas β?1?.*\}, pdfauthor=\{José\}\}/);
+  assert.doesNotMatch(t.match(/\\hypersetup.*/)[0], /[α&_]/);
+});
+
+test('los márgenes del panel (0,5 a 6 cm) se respetan', () => {
+  assert.equal(sanearCfg({ margen: 0.5 }).margen, 0.5);
+  assert.equal(sanearCfg({ margen: 6 }).margen, 6);
+});
+
+test('enlaces: se descartan los esquemas peligrosos', () => {
+  assert.equal(urlSegura('javascript:alert(1)'), '');
+  assert.equal(urlSegura('https://a.org'), 'https://a.org');
+  assert.equal(urlSegura('mailto:a@b.co'), 'mailto:a@b.co');
+  const m = parsearTex('\\begin{document}\n\\href{javascript:alert(1)}{clic}\n\\end{document}');
+  assert.equal(m.bloques[0].c[0].url, '');
+  assert.equal(generarTex(m, m.bloques).tex.includes('\\href'), false);
+});
+
+test('numeración igual que en LaTeX: figuras y tablas solo con pie; align sin \\nonumber', () => {
+  const bl = [
+    { id: '1', t: 'fig', pie: [] }, { id: '2', t: 'fig', pie: [{ s: 'p' }] },
+    { id: '3', t: 'tabla', pie: [], label: 'tab:x' }, { id: '4', t: 'tabla', pie: [{ s: 'p' }] },
+    { id: '5', t: 'eq', env: 'align', num: true, tex: 'a \\\\ b \\nonumber \\\\ c' },
+  ];
+  const n = numerar(cfgPorDefecto(), bl);
+  assert.deepEqual(['1', '2', '3', '4', '5'].map((k) => n.info.get(k).num), ['', '1', '', '1', '1–2']);
+});
+
+test('paleta de fórmulas: cada plantilla tiene como mucho un marcador de cursor', () => {
+  for (const [, items] of PALETA) for (const [, snip] of items) assert.ok(snip.split('‸').length <= 2, snip);
+  const abs = PALETA[0][1].find((x) => x[2] === 'Valor absoluto')[1];
+  assert.equal(abs.replace('‸', 'x'), '\\left| x \\right|');
+});
