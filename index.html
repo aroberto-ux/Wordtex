@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LaTeX visual</title>
+  <meta name="app-version" content="2026.11.04-a">
+  <meta name="description" content="Edita documentos LaTeX como en un procesador de texto, sin saber LaTeX.">
+  <link rel="stylesheet" href="vendor/katex/katex.min.css?v=2026.11.04-a">
+  <link rel="stylesheet" href="styles.css?v=2026.11.04-a">
+  <script defer src="vendor/katex/katex.min.js?v=2026.11.04-a"></script>
+  <script type="module" src="app.js?v=2026.11.04-a"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-al-j" viewBox="0 0 16 16"><path d="M2 3h12M2 6.3h12M2 9.7h12M2 13h12" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-al-l" viewBox="0 0 16 16"><path d="M2 3h12M2 6.3h8M2 9.7h12M2 13h8" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-al-c" viewBox="0 0 16 16"><path d="M2 3h12M4 6.3h8M2 9.7h12M4 13h8" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-al-r" viewBox="0 0 16 16"><path d="M2 3h12M6 6.3h8M2 9.7h12M6 13h8" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-ul" viewBox="0 0 16 16"><path d="M6 3.5h8M6 8h8M6 12.5h8" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><circle cx="2.7" cy="3.5" r="1.1" fill="currentColor"/><circle cx="2.7" cy="8" r="1.1" fill="currentColor"/><circle cx="2.7" cy="12.5" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-ol" viewBox="0 0 16 16"><path d="M6.5 3.5h7.5M6.5 8h7.5M6.5 12.5h7.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><text x="1" y="5.2" font-size="4.6" fill="currentColor" font-family="sans-serif">1</text><text x="1" y="9.7" font-size="4.6" fill="currentColor" font-family="sans-serif">2</text><text x="1" y="14.2" font-size="4.6" fill="currentColor" font-family="sans-serif">3</text></symbol>
+    <symbol id="i-in" viewBox="0 0 16 16"><path d="M2 3h12M7 6.5h7M7 10h7M2 13.5h12M2 6l3 2.2L2 10.4z" stroke="currentColor" stroke-width="1.4" fill="currentColor" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-out" viewBox="0 0 16 16"><path d="M2 3h12M7 6.5h7M7 10h7M2 13.5h12M5 6L2 8.2 5 10.4z" stroke="currentColor" stroke-width="1.4" fill="currentColor" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<div id="banner-local" class="banner" hidden>
+  <span>Modo local: los cambios se guardan solo en este navegador. Configura Firebase (ver README) para editar entre varias personas.</span>
+  <button class="btn-icono" id="banner-cerrar" aria-label="Cerrar aviso">×</button>
+</div>
+
+<!-- Inicio de sesión (solo si autenticacion = 'google') -->
+<main id="vista-login" class="centrado" hidden>
+  <div class="tarjeta-login">
+    <h1>LaTeX visual</h1>
+    <p>Inicia sesión para ver y editar los documentos compartidos.</p>
+    <button class="btn primario grande" id="btn-google">Continuar con Google</button>
+  </div>
+</main>
+
+<!-- Lista -->
+<main id="vista-lista" hidden>
+  <header class="lista-top">
+    <div>
+      <h1 id="lista-titulo">Documentos LaTeX</h1>
+      <p class="sub">Escribe documentos científicos como en Word. LaTeX se genera solo.</p>
+    </div>
+    <div class="lista-acciones">
+      <button class="btn" id="btn-importar" title="Abre un .tex o una copia .json">Importar .tex / .json</button>
+      <button class="btn primario" id="btn-nueva">＋ Nuevo documento</button>
+    </div>
+  </header>
+  <p id="lista-vacia" class="vacio" hidden>Todavía no hay documentos. Crea el primero con «Nuevo documento» y elige una plantilla.</p>
+  <section id="rejilla" class="rejilla" aria-live="polite"></section>
+  <input type="file" id="input-importar" accept=".tex,.json,application/json,text/plain,application/x-tex" hidden>
+  <p class="version" id="version" title="Versión de la página (útil si algo falla)"></p>
+</main>
+
+<!-- Editor -->
+<div id="vista-editor" hidden>
+  <header class="ed-top">
+    <button class="btn-icono" id="btn-volver" aria-label="Volver a la lista" title="Volver a la lista">←</button>
+    <input id="ed-titulo" class="ed-titulo" type="text" maxlength="160" aria-label="Nombre del documento" spellcheck="false">
+    <span id="ed-estado" class="ed-estado" role="status"></span>
+    <span class="espacio"></span>
+    <div id="ed-presencia" class="presencia" aria-label="Personas conectadas"></div>
+    <div class="seg" role="group" aria-label="Vista">
+      <button data-vista="visual" aria-pressed="true" title="Solo la página">Página</button>
+      <button data-vista="dividida" aria-pressed="false" title="Página y código LaTeX lado a lado">Dividida</button>
+      <button data-vista="codigo" aria-pressed="false" title="Solo el código LaTeX">Código</button>
+    </div>
+    <button class="btn-icono" id="btn-panel" aria-label="Panel lateral" aria-pressed="true" title="Mostrar u ocultar el panel lateral">☰</button>
+    <button class="btn" id="btn-compartir">Compartir</button>
+    <button class="btn primario" id="btn-exportar">Exportar ▾</button>
+  </header>
+
+  <div id="cinta" class="cinta" role="toolbar" aria-label="Herramientas de edición">
+    <div class="cinta-fila">
+      <div class="grupo">
+        <button class="tb" id="btn-deshacer" data-cmd="deshacer" title="Deshacer (Ctrl+Z)" aria-label="Deshacer">↶</button>
+        <button class="tb" id="btn-rehacer" data-cmd="rehacer" title="Rehacer (Ctrl+Y)" aria-label="Rehacer">↷</button>
+      </div>
+      <div class="grupo">
+        <select id="sel-estilo" class="sel-estilo" aria-label="Estilo del párrafo" title="Estilo del párrafo">
+          <option value="">—</option>
+          <option value="p">Texto normal</option>
+          <option value="h0" hidden>Capítulo</option>
+          <option value="h1">Sección</option>
+          <option value="h2">Subsección</option>
+          <option value="h3">Subsubsección</option>
+          <optgroup label="Matemáticas">
+            <option value="teo:theorem">Teorema</option>
+            <option value="teo:lemma">Lema</option>
+            <option value="teo:proposition">Proposición</option>
+            <option value="teo:corollary">Corolario</option>
+            <option value="teo:definition">Definición</option>
+            <option value="teo:example">Ejemplo</option>
+            <option value="teo:remark">Observación</option>
+            <option value="teo:proof">Demostración</option>
+          </optgroup>
+          <optgroup label="Otros">
+            <option value="cita">Cita en bloque</option>
+            <option value="resumen">Resumen</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="grupo">
+        <button class="tb" data-cmd="b" title="Negrita (Ctrl+B)" aria-label="Negrita" aria-pressed="false"><b>B</b></button>
+        <button class="tb" data-cmd="i" title="Cursiva (Ctrl+I)" aria-label="Cursiva" aria-pressed="false"><i>I</i></button>
+        <button class="tb" data-cmd="u" title="Subrayado (Ctrl+U)" aria-label="Subrayado" aria-pressed="false"><u>U</u></button>
+        <button class="tb" data-cmd="st" title="Tachado" aria-label="Tachado" aria-pressed="false"><s>S</s></button>
+        <button class="tb" data-cmd="c" title="Código en línea (Ctrl+E)" aria-label="Código en línea" aria-pressed="false"><code>{ }</code></button>
+        <button class="tb" data-cmd="sub" title="Subíndice" aria-label="Subíndice" aria-pressed="false">x<sub>2</sub></button>
+        <button class="tb" data-cmd="sup" title="Superíndice" aria-label="Superíndice" aria-pressed="false">x<sup>2</sup></button>
+      </div>
+      <div class="grupo">
+        <button class="tb" data-cmd="al-l" title="Alinear a la izquierda" aria-label="Alinear a la izquierda" aria-pressed="false"><svg width="16" height="16"><use href="#i-al-l"/></svg></button>
+        <button class="tb" data-cmd="al-c" title="Centrar" aria-label="Centrar" aria-pressed="false"><svg width="16" height="16"><use href="#i-al-c"/></svg></button>
+        <button class="tb" data-cmd="al-r" title="Alinear a la derecha" aria-label="Alinear a la derecha" aria-pressed="false"><svg width="16" height="16"><use href="#i-al-r"/></svg></button>
+        <button class="tb" data-cmd="al-j" title="Justificar" aria-label="Justificar" aria-pressed="false"><svg width="16" height="16"><use href="#i-al-j"/></svg></button>
+      </div>
+      <div class="grupo">
+        <button class="tb" data-cmd="ul" title="Lista con viñetas" aria-label="Lista con viñetas" aria-pressed="false"><svg width="16" height="16"><use href="#i-ul"/></svg></button>
+        <button class="tb" data-cmd="ol" title="Lista numerada" aria-label="Lista numerada" aria-pressed="false"><svg width="16" height="16"><use href="#i-ol"/></svg></button>
+        <button class="tb" data-cmd="outdent" title="Reducir sangría (Mayús+Tab)" aria-label="Reducir sangría"><svg width="16" height="16"><use href="#i-out"/></svg></button>
+        <button class="tb" data-cmd="indent" title="Aumentar sangría (Tab)" aria-label="Aumentar sangría"><svg width="16" height="16"><use href="#i-in"/></svg></button>
+      </div>
+      <div class="grupo">
+        <button class="tb txt" data-cmd="insertar" title="Insertar ecuación, tabla, imagen, teorema…">＋ Insertar ▾</button>
+        <button class="tb txt" data-cmd="mate" title="Fórmula dentro del texto">∑ Fórmula</button>
+        <button class="tb txt" data-cmd="simbolo" title="Insertar un símbolo">Ω</button>
+        <button class="tb txt" data-cmd="enlace" title="Enlace (Ctrl+K)">Enlace</button>
+        <button class="tb txt" data-cmd="nota" title="Nota al pie">Nota</button>
+        <button class="tb txt" data-cmd="cita" title="Citar una referencia bibliográfica">Cita</button>
+        <button class="tb txt" data-cmd="ref" title="Referencia cruzada a una sección, figura, tabla o ecuación">Referencia</button>
+      </div>
+    </div>
+    <div class="cinta-fila ctx" id="cinta-tabla" hidden>
+      <span class="ctx-et">Tabla</span>
+      <div class="grupo">
+        <button class="tb txt" data-cmd="tb-fila-" title="Insertar fila arriba">＋ Fila arriba</button>
+        <button class="tb txt" data-cmd="tb-fila+" title="Insertar fila abajo">＋ Fila abajo</button>
+        <button class="tb txt" data-cmd="tb-borrar-fila" title="Eliminar la fila">✕ Fila</button>
+      </div>
+      <div class="grupo">
+        <button class="tb txt" data-cmd="tb-col-" title="Insertar columna a la izquierda">＋ Col. izq.</button>
+        <button class="tb txt" data-cmd="tb-col+" title="Insertar columna a la derecha">＋ Col. der.</button>
+        <button class="tb txt" data-cmd="tb-borrar-col" title="Eliminar la columna">✕ Columna</button>
+      </div>
+      <div class="grupo">
+        <button class="tb" data-cmd="tb-al-l" title="Columna alineada a la izquierda" aria-label="Columna a la izquierda"><svg width="16" height="16"><use href="#i-al-l"/></svg></button>
+        <button class="tb" data-cmd="tb-al-c" title="Columna centrada" aria-label="Columna centrada"><svg width="16" height="16"><use href="#i-al-c"/></svg></button>
+        <button class="tb" data-cmd="tb-al-r" title="Columna a la derecha" aria-label="Columna a la derecha"><svg width="16" height="16"><use href="#i-al-r"/></svg></button>
+      </div>
+      <div class="grupo">
+        <select id="tb-borde" aria-label="Bordes de la tabla" title="Bordes">
+          <option value="completo">Todos los bordes</option>
+          <option value="horizontal">Solo líneas horizontales</option>
+          <option value="ninguno">Sin bordes</option>
+        </select>
+        <button class="tb txt" data-cmd="tb-enc" aria-pressed="false" title="La primera fila es un encabezado en negrita">Encabezado</button>
+      </div>
+    </div>
+    <div class="cinta-fila ctx" id="cinta-fig" hidden>
+      <span class="ctx-et">Imagen</span>
+      <div class="grupo">
+        <button class="tb txt" data-cmd="fig-cambiar">Cambiar imagen…</button>
+        <label class="rango">Ancho <input type="range" id="fig-ancho" min="10" max="100" step="5" value="70" aria-label="Ancho de la imagen"> <span id="fig-ancho-val">70%</span></label>
+        <button class="tb txt" data-cmd="fig-quitar">Quitar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ed-cuerpo" class="ed-cuerpo vista-visual">
+    <section id="zona-visual" aria-label="Documento">
+      <div id="hoja" class="hoja">
+        <div id="portada" class="portada">
+          <h1 id="p-titulo" class="p-titulo" contenteditable="true" role="textbox" aria-label="Título del documento" spellcheck="true"></h1>
+          <p id="p-autor" class="p-autor" contenteditable="true" role="textbox" aria-label="Autor" spellcheck="false"></p>
+          <p id="p-fecha" class="p-fecha" role="button" tabindex="0"></p>
+        </div>
+        <div id="bloques" class="bloques"></div>
+        <div id="hoja-relleno" class="hoja-relleno"></div>
+      </div>
+    </section>
+    <div id="divisor" class="divisor" role="separator" aria-orientation="vertical" aria-label="Cambiar el ancho del código" tabindex="0"></div>
+    <section id="zona-codigo" class="zona-codigo" aria-label="Código LaTeX">
+      <div class="codigo-cab"><b>Código LaTeX</b><span>Puedes editarlo: los cambios pasan a la página.</span></div>
+      <div class="codigo-caja">
+        <pre id="codigo-gutter" class="codigo-gutter" aria-hidden="true"></pre>
+        <textarea id="codigo-ta" class="codigo-ta" wrap="off" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Código LaTeX del documento"></textarea>
+      </div>
+      <div id="codigo-avisos" class="codigo-avisos" hidden></div>
+    </section>
+    <aside id="panel" class="panel" aria-label="Panel lateral">
+      <div id="panel-tabs" class="panel-tabs" role="tablist"></div>
+      <div id="panel-cuerpo" class="panel-cuerpo"></div>
+    </aside>
+  </div>
+</div>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+</body>
+</html>

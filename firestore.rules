@@ -1,0 +1,67 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────
+//  Reglas de Firestore para LaTeX visual.
+//  Pégalas en: Firebase Console → Firestore Database → Reglas → Publicar.
+//
+//  Si compartes el proyecto con otra página (p. ej. presentaciones), NO borres
+//  sus reglas: añade solo el bloque «match /documentos/{did}» dentro de
+//  «match /databases/{database}/documents { … }».
+//
+//  Hay dos variantes; deja activa solo UNA (comenta la otra).
+// ─────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ═══ VARIANTE A · Abierta con enlace ═══════════════════════
+    // Cualquier persona que abra la página (sesión anónima) puede ver y editar.
+    // Requiere habilitar «Anónimo» en Authentication → Método de acceso.
+
+    function ingresado() { return request.auth != null; }
+
+    match /documentos/{did} {
+      allow read: if ingresado();
+      allow create: if ingresado()
+        && request.resource.data.titulo is string
+        && request.resource.data.titulo.size() <= 160;
+      allow update: if ingresado()
+        && request.resource.data.titulo is string
+        && request.resource.data.titulo.size() <= 160;
+      allow delete: if ingresado();
+
+      match /bloques/{bid} {
+        allow read: if ingresado();
+        allow write: if ingresado();
+      }
+
+      // Presencia: cada persona solo escribe su propio documento.
+      match /presencia/{uid} {
+        allow read: if ingresado();
+        allow write: if ingresado() && request.auth.uid == uid;
+      }
+    }
+
+    // ═══ VARIANTE B · Solo personas autorizadas ═════════════════
+    // En firebase-config.js pon  autenticacion: 'google',
+    // habilita «Google» en Authentication, borra la variante A de arriba
+    // y descomenta este bloque con los correos que puedan editar.
+    //
+    // function autorizado() {
+    //   return request.auth != null
+    //     && request.auth.token.email_verified == true
+    //     && request.auth.token.email in [
+    //       'persona1@gmail.com',
+    //       'persona2@unal.edu.co'
+    //     ];
+    // }
+    // match /documentos/{did} {
+    //   allow read, write: if autorizado();
+    //   match /bloques/{bid} { allow read, write: if autorizado(); }
+    //   match /presencia/{uid} {
+    //     allow read: if autorizado();
+    //     allow write: if autorizado() && request.auth.uid == uid;
+    //   }
+    // }
+  }
+}
