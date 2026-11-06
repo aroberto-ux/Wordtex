@@ -201,7 +201,10 @@ export function pintarVistaRaw(cont, tex, inicial = false) {
   vista.replaceChildren(...(v ? [v] : []));
   vista.hidden = !v;
   const tipo = v ? tipoVistaRaw(tex) : null;
-  et.textContent = v ? `LaTeX avanzado · ${NOMBRE_VISTA[tipo] || 'vista previa'} · se compila tal cual` : 'LaTeX avanzado · sin vista previa · se conserva tal cual';
+  // Con vista previa no hay etiqueta: el documento se ve como en el PDF. Sin vista previa solo se muestra el código.
+  et.textContent = v ? '' : 'Código LaTeX';
+  et.hidden = !!v;
+  if (v) cont.dataset.tipo = tipo || ''; else delete cont.dataset.tipo;
   cont.classList.toggle('sin-vista', !v);
   // sin vista previa, o si solo hay comentarios (un bloque recién creado), el código se ve abierto
   if (inicial || !v) det.open = !v || tipo === 'comentario';
