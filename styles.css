@@ -208,6 +208,17 @@ body.arrastrando-divisor { cursor: col-resize; user-select: none; -webkit-user-s
 .codigo-gutter, .codigo-ta { margin: 0; padding: 10px 0; font: 13px/1.55 var(--mono); }
 .codigo-gutter { flex: none; min-width: 44px; padding: 10px 8px 10px 6px; text-align: right; color: var(--suave); background: var(--sup2); border-right: 1px solid var(--borde); overflow: hidden; user-select: none; }
 .codigo-ta { flex: 1; min-width: 0; padding: 10px 12px; border: 0; border-radius: 0; resize: none; background: transparent; tab-size: 2; white-space: pre; overflow: auto; min-height: 0; outline: none; }
+/* Coloreado de sintaxis (resaltar.js): el <pre> pinta los colores y el textarea, transparente, pone el cursor y la selección */
+.resalte { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; }
+.resalte .codigo-ta { position: relative; z-index: 1; color: transparent; caret-color: var(--txt); }
+.resalte .codigo-ta::selection { background: rgba(47, 109, 246, .3); color: transparent; }
+.codigo-resalte { position: absolute; inset: 0; margin: 0; padding: 10px 40px 40px 12px; font: 13px/1.55 var(--mono); tab-size: 2; white-space: pre; overflow: hidden; pointer-events: none; color: var(--txt); }
+:root { --tk-cmd: #0b5fd3; --tk-kw: #0b5fd3; --tk-sec: #7c3aed; --tk-env: #b4540a; --tk-mcmd: #0e7490; --tk-m: #b4540a; --tk-mdel: #d1242f; --tk-amp: #d1242f; --tk-br: #8a94a0; --tk-ref: #15803d; --tk-c: #6b8e5a; --tk-lit: #6b7280; }
+@media (prefers-color-scheme: dark) { :root { --tk-cmd: #6cb0ff; --tk-kw: #6cb0ff; --tk-sec: #c4a1ff; --tk-env: #f0a56b; --tk-mcmd: #4fd1e8; --tk-m: #f0b87a; --tk-mdel: #ff7b84; --tk-amp: #ff7b84; --tk-br: #7d8793; --tk-ref: #5fd48a; --tk-c: #7fa66c; --tk-lit: #9aa4b0; } }
+.tk-cmd { color: var(--tk-cmd); } .tk-kw { color: var(--tk-kw); font-weight: 700; } .tk-sec { color: var(--tk-sec); font-weight: 700; }
+.tk-env { color: var(--tk-env); font-weight: 700; } .tk-mcmd { color: var(--tk-mcmd); } .tk-m { color: var(--tk-m); }
+.tk-mdel { color: var(--tk-mdel); font-weight: 700; } .tk-amp { color: var(--tk-amp); } .tk-br { color: var(--tk-br); }
+.tk-ref { color: var(--tk-ref); } .tk-c { color: var(--tk-c); font-style: italic; } .tk-lit { color: var(--tk-lit); }
 .codigo-avisos { flex: none; max-height: 120px; overflow: auto; border-top: 1px solid var(--borde); background: var(--sup2); font-size: 12.5px; }
 .aviso-cod { padding: 6px 12px; color: #8a5a00; }
 .aviso-cod.err { color: var(--peligro); }

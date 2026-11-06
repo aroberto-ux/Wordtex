@@ -6,6 +6,7 @@ import { generarTex } from './latex-gen.js?v=2026.11.05-a';
 import { parsearTex } from './latex-parse.js?v=2026.11.05-a';
 import { diffBloques } from './sync.js?v=2026.11.05-a';
 import { aplicarCambios, guardarPendientes, bus } from './ops.js?v=2026.11.05-a';
+import { resaltarTex } from './resaltar.js?v=2026.11.05-a';
 
 let tPeg = null, tGen = null;
 let aplicando = false;
@@ -17,7 +18,38 @@ export function textoActual() {
   return generarTex({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques).tex;
 }
 
+// Coloreado: un <pre> con el mismo texto (coloreado) va DEBAJO del textarea, que se vuelve transparente.
+let preResalte = null, textoResaltado = null, rafResalte = 0;
+
+function montarResalte() {
+  const ta = E.codigoTa;
+  const cont = document.createElement('div');
+  cont.className = 'resalte';
+  preResalte = document.createElement('pre');
+  preResalte.className = 'codigo-resalte';
+  preResalte.setAttribute('aria-hidden', 'true');
+  ta.parentElement.insertBefore(cont, ta);
+  cont.append(preResalte, ta);
+}
+
+function sincronizarResalte() {
+  if (!preResalte) return;
+  const ta = E.codigoTa;
+  if (textoResaltado !== ta.value) {
+    textoResaltado = ta.value;
+    preResalte.innerHTML = resaltarTex(textoResaltado) + '\n'; // el \n final iguala la altura de la última línea
+  }
+  preResalte.scrollTop = ta.scrollTop;
+  preResalte.scrollLeft = ta.scrollLeft;
+}
+
+function programarResalte() {
+  if (rafResalte) return;
+  rafResalte = requestAnimationFrame(() => { rafResalte = 0; sincronizarResalte(); });
+}
+
 function gutter() {
+  programarResalte();
   const n = (E.codigoTa.value.match(/\n/g) || []).length + 1;
   if (E.codigoGutter.dataset.n !== String(n)) {
     E.codigoGutter.dataset.n = String(n);
@@ -80,6 +112,7 @@ function aplicarTexto() {
 }
 
 export function iniciarCodigo() {
+  montarResalte();
   E.codigoTa.addEventListener('input', () => {
     gutter();
     clearTimeout(tPeg);

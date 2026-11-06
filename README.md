@@ -67,6 +67,7 @@ La página **no compila LaTeX dentro del navegador**. Opciones:
 | `ops.js`, `acciones.js`, `eventos.js` | Estado, deshacer, formato, teclado y arrastre |
 | `bloques-dom.js`, `inline-dom.js`, `numerar.js` | Dibujo de bloques, texto en línea y numeración |
 | `matematica.js`, `dialogos.js`, `paneles.js`, `codigo.js` | Editor de ecuaciones, ventanas, panel lateral, vista de código |
+| `resaltar.js` | Coloreado de sintaxis LaTeX de la vista de código (función pura, con pruebas) |
 | `exportar.js`, `plantillas.js` | Exportaciones y plantillas |
 | `vista-latex.js` | Vistas previas del LaTeX avanzado (bloques y fragmentos en línea) |
 | `tikz.js`, `tikz-libs.js` | Intérprete de TikZ a SVG para la vista previa; librerías que necesita cada dibujo |
