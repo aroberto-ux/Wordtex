@@ -110,15 +110,15 @@ export function leerInline(raiz) {
 export function numerarInline(raiz, num, biblio) {
   let nota = 0;
   for (const e of raiz.querySelectorAll('.i-nota')) { nota++; e.textContent = String(nota); }
-  for (const e of raiz.querySelectorAll('.i-cita')) {
+  for (const e of raiz.querySelectorAll('.i-cita, .rv-cita')) {
     const claves = (e.getAttribute('data-cita') || '').split(',').map((x) => x.trim()).filter(Boolean);
     const n = claves.map((k) => num.citas.get(k) || '?');
     e.textContent = `[${n.join(', ')}]`;
     e.classList.toggle('rota', n.includes('?'));
   }
-  for (const e of raiz.querySelectorAll('.i-ref')) {
-    const t = num.etiquetas.get(e.getAttribute('data-ref') || '');
-    e.textContent = t ? (e.hasAttribute('data-eq') ? `(${t})` : t) : '?';
+  for (const e of raiz.querySelectorAll('.i-ref, .rv-ref')) {
+    const t = num.etiquetas.get(e.getAttribute('data-ref') || e.dataset.ref || '');
+    e.textContent = t ? ((e.hasAttribute('data-eq')) ? `(${t})` : t) : '?';
     e.classList.toggle('rota', !t);
   }
 }

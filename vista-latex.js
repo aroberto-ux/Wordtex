@@ -6,6 +6,8 @@
 import { parsearBloques, parsearInline } from './latex-parse.js?v=2026.11.05-a';
 import { colorCss, tikzSvg } from './tikz.js?v=2026.11.05-a';
 import { renderMate, mathjaxListo, mateDisponible } from './mathjax.js?v=2026.11.05-a';
+import { expandirMacros, usaMacrosPropias } from './macros.js?v=2026.11.05-a';
+import { nodoDeTex } from './macros-vista.js?v=2026.11.05-a';
 
 // ── Puras ──────────────────────────────────────────────────────────────
 
@@ -38,8 +40,12 @@ const AJUSTES = new Set(['newcommand', 'renewcommand', 'providecommand', 'newenv
  * 'mate' | 'tabla' | 'tikz' | 'entorno' | 'regla' | 'espacio' | 'archivo' | 'ajuste' | 'comentario'
  */
 export function tipoVistaRaw(tex) {
-  const t = String(tex || '').trim();
+  let t = String(tex || '').trim();
   if (!t) return null;
+  if (usaMacrosPropias(t)) {                       // macros del preámbulo propio (\foto, \pendientep…): se decide sobre su expansión
+    const e = expandirMacros(t).trim();
+    if (e !== t) { const tipo = tipoVistaRaw(e); return tipo || 'macro'; }
+  }
   if (t.split('\n').every((l) => /^\s*%/.test(l) || !l.trim())) return 'comentario';
   if (/^\\\[[\s\S]*\\\]$/.test(t) || /^\$\$[\s\S]*\$\$$/.test(t)) return 'mate';
   const be = /^\\begin\{([^}]+)\}/.exec(t);
@@ -373,11 +379,13 @@ const NOMBRE_AJUSTE = {
  */
 export function vistaBloqueRaw(tex, prof = 0) {
   if (prof > 4) return null;
-  const t = String(tex || '').trim();
+  let t = String(tex || '').trim();
   const tipo = tipoVistaRaw(t);
   if (!tipo) return null;
+  if (usaMacrosPropias(t)) t = expandirMacros(t).trim();   // la vista se dibuja con las macros propias ya expandidas
   try {
     switch (tipo) {
+      case 'macro': { const d = el('div', 'rv-macro'); d.append(nodoDeTex(t)); return d; }
       case 'comentario': return el('div', 'rv-comentario', t.split('\n').map((l) => l.replace(/^\s*%\s?/, '')).join('\n'));
       case 'mate': {
         if (/^\\\[/.test(t)) return mate(texParaMate('equation', t.slice(2, -2)));
@@ -463,10 +471,17 @@ function logo(t) {
  * @returns {Node|null}
  */
 export function vistaRawInline(raw) {
-  const t = String(raw || '').trim();
+  let t = String(raw || '').trim();
   if (!t) return null;
   try {
     let m;
+    if (usaMacrosPropias(t)) {                      // \pendiente{…}, \titulo… → se dibuja su expansión
+      const e = expandirMacros(t).trim();
+      if (e !== t) { const s = el('span', 'rv-macro-l'); s.append(nodoDeTex(e)); return s; }
+    }
+    if (/^\\(colorbox|fcolorbox|fbox|framebox|parbox|textcolor|par|vspace|noindent|strut|selectfont|begingroup|endgroup|thispagestyle|pagestyle|setlength|fontsize|SI|si|num)\b/.test(t) || /^\{[\s\S]*\\(fontsize|bfseries|itshape|small|footnotesize|large|Large|centering)\b[\s\S]*\}$/.test(t)) {
+      const s = el('span', 'rv-macro-l'); s.append(nodoDeTex(t)); return s;
+    }
     if ((m = /^\\verb\*?(.)([\s\S]*)\1$/.exec(t))) return el('code', 'rv-code', m[2]);
     if ((m = /^\\lstinline(?:\[[^\]]*\])?(?:\{([\s\S]*)\}|(.)([\s\S]*)\2)$/.exec(t))) return el('code', 'rv-code', m[1] ?? m[3]);
     if (/^\\tikz\b/.test(t)) {

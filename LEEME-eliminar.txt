@@ -1,0 +1,4 @@
+ELIMINAR (ya no se usan):
+vendor/katex/katex.min.js
+vendor/katex/katex.min.css
+(mantener vendor/katex/fonts si quieres; ya no se cargan)

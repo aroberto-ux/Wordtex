@@ -2,7 +2,7 @@
 // referencias cruzadas). Se usa para que la vista de página muestre los mismos números que tendrá el PDF.
 
 import { TEOREMAS, textoPlano, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.05-a';
-import { sinComentarios } from './macros.js?v=2026.11.05-a';
+import { sinComentarios, expandirMacros, usaMacrosPropias } from './macros.js?v=2026.11.05-a';
 
 export const ROTULOS = {
   spanish: { fig: 'Figura', tab: 'Tabla', resumen: 'Resumen', indice: 'Índice general', refs: 'Referencias', cap: 'Capítulo', teo: 'es' },
@@ -96,7 +96,8 @@ export function numerar(cfg, bloques, biblio = []) {
       } else info.set(b.id, { num: '' });
     } else if (b.t === 'raw') {
       // LaTeX avanzado: también cuenta para la numeración (figuras y tablas con pie, ecuaciones numeradas)
-      const t = String(b.tex || '').trim();
+      let t = String(b.tex || '').trim();
+      if (usaMacrosPropias(t)) t = expandirMacros(t).trim();   // \foto, \grafica… cuentan como las figuras que realmente son
       const mat = /^\\begin\{(equation|align|gather|multline|flalign|eqnarray|alignat|xalignat)\}/.exec(t);
       const pref = capitulos && c[0] ? `${c[0]}.` : '';
       const items = itemsFlotantes(t);

@@ -7,6 +7,7 @@ import {
   cfgPorDefecto, CLASES, IDIOMAS, ALIAS_TEOREMA, compactar, sanearBloque, sanearCfg, sanearBiblio, nuevoId, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas,
 } from './modelo.js?v=2026.11.05-a';
 import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO } from './latex-gen.js?v=2026.11.05-a';
+import { tablaMacros } from './macros.js?v=2026.11.05-a';
 
 // \ensuremath{\alpha} → α (lo contrario de lo que hace latex-gen.js con los símbolos Unicode)
 const SIMBOLO_DE = new Map(Object.entries(SIMBOLOS).map(([u, cmd]) => [cmd, u]));
@@ -579,7 +580,12 @@ export function parsearBloques(cuerpo, ctx = { biblio: [], cfg: {} }) {
     const t = sinComentarios(par).trim();
     par = '';
     if (!t) return;
-    bloques.push({ t: 'p', c: inlineLimpio(t), al: 'j' });
+    const c = inlineLimpio(t);
+    // un párrafo que es solo una orden desconocida (\foto{…}, \pendientep{…}…) es un bloque de LaTeX avanzado, no un párrafo con una ficha
+    const utiles = c.filter((n) => !(n.s != null && !String(n.s).trim()));
+    const orden = utiles.length === 1 && typeof utiles[0].raw === 'string' ? /^\\([a-zA-Z@]+)/.exec(utiles[0].raw) : null;
+    if (orden && ctx.macros && ctx.macros.has(orden[1])) { bloques.push({ t: 'raw', tex: utiles[0].raw }); return; }
+    bloques.push({ t: 'p', c, al: 'j' });
   };
   const empujar = (b) => { vaciar(); if (Array.isArray(b)) bloques.push(...b); else bloques.push(b); };
   let profundidad = 0;
@@ -794,6 +800,7 @@ export function parsearTex(src) {
     cfg.margen = 'extra';
   } else cfg.margen = cfgPorDefecto().margen;
   const { extra, literal } = ini >= 0 ? parsearPreambulo(pre, cfg, ctx) : { extra: '', literal: '' };
+  ctx.macros = new Set(tablaMacros(extra + '\n' + literal).keys());   // órdenes propias: una línea que es solo \foto{…} es un bloque, no un párrafo
   const bloques = parsearBloques(cuerpo, ctx).map((b) => sanearBloque(b)).filter(Boolean);
   // sin título no se genera \maketitle: eso no significa que la portada esté desactivada
   if (!cfg.titulo) cfg.mostrarTitulo = true;

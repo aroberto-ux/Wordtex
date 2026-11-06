@@ -403,6 +403,12 @@ table.rv-tab { border-collapse: collapse; margin: .3em auto; }
 table.rv-tab td { padding: .2em .6em; vertical-align: top; }
 table.rv-tab.con-borde td { border: 1px solid #111; }
 table.rv-tab.con-lineas { border-top: 2px solid #111; border-bottom: 2px solid #111; }
+.rv-macro, .rv-macro-l { line-height: 1.35; }
+.rv-macro { margin: .25em 0; }
+.rv-parbox { display: inline-block; vertical-align: top; max-width: 100%; box-sizing: border-box; text-align: left; }
+.rv-mate-l { display: inline; }
+.rv-ref, .rv-cita { color: #1a4fd0; }
+.rv-ref:empty::after { content: '?'; }
 .rv-regla { border: 0; border-top: 1px solid #111; margin: .5em 0; }
 .rv-espacio { border: 1px dashed transparent; border-radius: 4px; color: transparent; transition: all .15s; font: 11px system-ui, sans-serif; display: flex; align-items: center; justify-content: center; }
 .rv-archivo, .rv-ajuste { font: 13px system-ui, sans-serif; color: #5b4a86; padding: .2em 0; }
