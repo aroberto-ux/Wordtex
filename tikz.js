@@ -13,6 +13,7 @@
 
 import { parsearInline } from './latex-parse.js?v=2026.11.05-a';
 import { quitarComentarios } from './tikz-libs.js?v=2026.11.05-a';
+import { mateHtml } from './mathjax.js?v=2026.11.05-a';
 
 export const PT_CM = 28.4527559;
 const UNIDAD = { pt: 1, cm: PT_CM, mm: PT_CM / 10, in: 72.27, bp: 72.27 / 72, em: 10, ex: 4.3, sp: 1 / 65536 };
@@ -286,14 +287,14 @@ const estimar = (html, fuente, op = {}) => {
 
 const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-/** Texto de un nodo (LaTeX) → HTML: negrita, cursiva, fórmulas con KaTeX si está disponible, saltos «\\». */
+/** Texto de un nodo (LaTeX) → HTML: negrita, cursiva, fórmulas con MathJax si está listo (síncrono: tex2chtml), saltos «\\». */
 export function htmlDeTexto(tex) {
-  const katex = typeof globalThis !== 'undefined' ? globalThis.katex : null;
   const nodos = parsearInline(String(tex));
   const un = (n) => {
     if (n.br) return '<br>';
     if (n.mate != null) {
-      if (katex) { try { return katex.renderToString(n.mate, { throwOnError: false, output: 'html', strict: 'ignore', trust: false }); } catch { /* sigue */ } }
+      const html = mateHtml(n.mate, false);
+      if (html) return html;
       return `<i>${escHtml(n.mate)}</i>`;
     }
     if (n.s != null) {

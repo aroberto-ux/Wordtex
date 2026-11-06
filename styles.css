@@ -278,7 +278,12 @@ body.arrastrando-divisor { cursor: col-resize; user-select: none; -webkit-user-s
 .eq { display: flex; align-items: center; justify-content: center; position: relative; padding: .3em 0; }
 .eq-vista { flex: 1; text-align: center; cursor: pointer; border-radius: 4px; padding: .1em .4em; overflow-x: auto; overflow-y: hidden; }
 .eq-vista:hover { background: rgba(47, 109, 246, .08); }
-.eq-vista .katex-display { margin: .2em 0; }
+.eq-vista mjx-container[display="true"], .rv-mate mjx-container[display="true"] { margin: .2em 0 !important; }
+/* MathJax: marcador mientras se compone, errores de LaTeX y fórmulas dentro de contenteditable */
+.mj-pend { color: var(--suave, #777); font-family: var(--mono, monospace); font-size: .85em; white-space: pre-wrap; }
+[data-mj="componiendo"] { color: transparent !important; }
+.mj-error mjx-merror { font-family: var(--mono, monospace); font-size: .8em; }
+
 .eq-num { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
 .eq-vista.vacia { color: #999; font-style: italic; }
 .i-mate { cursor: pointer; border-radius: 3px; padding: 0 1px; }
@@ -375,7 +380,6 @@ table.tabx .ed.celda { min-height: 1.3em; white-space: pre-wrap; }
 
 /* Vistas previas de LaTeX avanzado (solo lectura) */
 .rv-mate { text-align: center; }
-.rv-mate .katex-display { margin: .2em 0; }
 .rv-env { margin: .3em 0; }
 .rv-bloques { display: flex; flex-wrap: wrap; justify-content: center; gap: .3em 4%; }
 .rv-bloques > * { flex: 1 1 100%; margin: .2em 0; }

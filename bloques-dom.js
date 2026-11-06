@@ -4,7 +4,7 @@ import { h } from './ui.js?v=2026.11.05-a';
 import { TEOREMAS, LENGUAJES_COD, textoPlano } from './modelo.js?v=2026.11.05-a';
 import { rellenar, leerInline, renderMate, pintarInline } from './inline-dom.js?v=2026.11.05-a';
 import { rotulos } from './numerar.js?v=2026.11.05-a';
-import { texParaKatex, vistaBloqueRaw, tipoVistaRaw, dibujarTikz } from './vista-latex.js?v=2026.11.05-a';
+import { texParaMate, vistaBloqueRaw, tipoVistaRaw, dibujarTikz } from './vista-latex.js?v=2026.11.05-a';
 
 const PH = {
   p: 'Escribe aquí… (pulsa «/» para insertar algo)', h: 'Título', teo: 'Enunciado…', cita: 'Texto de la cita…', resumen: 'Escribe el resumen…',
@@ -76,7 +76,7 @@ export function pintarBloque(b) {
     }
     case 'eq': {
       const vista = h('div', { class: 'eq-vista', tabindex: '0', role: 'button', 'data-accion': 'eq', title: 'Clic para editar la ecuación' });
-      renderMate(vista, texParaKatex(b.env, b.tex), b.env !== 'math');
+      renderMate(vista, texParaMate(b.env, b.tex), b.env !== 'math');
       cuerpo = h('div', { class: 'eq', contenteditable: 'false' }, vista, h('span', { class: 'eq-num' }));
       break;
     }

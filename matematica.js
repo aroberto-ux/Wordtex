@@ -3,8 +3,8 @@
 const CURSOR = '‸';
 
 import { h, modal } from './ui.js?v=2026.11.05-a';
-import { renderMate } from './inline-dom.js?v=2026.11.05-a';
-import { texParaKatex } from './vista-latex.js?v=2026.11.05-a';
+import { pintorEnVivo } from './mathjax.js?v=2026.11.05-a';
+import { texParaMate } from './vista-latex.js?v=2026.11.05-a';
 
 const G = (...l) => l.map((x) => [x[0], x[1] || x[0]]);
 const griegas = [
@@ -79,17 +79,21 @@ export function editarMate({ tex = '', titulo = 'Fórmula', bloque = false, opc 
     env.value = opc.env;
     const num = h('input', { type: 'checkbox', checked: !!opc.num });
     const label = h('input', { type: 'text', value: opc.label || '', maxlength: 40, placeholder: 'ej. eq:energia', 'aria-label': 'Etiqueta para referencias' });
-    const pintar = () => {
-      const t = bloque ? texParaKatex(env.value, ta.value) : ta.value;
+    // Vista previa en vivo: MathJax compone de forma asíncrona, así que se espera a que la persona deje de teclear
+    // (debounce) y se descartan los resultados de pulsaciones ya superadas. Cada composición hace typesetClear antes.
+    const componer = pintorEnVivo(vista, 150);
+    const pintar = (inmediato = false) => {
+      const t = bloque ? texParaMate(env.value, ta.value) : ta.value;
       // displaymath y math no se numeran nunca
       if (bloque) { const sinNum = env.value === 'displaymath' || env.value === 'math'; num.disabled = sinNum; if (sinNum) num.checked = false; }
-      renderMate(vista, t, bloque && env.value !== 'math');
+      const display = bloque && env.value !== 'math';
       vista.classList.toggle('vacia', !ta.value.trim());
-      const err = vista.querySelector('.katex-error');
-      aviso.textContent = err ? 'Hay algo que LaTeX no entenderá (revisa llaves y comandos).' : '';
+      // el campo vacío se pinta al instante (no hay nada que componer); lo demás, con debounce salvo la primera vez
+      const p = inmediato === true || !ta.value.trim() ? componer.ahora(t, display) : componer(t, display);
+      p.then((r) => { if (r) aviso.textContent = r.ok ? '' : 'Hay algo que LaTeX no entenderá (revisa llaves y comandos).'; });
     };
-    ta.addEventListener('input', pintar);
-    env.addEventListener('change', pintar);
+    ta.addEventListener('input', () => pintar());
+    env.addEventListener('change', () => pintar(true));
 
     const pestanas = h('div', { class: 'paleta-tabs', role: 'tablist' });
     const cuerpo = h('div', { class: 'paleta-cuerpo' });
@@ -106,7 +110,7 @@ export function editarMate({ tex = '', titulo = 'Fórmula', bloque = false, opc 
 
     const ejemplos = h('select', { 'aria-label': 'Insertar un ejemplo', onchange: (e) => {
       const i = +e.target.value; e.target.value = '';
-      if (i >= 0 && EJEMPLOS[i]) { ta.value = EJEMPLOS[i][1]; if (bloque && EJEMPLOS[i][1].includes('&')) env.value = 'align'; pintar(); ta.focus(); }
+      if (i >= 0 && EJEMPLOS[i]) { ta.value = EJEMPLOS[i][1]; if (bloque && EJEMPLOS[i][1].includes('&')) env.value = 'align'; pintar(true); ta.focus(); }
     } }, h('option', { value: '' }, 'Ejemplos…'), EJEMPLOS.map(([n], i) => h('option', { value: i }, n)));
 
     const opcBloque = bloque ? h('div', { class: 'mate-opc' },
@@ -116,7 +120,7 @@ export function editarMate({ tex = '', titulo = 'Fórmula', bloque = false, opc 
 
     const cuerpoModal = h('div', { class: 'mate' }, pestanas, cuerpo, h('div', { class: 'mate-fila' }, ejemplos), ta, aviso,
       h('div', { class: 'mate-vista-et' }, 'Vista previa'), vista, opcBloque);
-    pintar();
+    pintar(true);
     modal({
       titulo, ancho: 640, clase: 'modal-mate', cuerpo: cuerpoModal,
       acciones: [
@@ -124,6 +128,7 @@ export function editarMate({ tex = '', titulo = 'Fórmula', bloque = false, opc 
         { texto: 'Aceptar', primario: true, fn: (c) => c(true) },
       ],
       alCerrar: (v) => {
+        componer.cerrar(); // cancela el debounce pendiente y hace typesetClear de la vista previa
         if (v !== true) return res(null);
         const out = { tex: ta.value.trim() };
         if (bloque) { out.env = env.value; out.num = num.checked; out.label = label.value.replace(/[^\w:.-]/g, ''); }

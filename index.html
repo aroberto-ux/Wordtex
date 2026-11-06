@@ -6,9 +6,10 @@
   <title>LaTeX visual</title>
   <meta name="app-version" content="2026.11.05-a">
   <meta name="description" content="Edita documentos LaTeX como en un procesador de texto, sin saber LaTeX.">
-  <link rel="stylesheet" href="vendor/katex/katex.min.css?v=2026.11.05-a">
   <link rel="stylesheet" href="styles.css?v=2026.11.05-a">
-  <script defer src="vendor/katex/katex.min.js?v=2026.11.05-a"></script>
+  <!-- MathJax 3 (tex-chtml): primero la configuración, después la librería (versión fija). Si el CDN no responde, las fórmulas se quedan como código. -->
+  <script src="mathjax-config.js?v=2026.11.05-a"></script>
+  <script async id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js" crossorigin="anonymous" onerror="window.mathjaxFallo && window.mathjaxFallo()"></script>
   <script type="module" src="app.js?v=2026.11.05-a"></script>
 </head>
 <body>

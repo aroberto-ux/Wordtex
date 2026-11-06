@@ -461,7 +461,7 @@ function parsearFiguraTikz(cuerpo) {
   return { ...tk, pie, label, env: 'figure' };
 }
 
-// Entornos que pueden ir dentro de una ecuación (KaTeX los dibuja)
+// Entornos que pueden ir dentro de una ecuación (MathJax los dibuja)
 const MATE_INTERNOS = /^(cases|dcases|rcases|aligned|alignedat|gathered|split|matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array|subarray|substack)\*?$/;
 
 /**

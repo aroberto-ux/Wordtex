@@ -92,7 +92,7 @@ const USOS_RAW = [
   [/\\(setlist|setenumerate|setitemize|setdescription|newlist)\b|\\begin\{(enumerate|itemize|description)\}\s*\[[^\]]*=/, 'enumitem'],
   [/\\begin\{enumerate\}\s*\[[^\]=]*\]/, 'enumerate'],
   [/\\(SI|qty|sisetup|SIrange|numrange|SIlist|numlist)\b/, 'siunitx'],
-  // matemáticas (lo que KaTeX dibuja pero pdfLaTeX no conoce sin su paquete)
+  // matemáticas (lo que MathJax dibuja pero pdfLaTeX no conoce sin su paquete)
   [/\\bm\b/, 'bm'],
   [/\\(cancel|bcancel|xcancel|cancelto)\b/, 'cancel'],
   [/\\(coloneqq|eqqcolon|coloneq|dcases|rcases|mathclap|mathllap|mathrlap|DeclarePairedDelimiter|prescript|xleftrightarrow|xrightleftharpoons|Aboxed|shortintertext|underbracket|overbracket|vcentcolon)\b|\\begin\{(multlined|lgathered|rgathered|[pbvBV]matrix\*|dcases\*?|rcases)\}/, 'mathtools'],

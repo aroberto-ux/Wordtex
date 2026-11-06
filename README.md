@@ -8,12 +8,12 @@ Es una página estática (HTML + módulos JS, sin compilación) pensada para **G
 
 - **Edición tipo Word**: negrita, cursiva, subrayado, tachado, superíndice/subíndice, monoespaciado, títulos (sección / subsección / …), listas con viñetas, numeradas y anidadas (Tab / Shift+Tab), alineación, citas, resúmenes, teoremas/definiciones/lemas/demostraciones, bloques de código, tabla de contenidos, saltos de página.
 - **Tablas** (agregar/quitar filas y columnas, encabezado, bordes, alineación por columna) y **figuras** (subir imagen, ancho, pie de figura).
-- **Ecuaciones** con un editor propio: se escribe en LaTeX con vista previa en vivo (KaTeX) y una paleta de símbolos (griegas, operadores, flechas, fracciones, raíces, sumatorias…). También ecuaciones en línea.
+- **Ecuaciones** con un editor propio: se escribe en LaTeX con vista previa en vivo (MathJax 3) y una paleta de símbolos (griegas, operadores, flechas, fracciones, raíces, sumatorias…). También ecuaciones en línea.
 - **Notas al pie, referencias cruzadas, citas y bibliografía**, enlaces.
 - **Numeración como en LaTeX** (secciones, ecuaciones, figuras, tablas, teoremas) y **vista de página** con aspecto de documento compilado.
 - **Menú `/`** para insertar bloques escribiendo, atajos de teclado, deshacer/rehacer, arrastrar bloques.
 - **Vista de código**: el `.tex` completo, editable. Lo que no se entiende se conserva tal cual (como bloque «LaTeX avanzado»), nada se pierde.
-- **LaTeX avanzado con vista previa**: lo que no tiene editor propio se ve renderizado encima de su código (ecuaciones con KaTeX, tablas con `\multicolumn`/`\multirow`, `minipage` y entornos propios, `\hrule`, `\vspace`, `\input`, `\bibliography`…). El código está en «Ver/editar código» y la vista previa lo sigue mientras se escribe. En el texto, `\textcolor`, `\textsc`, `\verb`, `\lstinline`, `\today`, `\LaTeX` o `{\small …}` se ven con su formato y se editan con un clic.
+- **LaTeX avanzado con vista previa**: lo que no tiene editor propio se ve renderizado encima de su código (ecuaciones con MathJax, tablas con `\multicolumn`/`\multirow`, `minipage` y entornos propios, `\hrule`, `\vspace`, `\input`, `\bibliography`…). El código está en «Ver/editar código» y la vista previa lo sigue mientras se escribe. En el texto, `\textcolor`, `\textsc`, `\verb`, `\lstinline`, `\today`, `\LaTeX` o `{\small …}` se ven con su formato y se editan con un clic.
 - **Dibujos TikZ**: bloque propio con vista previa en vivo, editor de código al lado, **herramienta de dibujo** (línea, flecha, rectángulo, círculo, texto, borrar; cuadrícula, ajuste, color y grosor) y plantillas (ejes cartesianos, diagrama de flujo, grafo, triángulo con ángulos, árbol). `\usepackage{tikz}` y las `\usetikzlibrary` necesarias se añaden solas.
 - **Plantillas**: en blanco, artículo, tarea, apuntes, informe y carta.
 - **Panel lateral**: esquema, ajustes del documento (clase, fuente, papel, márgenes, idioma, interlineado, columnas, portada), referencias, preámbulo avanzado y ayuda.
@@ -72,7 +72,8 @@ La página **no compila LaTeX dentro del navegador**. Opciones:
 | `tikz.js`, `tikz-libs.js` | Intérprete de TikZ a SVG para la vista previa; librerías que necesita cada dibujo |
 | `tikz-editor.js`, `tikz-dibujo.js`, `tikz-plantillas.js` | Editor de dibujos, herramienta de dibujo visual y plantillas TikZ |
 | `firebase-config.js`, `firestore.rules` | Configuración y reglas de Firebase |
-| `vendor/katex/` | KaTeX (ecuaciones y tipografía de la vista de página) |
+| `mathjax-config.js`, `mathjax.js` | Configuración de MathJax 3 (tex-chtml, desde CDN) y capa que compone fórmulas por lotes, con debounce y `typesetClear` |
+| `vendor/katex/fonts/` | Solo las tipografías (Latin Modern) de la vista de página; el motor de fórmulas ya no es KaTeX |
 | `tests/` | Pruebas automáticas (no hace falta subirlas a GitHub Pages, pero no estorban) |
 
 ## Calidad del LaTeX generado

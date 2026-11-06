@@ -1,17 +1,18 @@
 // Vistas previas de lo que el editor conserva como «LaTeX avanzado»: bloques crudos y fragmentos en línea.
 // No editan nada: muestran cómo quedará al compilar, y el código sigue siendo la fuente de verdad.
 //
-// Las funciones puras (texParaKatex, tipoVistaRaw) también se usan en Node (pruebas, aviso al importar).
+// Las funciones puras (texParaMate, tipoVistaRaw) también se usan en Node (pruebas, aviso al importar).
 
 import { parsearBloques, parsearInline } from './latex-parse.js?v=2026.11.05-a';
 import { colorCss, tikzSvg } from './tikz.js?v=2026.11.05-a';
+import { renderMate, mathjaxListo, mateDisponible } from './mathjax.js?v=2026.11.05-a';
 
 // ── Puras ──────────────────────────────────────────────────────────────
 
 const ENV_MATE = /^(equation|align|gather|multline|flalign|eqnarray|alignat|displaymath|math|xalignat)\*?$/;
 
-/** Código de una ecuación de bloque → lo que entiende KaTeX (sin \label, \nonumber ni \notag). */
-export function texParaKatex(env, tex, arg = '') {
+/** Código de una ecuación de bloque → lo que entiende el motor de fórmulas (sin \label, \nonumber ni \notag). */
+export function texParaMate(env, tex, arg = '') {
   let t = String(tex || '').replace(/\\label\{[^}]*\}/g, '').replace(/\\(nonumber|notag)\b/g, '');
   const e = String(env || 'equation').replace(/\*$/, '');
   if (e === 'align' || e === 'flalign' || e === 'eqnarray' || e === 'xalignat') return `\\begin{aligned}${t.replace(/\\tag\*?\{[^}]*\}/g, '')}\\end{aligned}`;
@@ -19,6 +20,9 @@ export function texParaKatex(env, tex, arg = '') {
   if (e === 'gather' || e === 'multline') return `\\begin{gathered}${t.replace(/\\tag\*?\{[^}]*\}/g, '')}\\end{gathered}`;
   return t;
 }
+
+/** Nombre antiguo (cuando el motor era KaTeX): se conserva para no romper importaciones ni pruebas. */
+export const texParaKatex = texParaMate;
 
 const UN_COMANDO = /^\\([a-zA-Z]+)\*?\s*(\[[^\]]*\])?\s*(\{[^{}]*\})?\s*$/;
 const ARCHIVOS = new Set(['input', 'include', 'bibliography', 'bibliographystyle', 'printbibliography', 'addbibresource', 'includeonly']);
@@ -79,13 +83,10 @@ export function resumenImportacion(bloques) {
 // ── DOM ────────────────────────────────────────────────────────────────
 
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
-const K = () => (typeof window !== 'undefined' ? window.katex : null);
 
 function mate(tex, display = true) {
   const e = el(display ? 'div' : 'span', display ? 'rv-mate' : '');
-  const katex = K();
-  if (katex) { try { katex.render(tex, e, { throwOnError: false, displayMode: display, output: 'html', strict: 'ignore', trust: false }); return e; } catch { /* sigue */ } }
-  e.textContent = tex;
+  renderMate(e, tex, display);   // MathJax compone por lotes cuando `e` ya está en la página
   return e;
 }
 
@@ -156,6 +157,10 @@ export function dibujarTikz(cont, src, { opc: o = '', ancho = 0 } = {}) {
   try {
     const r = tikzSvg(src, { opc: o, medir: typeof document !== 'undefined' ? medirTexto : null, ancho });
     cont.innerHTML = r.svg; // el SVG lo construye tikz.js con todo el texto escapado
+    // MathJax se descarga en paralelo: si aún no estaba listo, las fórmulas de los nodos salieron como texto; se repinta al llegar.
+    if (typeof document !== 'undefined' && !mateDisponible() && /\$|\\\(/.test(src)) {
+      mathjaxListo().then((ok) => { if (ok && cont.isConnected) dibujarTikz(cont, src, { opc: o, ancho }); });
+    }
     return r.avisos;
   } catch (e) {
     cont.textContent = 'No se pudo dibujar la vista previa.';
@@ -270,7 +275,7 @@ export function vistaBloques(bloques, prof = 0) {
         }
         break;
       }
-      case 'eq': e = mate(texParaKatex(b.env, b.tex), b.env !== 'math'); break;
+      case 'eq': e = mate(texParaMate(b.env, b.tex), b.env !== 'math'); break;
       case 'tabla': {
         e = el('table', 'rv-tab con-borde');
         b.filas.forEach((fila, i) => { const tr = el('tr'); fila.forEach((c, j) => { const td = el('td'); td.style.textAlign = { c: 'center', r: 'right' }[b.al[j]] || 'left'; if (b.enc && !i) td.style.fontWeight = '700'; td.append(inline(c)); tr.append(td); }); e.append(tr); });
@@ -369,11 +374,11 @@ export function vistaBloqueRaw(tex, prof = 0) {
     switch (tipo) {
       case 'comentario': return el('div', 'rv-comentario', t.split('\n').map((l) => l.replace(/^\s*%\s?/, '')).join('\n'));
       case 'mate': {
-        if (/^\\\[/.test(t)) return mate(texParaKatex('equation', t.slice(2, -2)));
-        if (/^\$\$/.test(t)) return mate(texParaKatex('equation', t.slice(2, -2)));
+        if (/^\\\[/.test(t)) return mate(texParaMate('equation', t.slice(2, -2)));
+        if (/^\$\$/.test(t)) return mate(texParaMate('equation', t.slice(2, -2)));
         const be = /^\\begin\{([^}]+)\}(\{[^}]*\})?/.exec(t);
         const cuerpo = t.slice(be[0].length, t.length - `\\end{${be[1]}}`.length);
-        return mate(texParaKatex(be[1], cuerpo, be[2] ? be[2].slice(1, -1) : ''), !/^math$/.test(be[1]));
+        return mate(texParaMate(be[1], cuerpo, be[2] ? be[2].slice(1, -1) : ''), !/^math$/.test(be[1]));
       }
       case 'tabla': {
         const caja = el('div', 'rv-env');

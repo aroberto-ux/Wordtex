@@ -2,18 +2,14 @@
 
 import { compactar } from './modelo.js?v=2026.11.05-a';
 import { vistaRawInline, usarPintorInline } from './vista-latex.js?v=2026.11.05-a';
+import { renderMate as componerMate } from './mathjax.js?v=2026.11.05-a';
 
-const K = () => (typeof window !== 'undefined' ? window.katex : null);
-
+/**
+ * Fórmula dentro de `el` con MathJax. Es asíncrona: deja un marcador y compone por lotes; devuelve una promesa
+ * {ok, error} que se cumple al terminar (los llamadores que no la necesitan la ignoran).
+ */
 export function renderMate(el, tex, display = false) {
-  const katex = K();
-  el.replaceChildren();
-  if (!tex.trim()) { el.textContent = '▢'; el.classList.add('vacia'); return; }
-  el.classList.remove('vacia');
-  if (katex) {
-    try { katex.render(tex, el, { throwOnError: false, displayMode: display, output: 'html', strict: 'ignore', trust: false }); return; } catch { /* sigue */ }
-  }
-  el.textContent = tex;
+  return componerMate(el, tex, display);
 }
 
 const el = (tag, cls, attrs = {}) => {
