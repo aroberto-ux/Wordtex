@@ -187,6 +187,8 @@ export function sanearBloque(b) {
       // existe si el original la tenía, porque \item[] (vacía) no es lo mismo que \item.
       const o = { t, ord: !!b.ord && !b.desc };
       if (b.desc) o.desc = true;
+      if (b.env === 'list') o.env = 'list';
+      if (typeof b.opt === 'string' && b.opt.length < 500 && !/\\end\{/.test(b.opt)) o.opt = b.opt;
       o.items = (Array.isArray(b.items) ? b.items : []).slice(0, 500).map((i) => {
         const it = { c: sanearInline(i && i.c), n: entre(i && i.n, 0, 2, 0) };
         if (i && Array.isArray(i.et)) it.et = sanearInline(i.et);

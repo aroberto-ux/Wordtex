@@ -488,12 +488,28 @@ function bloqueEntorno(e, ctx) {
   const estrella = e.nombre.endsWith('*');
   const cuerpo = e.cuerpoCompleto;
   switch (nombre) {
-    case 'itemize': case 'enumerate': case 'description': {
+    case 'itemize': case 'enumerate': case 'description': case 'list': {
       if (estrella) return null;
+      // opciones de enumitem [leftmargin=*, …] (o, en `list`, las dos llaves {etiqueta}{ajustes}): se guardan
+      // tal cual en `opt` para devolverlas al exportar, y el cuerpo queda como una lista normal.
+      let k = 0, opt = '';
+      const ini = saltarEsp(cuerpo, 0);
+      if (nombre === 'list') {
+        const g1 = cuerpo[ini] === '{' ? grupo(cuerpo, ini) : null;
+        const g2 = g1 && cuerpo[saltarEsp(cuerpo, g1.fin)] === '{' ? grupo(cuerpo, saltarEsp(cuerpo, g1.fin)) : null;
+        if (!g2) return null;
+        opt = cuerpo.slice(ini, g2.fin); k = g2.fin;
+      } else if (cuerpo[ini] === '[') {
+        const o = opcional(cuerpo, ini);
+        if (o) { opt = cuerpo.slice(ini, o.fin); k = o.fin; }
+      }
       const items = [];
-      const ok = parsearItems(cuerpo, 0, items, nombre, !ctx.vista);
+      const ok = parsearItems(cuerpo.slice(k), 0, items, nombre, !ctx.vista);
       if (ok === false || !items.length) return null;
-      return [{ t: 'lista', ord: nombre === 'enumerate', ...(nombre === 'description' ? { desc: true } : {}), items }];
+      const b = { t: 'lista', ord: nombre === 'enumerate', ...(nombre === 'description' ? { desc: true } : {}), items };
+      if (nombre === 'list') b.env = 'list';
+      if (opt) b.opt = opt;
+      return [b];
     }
     case 'equation': case 'align': case 'gather': case 'multline': case 'flalign': case 'eqnarray': case 'displaymath': case 'math': {
       if (estrella && EQ_SIN_NUMERO.has(nombre)) return null;

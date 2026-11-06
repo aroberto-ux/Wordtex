@@ -117,11 +117,11 @@ const LST_LANG = { python: 'Python', java: 'Java', c: 'C', 'c++': 'C++', matlab:
 /** Etiqueta de \item[…]: si lleva «]» va entre llaves para no cerrar el corchete antes de tiempo. */
 const etiquetaItem = (et, ctx) => { const t = inlineATex(et, ctx); return /\]/.test(t) ? `[{${t}}]` : `[${t}]`; };
 
-function listaATex(items, ord, ctx, desc = false) {
-  const env = desc ? 'description' : ord ? 'enumerate' : 'itemize';
+function listaATex(items, ord, ctx, desc = false, envPropio = '', opt = '') {
+  const env = envPropio === 'list' ? 'list' : desc ? 'description' : ord ? 'enumerate' : 'itemize';
   let o = '';
   const stack = [];
-  const abrir = () => { o += `${'  '.repeat(stack.length)}\\begin{${env}}\n`; stack.push(env); };
+  const abrir = () => { o += `${'  '.repeat(stack.length)}\\begin{${env}}${opt}\n`; stack.push(env); };
   const cerrar = () => { stack.pop(); o += `${'  '.repeat(stack.length)}\\end{${env}}\n`; };
   for (const it of items) {
     const n = Math.min(it.n || 0, stack.length); // no se salta de nivel
@@ -215,7 +215,7 @@ function bloqueATex(b, ctx) {
       const real = (b.n === 0 && ctx.cfg.clase === 'article') ? 'section' : cmd;
       return `\\${real}${b.num === false ? '*' : ''}{${inlineATex(recortarBr(b.c), ctx)}}${lab(b.label)}`;
     }
-    case 'lista': return listaATex(b.items, b.ord, ctx, b.desc);
+    case 'lista': return listaATex(b.items, b.ord, ctx, b.desc, b.env, b.opt || '');
     case 'eq': {
       // displaymath y math no tienen versión con * ni número
       const env = b.env + (b.num || EQ_SIN_NUMERO.has(b.env) ? '' : '*');
