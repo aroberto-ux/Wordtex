@@ -2,9 +2,9 @@
 // El «‸» de cada plantilla marca dónde queda el cursor (no se usa «|» porque es un símbolo real: |x|, ‖x‖).
 const CURSOR = '‸';
 
-import { h, modal } from './ui.js?v=2026.11.06-a';
-import { pintorEnVivo } from './mathjax.js?v=2026.11.06-a';
-import { texParaMate } from './vista-latex.js?v=2026.11.06-a';
+import { h, modal } from './ui.js?v=2026.11.06-b';
+import { pintorEnVivo } from './mathjax.js?v=2026.11.06-b';
+import { texParaMate } from './vista-latex.js?v=2026.11.06-b';
 
 const G = (...l) => l.map((x) => [x[0], x[1] || x[0]]);
 const griegas = [

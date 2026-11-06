@@ -128,9 +128,32 @@ test('enlaces: se descartan los esquemas peligrosos', () => {
   assert.equal(urlSegura('javascript:alert(1)'), '');
   assert.equal(urlSegura('https://a.org'), 'https://a.org');
   assert.equal(urlSegura('mailto:a@b.co'), 'mailto:a@b.co');
+  // direcciones protocol-relative (//host): navegan a un host externo, deben descartarse
+  assert.equal(urlSegura('//evil.example/x'), '');
+  assert.equal(urlSegura('http://a.org/path'), 'http://a.org/path');
+  assert.equal(urlSegura('/ruta/relativa'), '/ruta/relativa');
   const m = parsearTex('\\begin{document}\n\\href{javascript:alert(1)}{clic}\n\\end{document}');
   assert.equal(m.bloques[0].c[0].url, '');
   assert.equal(generarTex(m, m.bloques).tex.includes('\\href'), false);
+});
+
+test('diffBloques: reordenar bloques del mismo tipo conserva su identidad', () => {
+  const viejos = [
+    { id: 'T', orden: 1000, t: 'tabla', filas: [[[{ s: 'vieja' }]]], al: ['l'] },
+    { id: 'P', orden: 2000, t: 'p', c: [{ s: 'parrafo viejo' }] },
+  ];
+  // mismos tipos reordenados y con el contenido cambiado (sin coincidencias LCS)
+  const nuevos = [
+    { t: 'p', c: [{ s: 'parrafo nuevo' }] },
+    { t: 'tabla', filas: [[[{ s: 'nueva' }]]], al: ['l'] },
+  ];
+  const d = diffBloques(viejos, nuevos);
+  assert.deepEqual(d.crear, [], 'no debe crear bloques nuevos');
+  assert.deepEqual(d.eliminar, [], 'no debe eliminar la tabla existente');
+  assert.deepEqual(d.final.map((b) => b.id).sort(), ['P', 'T'], 'conserva los dos ids');
+  // la tabla queda al final y mantiene su id T
+  assert.equal(d.final.find((b) => b.t === 'tabla').id, 'T');
+  assert.equal(d.final.find((b) => b.t === 'p').id, 'P');
 });
 
 test('numeración igual que en LaTeX: figuras y tablas solo con pie; align sin \\nonumber', () => {

@@ -1,20 +1,20 @@
 // Acciones de la cinta y de los bloques: formato, inserciones en el texto, tablas, figuras, menús.
 
-import { S, E } from './estado.js?v=2026.11.06-a';
-import { h, abrirMenu, aviso, pedir } from './ui.js?v=2026.11.06-a';
-import { nuevoId } from './modelo.js?v=2026.11.06-a';
-import { nodoInline, renderMate, leerInline, rellenar, chipRaw } from './inline-dom.js?v=2026.11.06-a';
-import { editarMate } from './matematica.js?v=2026.11.06-a';
-import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.06-a';
-import { etiquetaNueva } from './numerar.js?v=2026.11.06-a';
-import { procesarImagen, marcarLista, chipTermino } from './bloques-dom.js?v=2026.11.06-a';
-import { editarTikz } from './tikz-editor.js?v=2026.11.06-a';
-import { textoPlano } from './modelo.js?v=2026.11.06-a';
-import { parsearInline } from './latex-parse.js?v=2026.11.06-a';
+import { S, E } from './estado.js?v=2026.11.06-b';
+import { h, abrirMenu, aviso, pedir } from './ui.js?v=2026.11.06-b';
+import { nuevoId } from './modelo.js?v=2026.11.06-b';
+import { nodoInline, renderMate, leerInline, rellenar, chipRaw } from './inline-dom.js?v=2026.11.06-b';
+import { editarMate } from './matematica.js?v=2026.11.06-b';
+import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.06-b';
+import { etiquetaNueva } from './numerar.js?v=2026.11.06-b';
+import { procesarImagen, marcarLista, chipTermino } from './bloques-dom.js?v=2026.11.06-b';
+import { editarTikz } from './tikz-editor.js?v=2026.11.06-b';
+import { textoPlano } from './modelo.js?v=2026.11.06-b';
+import { parsearInline } from './latex-parse.js?v=2026.11.06-b';
 import {
   mapa, bloqueDe, modificar, insertarBloque, eliminarBloque, duplicarBloque, moverBloque, convertirBloque, editarLista,
   guardarPendientes, marcarSucio, numeracion, refrescarDerivados, enfocar, aplicarCambios,
-} from './ops.js?v=2026.11.06-a';
+} from './ops.js?v=2026.11.06-b';
 
 // ── Selección ───────────────────────────────────────────────────────────
 
@@ -312,10 +312,10 @@ export function accionTabla(op, valor) {
   modificar(id, (x) => {
     const t = { ...x, filas: x.filas.map((r) => r.slice()), al: x.al.slice() };
     if (op === 'fila+') { t.filas.splice(f + 1, 0, Array.from({ length: cols }, () => [])); foco = { idx: (f + 1) * cols + k, pos: 'inicio' }; }
-    else if (op === 'fila-') { t.filas.splice(f, 0, Array.from({ length: cols }, () => [])); foco = { idx: (f + 1) * cols + k, pos: 'inicio' }; }
+    else if (op === 'fila-') { t.filas.splice(f, 0, Array.from({ length: cols }, () => [])); foco = { idx: f * cols + k, pos: 'inicio' }; }
     else if (op === 'borrar-fila') { if (t.filas.length > 1) { t.filas.splice(f, 1); foco = { idx: Math.min(f, t.filas.length - 1) * cols + k, pos: 'inicio' }; } }
     else if (op === 'col+') { t.filas.forEach((r) => r.splice(k + 1, 0, [])); t.al.splice(k + 1, 0, t.al[k]); const nc = cols + 1; foco = { idx: f * nc + k + 1, pos: 'inicio' }; }
-    else if (op === 'col-') { t.filas.forEach((r) => r.splice(k, 0, [])); t.al.splice(k, 0, t.al[k]); const nc = cols + 1; foco = { idx: f * nc + k + 1, pos: 'inicio' }; }
+    else if (op === 'col-') { t.filas.forEach((r) => r.splice(k, 0, [])); t.al.splice(k, 0, t.al[k]); const nc = cols + 1; foco = { idx: f * nc + k, pos: 'inicio' }; }
     else if (op === 'borrar-col') { if (cols > 1) { t.filas.forEach((r) => r.splice(k, 1)); t.al.splice(k, 1); const nc = cols - 1; foco = { idx: f * nc + Math.min(k, nc - 1), pos: 'inicio' }; } }
     else if (op === 'al') t.al[k] = valor;
     else if (op === 'borde') t.borde = valor;

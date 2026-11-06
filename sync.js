@@ -2,8 +2,8 @@
 // el código LaTeX o de pegar contenido): calcula el mínimo de cambios para que quienes editan a la vez
 // no pisen todo el documento. Funciones puras (se prueban en Node).
 
-import { nuevoId } from './modelo.js?v=2026.11.06-a';
-import { archivoDe } from './latex-gen.js?v=2026.11.06-a';
+import { nuevoId } from './modelo.js?v=2026.11.06-b';
+import { archivoDe } from './latex-gen.js?v=2026.11.06-b';
 
 export const firma = (b) => { const { id, orden, ...r } = b; return JSON.stringify(r); };
 
@@ -50,15 +50,20 @@ export function diffBloques(viejos, nuevos) {
   const usadoV = new Set();
   const actualizar = [];
   for (const [i, j] of par) { asignado[j] = viejos[i].id; usadoV.add(i); }
-  // huecos entre coincidencias: emparejar por tipo y orden
+  // huecos entre coincidencias: emparejar por tipo (cola FIFO por tipo, conserva el orden relativo).
+  // No se usa un cursor monótono: así un bloque viejo reordenado dentro del hueco no se salta ni se
+  // elimina mientras exista otro nuevo de su mismo tipo que pueda heredar su identidad.
   const limites = [[-1, -1], ...par, [n, m]];
   for (let k = 0; k < limites.length - 1; k++) {
     const [i0, j0] = limites[k], [i1, j1] = limites[k + 1];
-    let i = i0 + 1;
+    const colas = new Map(); // tipo -> índices viejos disponibles, en orden
+    for (let i = i0 + 1; i < i1; i++) { const t = viejos[i].t; if (!colas.has(t)) colas.set(t, []); colas.get(t).push(i); }
     for (let j = j0 + 1; j < j1; j++) {
-      let q = i;
-      while (q < i1 && viejos[q].t !== nuevos[j].t) q++;
-      if (q < i1) { asignado[j] = viejos[q].id; usadoV.add(q); actualizar.push({ id: viejos[q].id, bloque: nuevos[j] }); i = q + 1; }
+      const cola = colas.get(nuevos[j].t);
+      if (cola && cola.length) {
+        const q = cola.shift();
+        asignado[j] = viejos[q].id; usadoV.add(q); actualizar.push({ id: viejos[q].id, bloque: nuevos[j] });
+      }
     }
   }
   const eliminar = viejos.filter((_, i) => !usadoV.has(i)).map((b) => b.id);

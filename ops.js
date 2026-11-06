@@ -1,12 +1,12 @@
 // Núcleo del editor: mantiene la lista de bloques, la dibuja en la página, la guarda en el almacén
 // y aplica cambios de estructura (insertar, dividir, mover, borrar…) con deshacer/rehacer.
 
-import { S, E } from './estado.js?v=2026.11.06-a';
-import { nuevoId, bloqueNuevo } from './modelo.js?v=2026.11.06-a';
-import { diffPorId, firma, necesitaReindexar } from './sync.js?v=2026.11.06-a';
-import { pintarBloque, leerBloque, decorar } from './bloques-dom.js?v=2026.11.06-a';
-import { numerar } from './numerar.js?v=2026.11.06-a';
-import { numerarInline } from './inline-dom.js?v=2026.11.06-a';
+import { S, E } from './estado.js?v=2026.11.06-b';
+import { nuevoId, bloqueNuevo } from './modelo.js?v=2026.11.06-b';
+import { diffPorId, firma, necesitaReindexar } from './sync.js?v=2026.11.06-b';
+import { pintarBloque, leerBloque, decorar } from './bloques-dom.js?v=2026.11.06-b';
+import { numerar } from './numerar.js?v=2026.11.06-b';
+import { numerarInline } from './inline-dom.js?v=2026.11.06-b';
 
 export const bus = new EventTarget();
 const avisar = (tipo, detalle) => bus.dispatchEvent(new CustomEvent(tipo, { detail: detalle }));
@@ -317,23 +317,45 @@ export function fusionarConAnterior(id) {
   if (i <= 0) return false;
   const a = S.bloques[i - 1], b = S.bloques[i];
   if (!(a.t === 'p' || a.t === 'h') || !(b.t === 'p' || b.t === 'h')) return false;
-  const finA = a.c.length;
+  // Posición del cursor = longitud del texto de A una vez fusionado. Se mide sobre los nodos
+  // compactados (como los dibuja pintarInline), no sobre a.c.length: al concatenar A y B,
+  // compactar puede fundir el último nodo de A con el primero de B en un solo hijo del DOM,
+  // así que un índice de nodo del modelo ya no corresponde a un índice de childNodes.
+  const textoA = longitudTexto(a.c);
   editarLista((l) => {
     l[i - 1] = { ...l[i - 1], c: [...a.c, ...b.c] };
     l.splice(i, 1);
   }, { foco: { id: a.id, donde: 'fin' } });
-  // el cursor queda al final del texto de A; si B no estaba vacío se coloca entre ambos
-  if (b.c.length && finA) {
+  // el cursor queda al final del texto de A; si B no estaba vacío se coloca en el límite A|B
+  if (b.c.length && textoA) {
     const e = mapa.get(a.id) && mapa.get(a.id).querySelector('.ed');
-    if (e) colocarCursorEnNodo(e, finA);
+    if (e) colocarCursorEnOffset(e, textoA);
   }
   return true;
 }
 
-function colocarCursorEnNodo(e, nHijosAntes) {
-  const nodo = e.childNodes[nHijosAntes];
+/** Caracteres de texto que aportan los nodos inline (los chips/fórmulas cuentan como 1). */
+function longitudTexto(c) {
+  let n = 0;
+  for (const x of c || []) n += x.s != null ? x.s.length : 1;
+  return n;
+}
+
+/** Coloca el cursor tras `offset` caracteres de texto dentro de `e`, recorriendo sus nodos. */
+function colocarCursorEnOffset(e, offset) {
   const r = document.createRange();
-  if (nodo) { r.setStartBefore(nodo); r.collapse(true); } else { r.selectNodeContents(e); r.collapse(false); }
+  let resto = offset;
+  for (const nodo of e.childNodes) {
+    const len = nodo.nodeType === 3 ? nodo.nodeValue.length : (nodo.textContent ? nodo.textContent.length : 1);
+    if (resto <= len) {
+      if (nodo.nodeType === 3) { r.setStart(nodo, Math.min(resto, nodo.nodeValue.length)); r.collapse(true); }
+      else { r.setStartAfter(nodo); r.collapse(true); }
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      return;
+    }
+    resto -= len;
+  }
+  r.selectNodeContents(e); r.collapse(false);
   const s = getSelection(); s.removeAllRanges(); s.addRange(r);
 }
 
