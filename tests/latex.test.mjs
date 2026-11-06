@@ -171,3 +171,68 @@ test('paleta de fórmulas: cada plantilla tiene como mucho un marcador de cursor
   const abs = PALETA[0][1].find((x) => x[2] === 'Valor absoluto')[1];
   assert.equal(abs.replace('‸', 'x'), '\\left| x \\right|');
 });
+
+// documento LaTeX como string (para pruebas de importación)
+const docTex = (cuerpo, pre = '') => `\\documentclass{article}\n${pre}\\begin{document}\n${cuerpo}\n\\end{document}`;
+
+test('tablas con columnas avanzadas (p{}, >{}, @{}) se importan como tabla editable', () => {
+  const m = parsearTex(docTex('\\begin{tabular}{l >{\\raggedright\\arraybackslash}p{4.3cm} c}\n\\toprule\na & b & c \\\\\n\\midrule\n1 & 2 & 3 \\\\\n\\bottomrule\n\\end{tabular}'));
+  assert.equal(m.bloques.length, 1);
+  assert.equal(m.bloques[0].t, 'tabla', 'debe ser tabla nativa, no raw');
+  assert.deepEqual(m.bloques[0].al, ['l', 'l', 'c']); // p{} → l
+  assert.equal(m.bloques[0].filas.length, 2);
+  assert.equal(m.bloques[0].al.length, 3);
+});
+
+test('tabularx se importa como tabla editable (argumento de ancho antes del spec)', () => {
+  const m = parsearTex(docTex('\\begin{tabularx}{\\textwidth}{@{}l X@{}}\na & b \\\\\n1 & 2 \\\\\n\\end{tabularx}'));
+  assert.equal(m.bloques[0].t, 'tabla');
+  assert.deepEqual(m.bloques[0].al, ['l', 'l']); // X → l
+});
+
+test('\\multicolumn en una tabla se importa (contenido en la primera celda abarcada)', () => {
+  const m = parsearTex(docTex('\\begin{tabular}{c c c}\n\\toprule\na & b & c \\\\\n\\midrule\n\\multicolumn{2}{r}{Total} & 20 \\\\\n\\bottomrule\n\\end{tabular}'));
+  assert.equal(m.bloques[0].t, 'tabla');
+  const ult = m.bloques[0].filas[m.bloques[0].filas.length - 1];
+  assert.deepEqual(ult[0], [{ s: 'Total' }]); // contenido del multicolumn
+  assert.deepEqual(ult[1], []);               // celda abarcada, vacía
+  assert.deepEqual(ult[2], [{ s: '20' }]);
+});
+
+test('\\multirow mantiene la tabla como LaTeX avanzado (no representable aún)', () => {
+  const m = parsearTex(docTex('\\begin{tabular}{c c}\n\\multirow{2}{*}{G} & 1 \\\\\n & 2 \\\\\n\\end{tabular}'));
+  assert.equal(m.bloques[0].t, 'raw');
+  assert.ok(generarTex(m, m.bloques).tex.includes('\\multirow{2}{*}{G}'));
+});
+
+test('detección de paquetes nuevos: cleveref tras hyperref; csquotes/nicefrac/esint antes', () => {
+  const d = doc([
+    { t: 'p', c: [{ s: 'Ver ' }, { raw: '\\cref{x}' }, { s: ' y ' }, { raw: '\\enquote{t}' }], al: 'j' },
+    { t: 'eq', env: 'equation', num: false, tex: '\\nicefrac{1}{2} \\oiint_S F', label: '' },
+  ]);
+  const pre = tex(d).split('\\begin{document}')[0];
+  assert.ok(pre.includes('\\usepackage{nicefrac}'), 'nicefrac');
+  assert.ok(pre.includes('\\usepackage{csquotes}'), 'csquotes');
+  assert.ok(pre.includes('\\usepackage{esint}'), 'esint');
+  assert.ok(pre.includes('\\usepackage{cleveref}'), 'cleveref');
+  // cleveref debe ir DESPUÉS de hyperref para compilar
+  assert.ok(pre.indexOf('{hyperref}') < pre.indexOf('{cleveref}'), 'cleveref tras hyperref');
+});
+
+test('paquetes nuevos sin opciones del preámbulo importado no se duplican', () => {
+  const m = parsearTex('\\documentclass{article}\n\\usepackage{nicefrac}\n\\usepackage{csquotes}\n\\usepackage{fancyhdr}\n\\begin{document}\n\\enquote{x}\n\\end{document}');
+  // al no llevar opciones ni configuración, se descartan y se regeneran si hacen falta
+  assert.ok(!/nicefrac|fancyhdr/.test(m.extra), 'no se quedan en el preámbulo propio');
+});
+
+test('listas anidadas de hasta 5 niveles se importan sin degradarse a LaTeX avanzado', () => {
+  const src = docTex('\\begin{enumerate}\n\\item A\n\\begin{enumerate}\n\\item B\n\\begin{enumerate}\n\\item C\n\\begin{enumerate}\n\\item D\n\\end{enumerate}\n\\end{enumerate}\n\\end{enumerate}\n\\end{enumerate}');
+  const m = parsearTex(src);
+  assert.equal(m.bloques.length, 1);
+  assert.equal(m.bloques[0].t, 'lista');
+  assert.deepEqual(m.bloques[0].items.map((it) => it.n), [0, 1, 2, 3]);
+  // round-trip estable
+  const t1 = generarTex(m, m.bloques).tex;
+  const m2 = parsearTex(t1);
+  assert.equal(generarTex(m2, m2.bloques).tex, t1);
+});

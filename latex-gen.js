@@ -4,8 +4,8 @@
 //   · El .tex generado compila con pdfLaTeX en una distribución estándar (TeX Live / MiKTeX / Overleaf).
 //   · Lo que genera esta función lo vuelve a leer latex-parse.js sin perder nada (ida y vuelta estable).
 
-import { TEOREMAS, NIVELES, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.06-c';
-import { libreriasNecesarias } from './tikz-libs.js?v=2026.11.06-c';
+import { TEOREMAS, NIVELES, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.06-d';
+import { libreriasNecesarias } from './tikz-libs.js?v=2026.11.06-d';
 
 const ESC = { '\\': '\\textbackslash{}', '&': '\\&', '%': '\\%', '$': '\\$', '#': '\\#', '_': '\\_', '{': '\\{', '}': '\\}', '~': '\\textasciitilde{}', '^': '\\textasciicircum{}', '\u00a0': '~' };
 // Símbolos Unicode que pdfLaTeX no entiende por sí solo: se escriben como comandos de LaTeX.
@@ -91,14 +91,45 @@ const USOS_RAW = [
   // listas y unidades
   [/\\(setlist|setenumerate|setitemize|setdescription|newlist)\b|\\begin\{(enumerate|itemize|description)\}\s*\[[^\]]*=/, 'enumitem'],
   [/\\begin\{enumerate\}\s*\[[^\]=]*\]/, 'enumerate'],
-  [/\\(SI|qty|sisetup|SIrange|numrange|SIlist|numlist)\b/, 'siunitx'],
+  [/\\(SI|qty|sisetup|SIrange|numrange|SIlist|numlist|qtylist|qtyrange|ang|unit)\b/, 'siunitx'],
   // matemáticas (lo que MathJax dibuja pero pdfLaTeX no conoce sin su paquete)
   [/\\bm\b/, 'bm'],
   [/\\(cancel|bcancel|xcancel|cancelto)\b/, 'cancel'],
-  [/\\(coloneqq|eqqcolon|coloneq|dcases|rcases|mathclap|mathllap|mathrlap|DeclarePairedDelimiter|prescript|xleftrightarrow|xrightleftharpoons|Aboxed|shortintertext|underbracket|overbracket|vcentcolon)\b|\\begin\{(multlined|lgathered|rgathered|[pbvBV]matrix\*|dcases\*?|rcases)\}/, 'mathtools'],
+  [/\\(coloneqq|eqqcolon|coloneq|dcases|rcases|mathclap|mathllap|mathrlap|DeclarePairedDelimiter|prescript|xleftrightarrow|xrightleftharpoons|Aboxed|shortintertext|underbracket|overbracket|vcentcolon|xmapsto|xhookrightarrow|splitfrac|adjustlimits)\b|\\begin\{(multlined|lgathered|rgathered|[pbvBV]matrix\*|dcases\*?|rcases|cases\*|drcases)\}/, 'mathtools'],
   [/\\mathscr\b/, 'mathrsfs'],
   [/\\mathbbm\b/, 'bbm'],
   [/\\(ce|pu)\s*\{/, 'mhchem'],
+  // más matemáticas comunes de Overleaf (comandos inequívocos; (?![a-zA-Z]) en vez de \b porque
+  // muchos van seguidos de _ ^ { que \b no trata como límite)
+  [/\\(iint|iiint|iiiint|oiint|oiiint|idotsint)(?![a-zA-Z])/, 'esint'],
+  [/\\(llbracket|rrbracket|varcurlyvee|varcurlywedge|lightning|shortrightarrow|mapsfrom)(?![a-zA-Z])/, 'stmaryrd'],
+  [/\\(upalpha|upbeta|upgamma|updelta|upepsilon|upmu|uppi|upphi|upomega|uptheta|uplambda|upsigma|uptau|Upgamma|Updelta|Uppi|Upomega)(?![a-zA-Z])/, 'upgreek'],
+  [/\\mathds(?![a-zA-Z])/, 'dsfont'],
+  [/\\(xlongequal|xLongrightarrow|xLongleftarrow|xlongrightarrow|xlongleftarrow)(?![a-zA-Z])/, 'extarrows'],
+  [/\\centernot(?![a-zA-Z])/, 'centernot'],
+  [/\\nicefrac(?![a-zA-Z])/, 'nicefrac'],
+  [/\\(tensor|indices)(?![a-zA-Z])/, 'tensor'],
+  // tipografía y texto (comandos específicos de cada paquete)
+  [/\\microtypesetup\b/, 'microtype'],
+  [/\\(sethlcolor|hlc)\b/, 'soul'],
+  [/\\(enquote|foreignquote|textquote|blockquote)\b/, 'csquotes'],
+  [/\\(celsius|perthousand|micro|ohm|degree)\b/, 'gensymb'],
+  [/\\(textcelsius|textohm|textmu|textdegree)\b/, 'textcomp'],
+  [/\\FloatBarrier\b/, 'placeins'],
+  [/\\(cref|Cref|crefrange|Crefrange|cpageref|namecref)\b/, ['hyperref', 'cleveref']],
+  [/\\(autoref|nameref|hyperref|hypersetup|href|nolinkurl)\b/, 'hyperref'],
+  [/\\(fancyhf|fancyhead|fancyfoot|fancypagestyle|headrulewidth|footrulewidth)\b/, 'fancyhdr'],
+  [/\\(titleformat|titlespacing|titlerule|titleclass)\b/, 'titlesec'],
+  [/\\(RaggedRight|RaggedLeft|justifying)\b|\\begin\{(FlushLeft|FlushRight)\}/, 'ragged2e'],
+  [/\\lipsum\b/, 'lipsum'],
+  [/\\(tcbox|tcbset|newtcolorbox)\b|\\begin\{tcolorbox\}/, 'tcolorbox'],
+  [/\\(mdfsetup|newmdenv)\b|\\begin\{mdframed\}/, 'mdframed'],
+  [/\\begin\{(algorithmic|algorithm)\}|\\(algrenewcommand|algnewcommand)\b/, ['algorithm', 'algpseudocode']],
+  [/\\begin\{algorithm2e\}|\\(KwData|KwResult|KwIn|KwOut|SetKwInOut)\b/, 'algorithm2e'],
+  [/\\includepdf\b/, 'pdfpages'],
+  [/\\(rotatebox|turnbox)\b|\\begin\{sideways\}/, 'rotating'],
+  [/\\adjustbox\b|\\begin\{adjustbox\}/, 'adjustbox'],
+  [/\\begin\{(tikzcd)\}/, ['tikz-cd', 'tikz']],
 ];
 function detectarUsos(tex, ctx) {
   if (!ctx || !ctx.usos || !tex) return;
@@ -108,7 +139,17 @@ function detectarUsos(tex, ctx) {
 }
 
 /** Paquetes que se añaden solos, en este orden, justo antes del preámbulo propio. */
-export const PAQUETES_AUTO = ['xcolor', 'colortbl', 'array', 'tabularx', 'longtable', 'makecell', 'multirow', 'float', 'multicol', 'wrapfig', 'caption', 'subcaption', 'enumitem', 'enumerate', 'siunitx', 'bm', 'cancel', 'mathtools', 'mathrsfs', 'bbm', 'mhchem'];
+export const PAQUETES_AUTO = ['xcolor', 'colortbl', 'array', 'tabularx', 'longtable', 'makecell', 'multirow', 'float', 'multicol', 'wrapfig', 'caption', 'subcaption', 'enumitem', 'enumerate', 'siunitx', 'bm', 'cancel', 'mathtools', 'mathrsfs', 'bbm', 'mhchem',
+  // símbolos y utilidades matemáticas sin configuración ni orden crítico
+  'esint', 'stmaryrd', 'upgreek', 'dsfont', 'extarrows', 'centernot', 'nicefrac', 'tensor',
+  // texto/tipografía sin orden crítico
+  'csquotes', 'gensymb', 'textcomp', 'ragged2e', 'soul', 'lipsum'];
+
+/**
+ * Paquetes que deben cargarse DESPUÉS de hyperref o que configuran la página/flotantes y conviene
+ * emitir al final del preámbulo generado (antes del propio). cleveref exige ir tras hyperref.
+ */
+export const PAQUETES_TARDIOS = ['cleveref', 'placeins', 'fancyhdr', 'titlesec', 'tcolorbox', 'mdframed', 'adjustbox', 'rotating', 'pdfpages', 'algorithm', 'algpseudocode', 'algorithm2e'];
 
 const LST_ES = "literate={á}{{\\'a}}1 {é}{{\\'e}}1 {í}{{\\'i}}1 {ó}{{\\'o}}1 {ú}{{\\'u}}1 {Á}{{\\'A}}1 {É}{{\\'E}}1 {Í}{{\\'I}}1 {Ó}{{\\'O}}1 {Ú}{{\\'U}}1 {ñ}{{\\~n}}1 {Ñ}{{\\~N}}1 {ü}{{\\\"u}}1 {Ü}{{\\\"U}}1 {¿}{{?`}}1 {¡}{{!`}}1";
 
@@ -303,7 +344,7 @@ export function generarTex(doc, bloques) {
   // Si el preámbulo propio ya carga el paquete no se repite (con otras opciones daría «Option clash»).
   // listings y setspace se cargan igual cuando hace falta configurarlos antes del preámbulo propio.
   const cargaExtra = (p) => new RegExp(`\\\\usepackage(\\[[^\\]]*\\])?\\{[^}]*\\b${p}\\b`).test(extra);
-  for (const p of ['booktabs', 'ulem', ...PAQUETES_AUTO]) if (cargaExtra(p)) ctx.usos.delete(p);
+  for (const p of ['booktabs', 'ulem', 'hyperref', 'microtype', ...PAQUETES_AUTO, ...PAQUETES_TARDIOS]) if (cargaExtra(p)) ctx.usos.delete(p);
   // \bm definido por el usuario (\newcommand{\bm}…) choca con el paquete bm
   if (/\\(?:re)?newcommand\s*\{?\s*\\bm\b|\\def\s*\\bm\b/.test(extra)) ctx.usos.delete('bm');
   // subcaption ya carga caption; tabularx, colortbl y makecell cargan array
@@ -337,9 +378,14 @@ export function generarTex(doc, bloques) {
     pre.push('\\usepackage{listings}',
       `\\lstset{basicstyle=\\ttfamily\\small, breaklines=true, frame=single, numberstyle=\\tiny, keywordstyle=\\color{blue}, commentstyle=\\color{gray}, stringstyle=\\color{teal}, ${LST_ES}}`);
   }
-  pre.push('\\usepackage[hidelinks]{hyperref}');
+  // diagramas conmutativos: tikz-cd necesita tikz y su librería cd
+  if (ctx.usos.has('tikz-cd') && !pre.some((l) => l.includes('{tikz}'))) pre.push('\\usepackage{tikz}');
+  if (ctx.usos.has('tikz-cd')) pre.push('\\usepackage{tikz-cd}');
+  if (!cargaExtra('hyperref')) pre.push('\\usepackage[hidelinks]{hyperref}');
   const meta = [cfg.titulo ? `pdftitle={${textoPdf(cfg.titulo)}}` : '', cfg.autor ? `pdfauthor={${textoPdf(cfg.autor)}}` : ''].filter(Boolean);
-  if (meta.length) pre.push(`\\hypersetup{${meta.join(', ')}}`);
+  if (meta.length && !cargaExtra('hyperref')) pre.push(`\\hypersetup{${meta.join(', ')}}`);
+  // paquetes que deben ir después de hyperref (cleveref) o configuran página/flotantes
+  for (const p of PAQUETES_TARDIOS) if (ctx.usos.has(p)) pre.push(`\\usepackage{${p}}`);
   if (cfg.clase === 'book' && ctx.usos.has('abstract')) pre.push(...ABSTRACT_BOOK);
   const vistos = Array.from(ctx.teoremas).filter((t) => TEOREMAS[t] && t !== 'proof');
   const nombres = (id) => TEOREMAS[id][es ? 'es' : 'en'];

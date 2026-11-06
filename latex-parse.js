@@ -5,9 +5,9 @@
 
 import {
   cfgPorDefecto, CLASES, IDIOMAS, ALIAS_TEOREMA, compactar, sanearBloque, sanearCfg, sanearBiblio, nuevoId, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas,
-} from './modelo.js?v=2026.11.06-c';
-import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO } from './latex-gen.js?v=2026.11.06-c';
-import { tablaMacros } from './macros.js?v=2026.11.06-c';
+} from './modelo.js?v=2026.11.06-d';
+import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO, PAQUETES_TARDIOS } from './latex-gen.js?v=2026.11.06-d';
+import { tablaMacros } from './macros.js?v=2026.11.06-d';
 
 // \ensuremath{\alpha} → α (lo contrario de lo que hace latex-gen.js con los símbolos Unicode)
 const SIMBOLO_DE = new Map(Object.entries(SIMBOLOS).map(([u, cmd]) => [cmd, u]));
@@ -273,7 +273,7 @@ function parsearItems(cuerpo, nivel, items, env = 'itemize', estricto = true) {
   if (ini >= 0) trozos.push(cuerpo.slice(ini));
   const antes = ini >= 0 ? cuerpo.slice(0, cuerpo.search(/\\item(?![a-zA-Z])/)) : cuerpo;
   if (estricto && sinComentarios(antes).trim()) return false;
-  if (estricto && nivel > 2) return false;
+  if (estricto && nivel > 4) return false;
   for (let t of trozos) {
     let et = null;
     // \item[etiqueta]: LaTeX también lo lee así aunque haya un espacio antes del corchete
@@ -290,7 +290,7 @@ function parsearItems(cuerpo, nivel, items, env = 'itemize', estricto = true) {
     }
     if (estricto && (anidadas.some((a) => a.nombre !== env) || sinComentarios(resto).trim())) return false;
     const c = inlineLimpio(texto + (resto.trim() ? ' ' + resto : ''));
-    const it = { c, n: Math.min(nivel, 2) };
+    const it = { c, n: Math.min(nivel, 4) };
     if (et) it.et = et;
     items.push(it);
     for (const a of anidadas) if (parsearItems(a.cuerpoCompleto, nivel + 1, items, env, estricto) === false) return false;
@@ -325,24 +325,87 @@ function celdaLimpia(c) {
   return m[1] ? n.map((x) => (x.s != null ? { ...x, b: 1 } : x)) : n;
 }
 
+/**
+ * Lee un preámbulo de columnas de tabular/tabularx/array y devuelve la alineación por columna (l/c/r).
+ * Entiende: l c r, p{…}/m{…}/b{…} (→l), X de tabularx (→l), >{…}/<{…}/@{…}/!{…} (se ignoran, no son
+ * columnas), barras | y *{n}{…} (repetición). Devuelve null si encuentra algo que no sabe leer.
+ */
+function alineacionesSpec(spec) {
+  // *{3}{c} → ccc (repetición de enumitem/array)
+  let s = spec;
+  for (let i = 0; i < 6; i++) {
+    const m = /\*\{\s*(\d+)\s*\}\s*\{/.exec(s);
+    if (!m) break;
+    const g = grupo(s, m.index + m[0].length - 1);
+    if (!g) return null;
+    s = s.slice(0, m.index) + g.txt.repeat(Math.min(+m[1], 50)) + s.slice(g.fin);
+  }
+  const al = [];
+  let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (ch === 'l' || ch === 'c' || ch === 'r') { al.push(ch); i++; continue; }
+    if (ch === 'p' || ch === 'm' || ch === 'b') { // p{..}/m{..}/b{..}: columna de ancho fijo → se alinea a la izquierda
+      const g = grupo(s, saltarEsp(s, i + 1));
+      if (!g) return null;
+      al.push(ch === 'm' ? 'c' : 'l'); i = g.fin; continue;
+    }
+    if (ch === 'X') { al.push('l'); i++; continue; } // tabularx
+    if (ch === '>' || ch === '<' || ch === '@' || ch === '!') { // decoradores de columna: se descartan
+      const g = grupo(s, saltarEsp(s, i + 1));
+      if (!g) return null;
+      i = g.fin; continue;
+    }
+    if (ch === '|' || /\s/.test(ch)) { i++; continue; }
+    return null; // algo desconocido
+  }
+  return al.length ? al : null;
+}
+
+// \multicolumn{n}{spec}{contenido}: n columnas que abarca, su alineación y su contenido
+const MULTICOL = /^\\multicolumn\s*\{\s*(\d+)\s*\}\s*\{([^{}]*)\}\s*\{/;
+
+/** Celda con posible \multicolumn: devuelve { c, span, al } o null si es una celda normal. */
+function celdaMulticol(txt) {
+  const t = txt.trim();
+  const m = MULTICOL.exec(t);
+  if (!m) return null;
+  const g = grupo(t, m.index + m[0].length - 1);
+  if (!g || g.fin !== t.length) return null; // debe ser toda la celda
+  const ali = alineacionesSpec(m[2]);
+  return { c: celdaLimpia(g.txt), span: Math.max(1, +m[1]), al: (ali && ali[0]) || 'l' };
+}
+
 function parsearTabular(cuerpo, spec) {
-  if (/[*>@<!]/.test(spec)) return null;
-  const letras = [];
-  const limpia = spec.replace(/[pmb]\{[^}]*\}/g, 'l');
-  for (const ch of limpia) { if ('lcr'.includes(ch)) letras.push(ch); else if (ch !== '|' && !/\s/.test(ch)) return null; }
-  if (!letras.length) return null;
-  let borde = spec.includes('|') ? 'completo' : 'ninguno';
+  const letras = alineacionesSpec(spec);
+  if (!letras) return null;
+  if (/\\multirow\b/.test(cuerpo)) return null; // \multirow abarca filas: no representable aún
+  let borde = /[|]/.test(spec) ? 'completo' : 'ninguno';
   if (/\\toprule|\\midrule/.test(cuerpo)) borde = 'horizontal';
   else if (borde === 'ninguno' && /\\hline/.test(cuerpo)) borde = 'completo';
-  if (/\\multicolumn|\\multirow/.test(cuerpo)) return null;
   const limpio = cuerpo.replace(/\\(hline|toprule|midrule|bottomrule)\b/g, '').replace(/\\cline\{[^}]*\}/g, '');
   const filasTxt = dividirNivel(limpio, '\\\\').map((r) => r.trim()).filter((r, idx, arr) => r !== '' || idx < arr.length - 1);
   while (filasTxt.length && filasTxt[filasTxt.length - 1] === '') filasTxt.pop();
   if (!filasTxt.length) return null;
-  const filas = filasTxt.map((f) => dividirNivel(f, '&').map((c) => celdaLimpia(c)));
-  const cols = Math.max(letras.length, ...filas.map((f) => f.length));
+  // cada fila: expande \multicolumn poniendo el contenido en la primera celda y vacías en las abarcadas
+  let colAl = letras.slice();
+  const filas = filasTxt.map((f) => {
+    const celdas = [];
+    for (const raw of dividirNivel(f, '&')) {
+      const mc = celdaMulticol(raw);
+      if (mc) {
+        celdas.push(mc.c);
+        for (let k = 1; k < mc.span; k++) celdas.push([]);
+        // la alineación del multicolumn marca la columna donde empieza
+        if (celdas.length - mc.span < colAl.length) colAl[celdas.length - mc.span] = mc.al;
+      } else celdas.push(celdaLimpia(raw));
+    }
+    return celdas;
+  });
+  const cols = Math.max(colAl.length, ...filas.map((f) => f.length));
   filas.forEach((f) => { while (f.length < cols) f.push([]); });
-  while (letras.length < cols) letras.push('l');
+  while (colAl.length < cols) colAl.push('l');
+  colAl = colAl.slice(0, cols);
   // encabezado: toda la primera fila en negrita
   let enc = false;
   const f0 = filas[0];
@@ -350,15 +413,19 @@ function parsearTabular(cuerpo, spec) {
     enc = true;
     filas[0] = f0.map((c) => c.map((n) => { if (n.s != null && n.b) { const { b, ...r } = n; return r; } return n; }));
   }
-  return { t: 'tabla', filas, enc, al: letras, borde, pie: [], label: '' };
+  return { t: 'tabla', filas, enc, al: colAl, borde, pie: [], label: '' };
 }
 
 function ambosTabular(cuerpo) {
-  const i = cuerpo.indexOf('\\begin{tabular}');
-  if (i < 0) return null;
+  // tabular, o tabularx/tabulary (con un argumento de ancho extra antes del spec)
+  const m = /\\begin\{(tabular|tabularx|tabulary)\}/.exec(cuerpo);
+  if (!m) return null;
+  const i = m.index;
+  const nombre = m[1];
   const e = entorno(cuerpo, i);
   if (!e) return null;
-  const k = saltarEsp(e.cuerpoCompleto, 0);
+  let k = saltarEsp(e.cuerpoCompleto, 0);
+  if (nombre !== 'tabular') { const ga = grupo(e.cuerpoCompleto, k); if (!ga) return null; k = saltarEsp(e.cuerpoCompleto, ga.fin); }
   const g = grupo(e.cuerpoCompleto, k);
   if (!g) return null;
   return { tabla: parsearTabular(e.cuerpoCompleto.slice(g.fin), g.txt), ini: i, fin: e.fin };
@@ -520,8 +587,11 @@ function bloqueEntorno(e, ctx) {
       return [{ t: 'eq', env: nombre, tex, num, label }];
     }
     case 'tikzpicture': { const tk = leerTikz(e.raw); return tk ? [tk] : null; }
-    case 'tabular': {
-      const g = grupo(cuerpo, saltarEsp(cuerpo, 0));
+    case 'tabular': case 'tabularx': case 'tabulary': {
+      // tabularx/tabulary llevan un argumento de ancho ({\textwidth}) antes del spec de columnas
+      let k = saltarEsp(cuerpo, 0);
+      if (nombre !== 'tabular') { const ga = grupo(cuerpo, k); if (!ga) return null; k = saltarEsp(cuerpo, ga.fin); }
+      const g = grupo(cuerpo, k);
       if (!g) return null;
       const t = parsearTabular(cuerpo.slice(g.fin), g.txt);
       return t ? [t] : null;
@@ -762,7 +832,7 @@ function parsearPreambulo(pre, cfg, ctx) {
           const resto = opt.replace(/margin\s*=\s*[\d.]+\s*cm/, '').split(',').map((x) => x.trim()).filter((x) => x && x !== 'a4paper' && x !== 'letterpaper');
           if (mm && !resto.length) cfg.margen = +mm[1]; else { cfg.margen = 'extra'; extra.push(raw.trim()); }
         } else if (pks.every((p) => PAQUETES_PROPIOS.has(p))) { /* se vuelve a generar */ }
-        else if (!opt && pks.every((p) => PAQUETES_AUTO.includes(p))) { /* se vuelve a generar si hace falta */ }
+        else if (!opt && pks.every((p) => PAQUETES_AUTO.includes(p) || PAQUETES_TARDIOS.includes(p))) { /* se vuelve a generar si hace falta */ }
         else extra.push(raw.trim());
         break;
       }

@@ -192,7 +192,7 @@ export function sanearBloque(b) {
       if (b.env === 'list') o.env = 'list';
       if (typeof b.opt === 'string' && b.opt.length < 500 && !/\\end\{/.test(b.opt)) o.opt = b.opt;
       o.items = (Array.isArray(b.items) ? b.items : []).slice(0, 500).map((i) => {
-        const it = { c: sanearInline(i && i.c), n: entre(i && i.n, 0, 2, 0) };
+        const it = { c: sanearInline(i && i.c), n: entre(i && i.n, 0, 4, 0) };
         if (i && Array.isArray(i.et)) it.et = sanearInline(i.et);
         return it;
       });

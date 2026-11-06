@@ -1,20 +1,20 @@
 // Acciones de la cinta y de los bloques: formato, inserciones en el texto, tablas, figuras, menús.
 
-import { S, E } from './estado.js?v=2026.11.06-c';
-import { h, abrirMenu, aviso, pedir } from './ui.js?v=2026.11.06-c';
-import { nuevoId } from './modelo.js?v=2026.11.06-c';
-import { nodoInline, renderMate, leerInline, rellenar, chipRaw } from './inline-dom.js?v=2026.11.06-c';
-import { editarMate } from './matematica.js?v=2026.11.06-c';
-import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.06-c';
-import { etiquetaNueva } from './numerar.js?v=2026.11.06-c';
-import { procesarImagen, marcarLista, chipTermino } from './bloques-dom.js?v=2026.11.06-c';
-import { editarTikz } from './tikz-editor.js?v=2026.11.06-c';
-import { textoPlano } from './modelo.js?v=2026.11.06-c';
-import { parsearInline } from './latex-parse.js?v=2026.11.06-c';
+import { S, E } from './estado.js?v=2026.11.06-d';
+import { h, abrirMenu, aviso, pedir } from './ui.js?v=2026.11.06-d';
+import { nuevoId } from './modelo.js?v=2026.11.06-d';
+import { nodoInline, renderMate, leerInline, rellenar, chipRaw } from './inline-dom.js?v=2026.11.06-d';
+import { editarMate } from './matematica.js?v=2026.11.06-d';
+import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.06-d';
+import { etiquetaNueva } from './numerar.js?v=2026.11.06-d';
+import { procesarImagen, marcarLista, chipTermino, NIVELES_LISTA } from './bloques-dom.js?v=2026.11.06-d';
+import { editarTikz } from './tikz-editor.js?v=2026.11.06-d';
+import { textoPlano } from './modelo.js?v=2026.11.06-d';
+import { parsearInline } from './latex-parse.js?v=2026.11.06-d';
 import {
   mapa, bloqueDe, modificar, insertarBloque, eliminarBloque, duplicarBloque, moverBloque, convertirBloque, editarLista,
   guardarPendientes, marcarSucio, numeracion, refrescarDerivados, enfocar, aplicarCambios,
-} from './ops.js?v=2026.11.06-c';
+} from './ops.js?v=2026.11.06-d';
 
 // ── Selección ───────────────────────────────────────────────────────────
 
@@ -405,7 +405,7 @@ export function sangria(delta) {
 }
 
 export function cambiarNivelItem(li, delta) {
-  const n = Math.max(0, Math.min(2, (+li.dataset.n || 0) + delta));
+  const n = Math.max(0, Math.min(NIVELES_LISTA - 1, (+li.dataset.n || 0) + delta));
   if (n === +li.dataset.n) return;
   // no se puede saltar un nivel respecto al elemento anterior
   const prev = li.previousElementSibling;

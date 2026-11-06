@@ -124,6 +124,12 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.06-d**
+- **Muchos más paquetes de LaTeX se cargan solos** para que el `.tex` compile como en Overleaf sin tocar el preámbulo: `esint`, `stmaryrd`, `upgreek`, `dsfont`, `extarrows`, `centernot`, `nicefrac`, `tensor`, `csquotes`, `gensymb`, `textcomp`, `ragged2e`, `soul`, `cleveref` (se carga después de `hyperref`, como debe ser), `fancyhdr`, `titlesec`, `placeins`, `tcolorbox`, `mdframed`, `adjustbox`, `rotating`, `pdfpages`, `algorithm`/`algpseudocode`, `algorithm2e`, `tikz-cd` y `siunitx` ampliado. Al importar, estos paquetes sin opciones ya no se duplican.
+- **Tablas más parecidas a Overleaf**: las columnas con ancho fijo (`p{…}`, `m{…}`, `b{…}`), decoradores (`>{…}`, `<{…}`, `@{…}`, `!{…}`), `*{n}{…}`, la columna `X` de **tabularx**/**tabulary** y el **`\multicolumn`** ya se importan como tabla editable en vez de quedar como «LaTeX avanzado». (`\multirow` sigue conservándose como avanzado porque abarca varias filas.)
+- **Listas anidadas de hasta 5 niveles** (antes 3), con marcadores por nivel como en LaTeX (viñetas •/–/∗/·/‣; numeradas 1./(a)/i./A.). Las listas con opciones de `enumitem` (`[leftmargin=*, …]`) y `\begin{list}{}{…}` se importan y conservan sus opciones.
+- **Vista previa de fórmulas** más completa: MathJax carga `physics`, `mhchem` y `braket`, y hay macros‑puente para `\nicefrac`, `\oiint`, `\unit`, `\qty` y las griegas rectas (`\upmu`, `\uppi`…).
+
 **2026.11.06-c**
 - Colaboración: al editar el mismo bloque dos personas, cuando el almacén confirma tu cambio se acepta de inmediato el cambio posterior de la otra persona, en vez de conservar tu versión hasta 8 s (antes podía «resucitar» tu copia vieja). Se mantiene el respaldo por tiempo de espera.
 - Deshacer: una edición continua larga ya no se agrupaba en un único paso que lo abarcaba todo; ahora se crea un punto de deshacer cada ~1,5 s de escritura seguida, conservando la granularidad.
