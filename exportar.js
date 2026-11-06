@@ -1,9 +1,9 @@
 // Descargas: .tex, .zip (con imágenes), PDF por impresión, Overleaf y copia JSON.
 
-import { S } from './estado.js?v=2026.11.06-b';
-import { descargar, nombreArchivo, aviso, modal, h } from './ui.js?v=2026.11.06-b';
-import { generarTex } from './latex-gen.js?v=2026.11.06-b';
-import { guardarPendientes } from './ops.js?v=2026.11.06-b';
+import { S } from './estado.js?v=2026.11.06-c';
+import { descargar, nombreArchivo, aviso, modal, h } from './ui.js?v=2026.11.06-c';
+import { generarTex } from './latex-gen.js?v=2026.11.06-c';
+import { guardarPendientes } from './ops.js?v=2026.11.06-c';
 
 export function textoLatex() {
   guardarPendientes(true);

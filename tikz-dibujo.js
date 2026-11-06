@@ -7,7 +7,7 @@
 //
 // La parte pura (leerPiezas, escribirPiezas, formaATikz) se prueba en Node.
 
-import { dividirSentencias, interpretarTikz, tikzASvg, colorCss, PT_CM } from './tikz.js?v=2026.11.06-b';
+import { dividirSentencias, interpretarTikz, tikzASvg, colorCss, PT_CM } from './tikz.js?v=2026.11.06-c';
 
 const NUM = '(-?\\d*\\.?\\d+)';
 const P = `\\(\\s*${NUM}\\s*,\\s*${NUM}\\s*\\)`;

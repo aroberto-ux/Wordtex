@@ -1,8 +1,8 @@
 // Dibuja en el DOM un fragmento de LaTeX de «modo texto» que ya tiene las macros propias expandidas
 // (\colorbox, \parbox, \fbox, \small, \fontsize, \textbf, $…$, \par…). Es solo vista previa: el código no se toca.
 
-import { grupo, colorDelPreambulo } from './macros.js?v=2026.11.06-b';
-import { renderMate } from './mathjax.js?v=2026.11.06-b';
+import { grupo, colorDelPreambulo } from './macros.js?v=2026.11.06-c';
+import { renderMate } from './mathjax.js?v=2026.11.06-c';
 
 const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
 

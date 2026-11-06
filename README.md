@@ -124,6 +124,11 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.06-c**
+- Colaboración: al editar el mismo bloque dos personas, cuando el almacén confirma tu cambio se acepta de inmediato el cambio posterior de la otra persona, en vez de conservar tu versión hasta 8 s (antes podía «resucitar» tu copia vieja). Se mantiene el respaldo por tiempo de espera.
+- Deshacer: una edición continua larga ya no se agrupaba en un único paso que lo abarcaba todo; ahora se crea un punto de deshacer cada ~1,5 s de escritura seguida, conservando la granularidad.
+- Limpieza: eliminados archivos residuales (`a`, `tests/f`, `vendor/katex/aaa`, `vendor/katex/fonts/q`, `LEEME-eliminar.txt`) y el motor KaTeX que ya no se usa (`vendor/katex/katex.min.js` y `.css`); se conservan las tipografías Latin Modern (`vendor/katex/fonts/`) y su `LICENSE`.
+
 **2026.11.06-b**
 - Tablas: «insertar fila arriba» e «insertar columna a la izquierda» dejaban el cursor en la fila/celda de al lado en vez de en la nueva; ahora el foco va a la fila o celda recién creada.
 - Colaboración y vista de código: reordenar dos bloques del mismo tipo (p. ej. intercambiar una tabla y un párrafo) ya no borra y recrea uno de ellos; conservan su identidad (y las figuras su imagen). El emparejamiento dentro de cada hueco usa colas por tipo en vez de un cursor que podía saltarse bloques.

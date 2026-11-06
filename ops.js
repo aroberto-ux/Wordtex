@@ -1,12 +1,12 @@
 // Núcleo del editor: mantiene la lista de bloques, la dibuja en la página, la guarda en el almacén
 // y aplica cambios de estructura (insertar, dividir, mover, borrar…) con deshacer/rehacer.
 
-import { S, E } from './estado.js?v=2026.11.06-b';
-import { nuevoId, bloqueNuevo } from './modelo.js?v=2026.11.06-b';
-import { diffPorId, firma, necesitaReindexar } from './sync.js?v=2026.11.06-b';
-import { pintarBloque, leerBloque, decorar } from './bloques-dom.js?v=2026.11.06-b';
-import { numerar } from './numerar.js?v=2026.11.06-b';
-import { numerarInline } from './inline-dom.js?v=2026.11.06-b';
+import { S, E } from './estado.js?v=2026.11.06-c';
+import { nuevoId, bloqueNuevo } from './modelo.js?v=2026.11.06-c';
+import { diffPorId, firma, necesitaReindexar } from './sync.js?v=2026.11.06-c';
+import { pintarBloque, leerBloque, decorar } from './bloques-dom.js?v=2026.11.06-c';
+import { numerar } from './numerar.js?v=2026.11.06-c';
+import { numerarInline } from './inline-dom.js?v=2026.11.06-c';
 
 export const bus = new EventTarget();
 const avisar = (tipo, detalle) => bus.dispatchEvent(new CustomEvent(tipo, { detail: detalle }));
@@ -21,6 +21,9 @@ let ultimoUndo = 0;
 export let numeracion = { info: new Map(), etiquetas: new Map(), titulos: [], citas: new Map() };
 
 const TTL = 8000;
+// Tras confirmarse una escritura propia, se espera este margen antes de aceptar una versión remota
+// distinta del mismo bloque: evita tratar el eco del propio snapshot como un cambio ajeno.
+const MARGEN_ECO = 1500;
 const copiaB = (b) => JSON.parse(JSON.stringify(b));
 export const indiceDe = (id) => S.bloques.findIndex((b) => b.id === id);
 export const bloqueDe = (id) => S.bloques.find((b) => b.id === id);
@@ -29,7 +32,10 @@ export const bloqueDe = (id) => S.bloques.find((b) => b.id === id);
 
 function empujarUndo(rafaga = false) {
   const ahora = Date.now();
-  if (rafaga && ahora - ultimoUndo < 1500 && S.undo.length) { ultimoUndo = ahora; return; }
+  // Coalescing por tiempo: durante una ráfaga de ediciones se agrupan en un solo paso de deshacer,
+  // pero la ventana se mide desde el último snapshot (no se desliza con cada tecla). Así una edición
+  // continua larga genera un snapshot nuevo cada ~1500 ms en vez de uno solo que se traga todo.
+  if (rafaga && ahora - ultimoUndo < 1500 && S.undo.length) return;
   ultimoUndo = ahora;
   S.undo.push(S.bloques.map(copiaB));
   if (S.undo.length > 100) S.undo.shift();
@@ -76,9 +82,26 @@ export function guardarPendientes(sinDerivados = false) {
     actualizar.push({ id, bloque: nuevo });
   }
   dirty.clear();
-  if (actualizar.length) S.store.aplicarBloques(S.did, { actualizar });
+  if (actualizar.length) enviarAlAlmacen({ actualizar }, actualizar.map((x) => x.id));
   if (!sinDerivados) refrescarDerivados();
   avisar('cambio');
+}
+
+/**
+ * Envía cambios al almacén y, cuando este los confirma, marca las entradas de `enVuelo`
+ * correspondientes como confirmadas. Así, si después llega por el snapshot una versión remota
+ * distinta de ese bloque, se sabe que es un cambio posterior de otra persona (y se acepta) en vez
+ * de conservar la copia local hasta que expire el TTL.
+ */
+function enviarAlAlmacen(ops, ids) {
+  const r = S.store.aplicarBloques(S.did, ops);
+  if (r && typeof r.then === 'function') {
+    r.then((ok) => {
+      if (ok === false) return; // falló el guardado: que el TTL u otra escritura lo resuelvan
+      const ahora = Date.now();
+      for (const id of ids) { const v = enVuelo.get(id); if (v) v.confirmado = ahora; }
+    }).catch(() => { /* ignorar: lo cubre el TTL */ });
+  }
 }
 
 /** Vuelve a calcular números, índice y referencias. */
@@ -133,6 +156,7 @@ export function recibirBloques(lista) {
     const v = enVuelo.get(b.id);
     if (v) {
       if (v.firma === firma(b) && v.orden === b.orden) enVuelo.delete(b.id);
+      else if (v.confirmado && ahora - v.confirmado > MARGEN_ECO) { enVuelo.delete(b.id); /* el almacén ya guardó lo mío hace rato; esto es un cambio posterior de otra persona: se acepta */ }
       else if (locales.has(b.id)) { salida.push(locales.get(b.id)); continue; }
     }
     if (dirty.has(b.id) && locales.has(b.id)) { salida.push(locales.get(b.id)); continue; }
@@ -152,7 +176,7 @@ function reindexar() {
   const mover = nuevos.map((b) => ({ id: b.id, orden: b.orden }));
   nuevos.forEach((b) => enVuelo.set(b.id, { firma: firma(b), orden: b.orden, ts: Date.now() }));
   S.bloques = nuevos;
-  S.store.aplicarBloques(S.did, { mover });
+  enviarAlAlmacen({ mover }, mover.map((x) => x.id));
 }
 
 /**
@@ -171,7 +195,10 @@ export function aplicarCambios(nueva, o = {}) {
   for (const x of d.mover) { const f = d.final.find((y) => y.id === x.id); enVuelo.set(x.id, { firma: firma(f), orden: x.orden, ts: ahora }); }
   const forzar = new Set([...d.actualizar.map((x) => x.id), ...d.crear.map((x) => x.id)]);
   S.bloques = d.final;
-  if (d.crear.length || d.actualizar.length || d.mover.length || d.eliminar.length) S.store.aplicarBloques(S.did, d);
+  if (d.crear.length || d.actualizar.length || d.mover.length || d.eliminar.length) {
+    const ids = [...d.crear.map((x) => x.id), ...d.actualizar.map((x) => x.id), ...d.mover.map((x) => x.id)];
+    enviarAlAlmacen(d, ids);
+  }
   reconciliar(forzar);
   avisar('cambio');
   if (o.foco) enfocar(o.foco.id, o.foco.donde || 'fin');
