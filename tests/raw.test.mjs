@@ -123,3 +123,52 @@ test('ida y vuelta: el bloque crudo con [H] no cambia ni mueve paquetes al preá
   assert.deepEqual(m.bloques.map(({ id, orden, ...r }) => r), [{ t: 'raw', tex: TABLA }]);
   assert.equal(generarTex(m, m.bloques).tex, t1);
 });
+
+// ── Paquetes que se cargan solos ────────────────────────────────────────
+
+const tex = (bloques, extra = '') => generarTex(doc(bloques, extra), bloques).tex;
+const raw = (t) => [{ t: 'raw', tex: t }];
+const carga = (t, p) => new RegExp(`\\\\usepackage(\\[[^\\]]*\\])?\\{${p}\\}`).test(t);
+
+test('paquetes: lo que se escribe en LaTeX avanzado carga su paquete', () => {
+  assert.ok(carga(tex(raw('\\textcolor{red}{a}')), 'xcolor'));
+  const c = tex(raw('\\cellcolor{gray!20} a'));
+  assert.ok(carga(c, 'xcolor') && carga(c, 'colortbl'));
+  assert.ok(carga(tex(raw('\\begin{tabularx}{\\linewidth}{lX}a\\end{tabularx}')), 'tabularx'));
+  assert.ok(carga(tex(raw('\\begin{longtable}{l}a\\end{longtable}')), 'longtable'));
+  assert.ok(carga(tex(raw('\\begin{multicols}{2}a\\end{multicols}')), 'multicol'));
+  assert.ok(carga(tex(raw('\\begin{enumerate}[label=\\alph*)]\\item a\\end{enumerate}')), 'enumitem'));
+  assert.ok(carga(tex(raw('\\SI{5}{\\meter}')), 'siunitx'));
+  assert.ok(carga(tex(raw('\\captionof{figure}{x}')), 'caption'));
+  const s = tex(raw('\\begin{subfigure}{.5\\textwidth}\\captionof{figure}{x}\\end{subfigure}'));
+  assert.ok(carga(s, 'subcaption') && !carga(s, 'caption'));
+});
+
+test('paquetes: las ecuaciones y las fórmulas en línea también cuentan', () => {
+  const eq = { ...bloqueNuevo('eq'), tex: 'x \\coloneqq \\bm{y} + \\cancel{z} + \\mathscr{L}' };
+  const t = tex([eq]);
+  for (const p of ['mathtools', 'bm', 'cancel', 'mathrsfs']) assert.ok(carga(t, p), p);
+  const p = { t: 'p', c: [{ mate: '\\mathbbm{1}_A \\ce{H2O}' }] };
+  const t2 = tex([p]);
+  assert.ok(carga(t2, 'bbm') && carga(t2, 'mhchem'));
+  assert.ok(!carga(tex([{ t: 'p', c: [{ mate: 'x^2 + \\frac{a}{b}' }] }]), 'bm'));   // lo normal no carga nada de más
+});
+
+test('paquetes: no se repiten si el preámbulo propio ya los carga, ni chocan con un \\bm propio', () => {
+  const n = (t, p) => (t.match(new RegExp(`\\\\usepackage(\\[[^\\]]*\\])?\\{[^}]*\\b${p}\\b`, 'g')) || []).length;
+  assert.equal(n(tex(raw('\\textcolor{red}{a}'), '\\usepackage[dvipsnames]{xcolor}'), 'xcolor'), 1);
+  assert.equal(n(tex(raw('\\begin{lstlisting}\\end{lstlisting}'), '\\usepackage[table]{xcolor}'), 'xcolor'), 1);
+  assert.ok(!carga(tex(raw('$\\bm{x}$'), '\\newcommand{\\bm}[1]{\\boldsymbol{#1}}'), 'bm'));
+});
+
+test('paquetes: ida y vuelta estable y sin llevarse nada al preámbulo propio', () => {
+  const eq = { ...bloqueNuevo('eq'), tex: '\\bm{x} = \\cancel{y}' };
+  const d = doc([{ t: 'raw', tex: '\\textcolor{red}{a} \\multirow{2}{*}{b}' }, eq], '\\newcommand{\\R}{\\mathbb{R}}');
+  const t1 = generarTex(d, d.bloques).tex;
+  const m = parsearTex(t1);
+  assert.equal(m.extra, d.extra);
+  assert.equal(generarTex(m, m.bloques).tex, t1);
+  // un xcolor con opciones del usuario se conserva
+  const m2 = parsearTex(tex(raw('\\textcolor{red}{a}'), '\\usepackage[dvipsnames]{xcolor}'));
+  assert.match(m2.extra, /\\usepackage\[dvipsnames\]\{xcolor\}/);
+});
