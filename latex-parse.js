@@ -5,9 +5,9 @@
 
 import {
   cfgPorDefecto, CLASES, IDIOMAS, ALIAS_TEOREMA, compactar, sanearBloque, sanearCfg, sanearBiblio, nuevoId, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas,
-} from './modelo.js?v=2026.11.06-a';
-import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO } from './latex-gen.js?v=2026.11.06-a';
-import { tablaMacros } from './macros.js?v=2026.11.06-a';
+} from './modelo.js?v=2026.11.06-b';
+import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO } from './latex-gen.js?v=2026.11.06-b';
+import { tablaMacros } from './macros.js?v=2026.11.06-b';
 
 // \ensuremath{\alpha} → α (lo contrario de lo que hace latex-gen.js con los símbolos Unicode)
 const SIMBOLO_DE = new Map(Object.entries(SIMBOLOS).map(([u, cmd]) => [cmd, u]));
@@ -413,7 +413,7 @@ function parsearFigura(cuerpo) {
     else if (w[2].startsWith('\\')) ancho = 100 * v;
     else if (w[2] === 'cm') ancho = (v / 16) * 100;
     else if (w[2] === 'mm') ancho = (v / 160) * 100;
-    else ancho = (v / 450) * 100;
+    else ancho = (v / 453.5) * 100; // 1 pt = 1/72,27 in; 16 cm de ancho útil ≈ 453,5 pt (coherente con la rama cm)
   }
   const ruta = m[2].trim();
   const nombre = ruta.split('/').pop() || 'imagen.png';

@@ -152,6 +152,8 @@ const etiqueta = (v) => cadena(v, 60).replace(/[^\w:.-]/g, '');
 /** Solo direcciones web, correo o relativas: un «javascript:» de un .tex importado no debe poder abrirse. */
 export function urlSegura(u) {
   const v = String(u || '').trim();
+  // Direcciones protocol-relative (//host/…) navegan a un host externo al abrirse: se descartan.
+  if (/^\/\//.test(v)) return '';
   return /^[a-z][\w+.-]*:/i.test(v) && !/^(https?|mailto|ftp):/i.test(v) ? '' : v;
 }
 

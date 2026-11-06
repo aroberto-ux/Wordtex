@@ -124,6 +124,14 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.06-b**
+- Tablas: «insertar fila arriba» e «insertar columna a la izquierda» dejaban el cursor en la fila/celda de al lado en vez de en la nueva; ahora el foco va a la fila o celda recién creada.
+- Colaboración y vista de código: reordenar dos bloques del mismo tipo (p. ej. intercambiar una tabla y un párrafo) ya no borra y recrea uno de ellos; conservan su identidad (y las figuras su imagen). El emparejamiento dentro de cada hueco usa colas por tipo en vez de un cursor que podía saltarse bloques.
+- Fusionar un párrafo con el anterior (Retroceso al inicio) colocaba mal el cursor cuando el texto llevaba formato o fórmulas; ahora se sitúa en el límite real entre ambos textos.
+- Enlaces: las direcciones «protocol-relative» (`//host/…`) de un `.tex` importado se descartan, como ya se hacía con `javascript:`.
+- Vista previa de figuras: el ancho en `pt` usaba una referencia (450 pt) incoherente con la de `cm`; ahora ambas coinciden (≈ 453,5 pt por 16 cm).
+- Pruebas: regresión de `diffBloques` al reordenar bloques del mismo tipo y de `urlSegura` con direcciones protocol-relative.
+
 **2026.11.05-a**
 - Ecuaciones: `multline`, `flalign`, `eqnarray`, `displaymath` y `math` son bloques editables, y también las que llevan `cases`, `pmatrix`, `aligned`… dentro. Las etiquetas escritas fila a fila se conservan y se numeran.
 - Listas de descripción (`description`) y `\item[etiqueta]` editables, sin perder la etiqueta. `\begin{center}\includegraphics…` es una figura; las figuras importadas conservan la ruta y las opciones de `\includegraphics`.
