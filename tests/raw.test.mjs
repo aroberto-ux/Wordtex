@@ -213,3 +213,15 @@ test('definicionesMathJax: \\newcommand con argumentos, \\def, \\definecolor y \
     '\\DeclareMathOperator{\\sen}{sen}',
   ]);
 });
+
+test('listas con opciones de enumitem y \\begin{list}{}{…} son listas editables y conservan sus opciones', () => {
+  const src = '\\documentclass{article}\n\\begin{document}\n\\begin{itemize}[leftmargin=*, itemsep=2pt]\n\\item Uno\n\n\\item Dos\n\\end{itemize}\n\n\\begin{list}{}{\\setlength{\\leftmargin}{0.3in}}\n\\item Tres\n\\end{list}\n\\end{document}\n';
+  const m = parsearTex(src);
+  const ls = m.bloques.filter((b) => b.t === 'lista');
+  assert.equal(ls.length, 2);
+  assert.equal(ls[0].opt, '[leftmargin=*, itemsep=2pt]');
+  assert.equal(ls[1].env, 'list');
+  const out = generarTex(m, m.bloques).tex;
+  assert.match(out, /\\begin\{itemize\}\[leftmargin=\*, itemsep=2pt\]/);
+  assert.match(out, /\\begin\{list\}\{\}\{\\setlength\{\\leftmargin\}\{0\.3in\}\}/);
+});
