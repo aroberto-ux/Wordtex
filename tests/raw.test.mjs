@@ -193,3 +193,23 @@ Ver \ref{t:1}, \eqref{eq:1} y \ref{tab:x}, \ref{tab:l}.
   assert.equal(n.etiquetas.get('tab:x'), '1');
   assert.equal(n.etiquetas.get('tab:l'), '2');         // longtable con \caption también cuenta
 });
+
+test('definicionesMathJax: \\newcommand con argumentos, \\def, \\definecolor y \\DeclareSIUnit del preámbulo', async () => {
+  const { definicionesMathJax } = await import('../macros.js');
+  const d = definicionesMathJax(String.raw`% \newcommand{\no}{x}
+\definecolor{amarillopend}{RGB}{255,244,179}
+\newcommand{\pendiente}[1]{\colorbox{amarillopend}{\strut #1}}
+\newcommand{\f}[2][x]{#1+#2}
+\DeclareSIUnit
+\kgf{kgf}
+\def\v#1{\vec{#1}}
+\DeclareMathOperator{\sen}{sen}`);
+  assert.deepEqual(d, [
+    '\\definecolor{amarillopend}{RGB}{255,244,179}',
+    '\\renewcommand{\\pendiente}[1]{\\colorbox{amarillopend}{#1}}',
+    '\\renewcommand{\\f}[2][x]{#1+#2}',
+    '\\def\\kgf{\\mathrm{kgf}}',
+    '\\def\\v#1{\\vec{#1}}',
+    '\\DeclareMathOperator{\\sen}{sen}',
+  ]);
+});
