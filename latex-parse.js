@@ -6,7 +6,7 @@
 import {
   cfgPorDefecto, CLASES, IDIOMAS, ALIAS_TEOREMA, compactar, sanearBloque, sanearCfg, sanearBiblio, nuevoId, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas,
 } from './modelo.js?v=2026.11.05-a';
-import { SIMBOLOS, ABSTRACT_BOOK } from './latex-gen.js?v=2026.11.05-a';
+import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO } from './latex-gen.js?v=2026.11.05-a';
 
 // \ensuremath{\alpha} → α (lo contrario de lo que hace latex-gen.js con los símbolos Unicode)
 const SIMBOLO_DE = new Map(Object.entries(SIMBOLOS).map(([u, cmd]) => [cmd, u]));
@@ -739,6 +739,7 @@ function parsearPreambulo(pre, cfg, ctx) {
           const resto = opt.replace(/margin\s*=\s*[\d.]+\s*cm/, '').split(',').map((x) => x.trim()).filter((x) => x && x !== 'a4paper' && x !== 'letterpaper');
           if (mm && !resto.length) cfg.margen = +mm[1]; else { cfg.margen = 'extra'; extra.push(raw.trim()); }
         } else if (pks.every((p) => PAQUETES_PROPIOS.has(p))) { /* se vuelve a generar */ }
+        else if (!opt && pks.every((p) => PAQUETES_AUTO.includes(p))) { /* se vuelve a generar si hace falta */ }
         else extra.push(raw.trim());
         break;
       }

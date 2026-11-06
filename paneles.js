@@ -102,7 +102,7 @@ function avanzado() {
   let t = null;
   ta.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { S.doc.extra = ta.value; S.store.actualizarDocumento(S.did, { extra: ta.value }); bus.dispatchEvent(new CustomEvent('doc')); }, 600); });
   return h('div', {},
-    h('p', { class: 'vacio-panel' }, 'Paquetes y macros de LaTeX propios (por ejemplo \\usepackage{tikz}). Se copian tal cual antes de «\\begin{document}». Solo hace falta si ya sabes LaTeX.'),
+    h('p', { class: 'vacio-panel' }, 'Paquetes y macros de LaTeX propios (por ejemplo \\usepackage{tikz}). Se copian tal cual antes de «\\begin{document}». Solo hace falta si ya sabes LaTeX. Los paquetes habituales (xcolor, multirow, float, tabularx, longtable, multicol, enumitem, siunitx, bm, cancel, mathtools, caption, subcaption…) se cargan solos cuando tu texto, tus ecuaciones o tu LaTeX avanzado los usan.'),
     ta);
 }
 

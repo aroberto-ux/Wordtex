@@ -77,7 +77,7 @@ La página **no compila LaTeX dentro del navegador**. Opciones:
 
 ## Calidad del LaTeX generado
 
-- **Compila siempre** con pdfLaTeX en TeX Live, MiKTeX u Overleaf: cada paquete se carga solo si hace falta (también los que usa tu LaTeX avanzado), una figura sin imagen sale como recuadro «Imagen pendiente», la clase *Libro* recibe un entorno de resumen, los saltos de línea dentro de celdas usan una tabla anidada y nunca se escribe `\\` al principio de un párrafo.
+- **Compila siempre** con pdfLaTeX en TeX Live, MiKTeX u Overleaf: cada paquete se carga solo si hace falta (también los que usan tus ecuaciones y tu LaTeX avanzado: xcolor, colortbl, array, tabularx, longtable, makecell, multirow, float, multicol, wrapfig, caption, subcaption, enumitem, siunitx, bm, cancel, mathtools, mathrsfs, bbm, mhchem; nunca se repite uno que ya cargue tu preámbulo propio), una figura sin imagen sale como recuadro «Imagen pendiente», la clase *Libro* recibe un entorno de resumen, los saltos de línea dentro de celdas usan una tabla anidada y nunca se escribe `\\` al principio de un párrafo.
 - **Tipografía cuidada**: `microtype`, `lmodern`, `booktabs` para tablas con líneas horizontales, pie de tabla arriba y de figura abajo, flotantes `[htbp]`, metadatos del PDF (título y autor) y, en español, «Tabla» en vez de «Cuadro» (`es-tabla`).
 - **Ida y vuelta estable**: lo que genera la página lo vuelve a leer sin perder nada (símbolos como α, ≤ o ° incluidos) y entrar o salir de la vista de código no cambia el documento si no se editó.
 - **Misma numeración que el PDF**: figuras y tablas se numeran solo si tienen pie, y en `align` las filas con `\nonumber` no cuentan.

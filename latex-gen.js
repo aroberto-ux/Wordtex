@@ -50,7 +50,7 @@ export function inlineATex(c, ctx = {}) {
       if (n.i) t = `\\textit{${t}}`;
       if (n.b) t = `\\textbf{${t}}`;
       o += t;
-    } else if (n.mate != null) o += `$${n.mate}$`;
+    } else if (n.mate != null) { o += `$${n.mate}$`; detectarUsos(n.mate, ctx); }
     else if (n.nota) o += `\\footnote{${inlineATex(recortarBr(n.nota), ctx)}}`;
     else if (n.cita != null) o += `\\cite{${n.cita}}`;
     else if (n.ref != null) o += `\\ref{${n.ref}}`;
@@ -63,20 +63,52 @@ export function inlineATex(c, ctx = {}) {
   return o;
 }
 
-/** Paquetes que necesita el LaTeX propio (bloques crudos, preámbulo) aunque ningún bloque visual los use. */
+/**
+ * Paquetes que necesita el LaTeX propio (bloques crudos, ecuaciones, preámbulo) aunque ningún bloque visual los use.
+ * Cada regla puede pedir uno o varios paquetes. Solo se cargan cuando hacen falta y nunca si el preámbulo propio ya los carga.
+ */
 const USOS_RAW = [
   [/\\(toprule|midrule|bottomrule|cmidrule|addlinespace)\b/, 'booktabs'],
   [/\\(lstinline|lstinputlisting)\b|\\begin\{lstlisting\}/, 'listings'],
   [/\\(sout|uline|uuline|uwave|xout|dashuline|dotuline)\b/, 'ulem'],
   [/\\(onehalfspacing|doublespacing|singlespacing|setstretch)\b|\\begin\{(spacing|onehalfspace|doublespace)\}/, 'setspace'],
   [/\\begin\{tikzpicture\}|\\tikz\b|\\tikzset\b|\\tikzstyle\b|\\usetikzlibrary\b/, 'tikz'],
+  // color
+  [/\\(textcolor|colorbox|fcolorbox|definecolor|colorlet|pagecolor|color)\b/, 'xcolor'],
+  [/\\(rowcolor|cellcolor|columncolor|arrayrulecolor)\b/, ['xcolor', 'colortbl']],
+  // tablas
+  [/\\multirow\b/, 'multirow'],
+  [/\\(newcolumntype|arraybackslash|extrarowheight)\b|>\{\\/, 'array'],
+  [/\\begin\{tabularx\}/, 'tabularx'],
+  [/\\begin\{longtable\}/, 'longtable'],
+  [/\\(makecell|thead|makegapedcells)\b/, 'makecell'],
+  // flotantes, columnas y pies
+  [/\\begin\{(figure|table|algorithm)\*?\}\s*\[[^\]]*H[^\]]*\]|\\(floatstyle|restylefloat|newfloat)\b/, 'float'],
+  [/\\begin\{multicols\*?\}/, 'multicol'],
+  [/\\begin\{wrap(figure|table)\}/, 'wrapfig'],
+  [/\\(captionof|captionsetup)\b/, 'caption'],
+  [/\\begin\{(subfigure|subtable)\}|\\subcaption\b/, 'subcaption'],
+  // listas y unidades
+  [/\\(setlist|setenumerate|setitemize|setdescription|newlist)\b|\\begin\{(enumerate|itemize|description)\}\s*\[[^\]]*=/, 'enumitem'],
+  [/\\begin\{enumerate\}\s*\[[^\]=]*\]/, 'enumerate'],
+  [/\\(SI|qty|sisetup|SIrange|numrange|SIlist|numlist)\b/, 'siunitx'],
+  // matemáticas (lo que KaTeX dibuja pero pdfLaTeX no conoce sin su paquete)
+  [/\\bm\b/, 'bm'],
+  [/\\(cancel|bcancel|xcancel|cancelto)\b/, 'cancel'],
+  [/\\(coloneqq|eqqcolon|coloneq|dcases|rcases|mathclap|mathllap|mathrlap|DeclarePairedDelimiter|prescript|xleftrightarrow|xrightleftharpoons|Aboxed|shortintertext|underbracket|overbracket|vcentcolon)\b|\\begin\{(multlined|lgathered|rgathered|[pbvBV]matrix\*|dcases\*?|rcases)\}/, 'mathtools'],
+  [/\\mathscr\b/, 'mathrsfs'],
+  [/\\mathbbm\b/, 'bbm'],
+  [/\\(ce|pu)\s*\{/, 'mhchem'],
 ];
 function detectarUsos(tex, ctx) {
   if (!ctx || !ctx.usos || !tex) return;
-  for (const [re, p] of USOS_RAW) if (re.test(tex)) ctx.usos.add(p);
+  for (const [re, p] of USOS_RAW) if (re.test(tex)) for (const q of [].concat(p)) ctx.usos.add(q);
   // dibujos TikZ dentro de LaTeX avanzado: también necesitan sus librerías
   if (ctx.libs && /\\begin\{tikzpicture\}|\\tikz\b/.test(tex)) for (const l of libreriasNecesarias(tex)) ctx.libs.add(l);
 }
+
+/** Paquetes que se añaden solos, en este orden, justo antes del preámbulo propio. */
+export const PAQUETES_AUTO = ['xcolor', 'colortbl', 'array', 'tabularx', 'longtable', 'makecell', 'multirow', 'float', 'multicol', 'wrapfig', 'caption', 'subcaption', 'enumitem', 'enumerate', 'siunitx', 'bm', 'cancel', 'mathtools', 'mathrsfs', 'bbm', 'mhchem'];
 
 const LST_ES = "literate={á}{{\\'a}}1 {é}{{\\'e}}1 {í}{{\\'i}}1 {ó}{{\\'o}}1 {ú}{{\\'u}}1 {Á}{{\\'A}}1 {É}{{\\'E}}1 {Í}{{\\'I}}1 {Ó}{{\\'O}}1 {Ú}{{\\'U}}1 {ñ}{{\\~n}}1 {Ñ}{{\\~N}}1 {ü}{{\\\"u}}1 {Ü}{{\\\"U}}1 {¿}{{?`}}1 {¡}{{!`}}1";
 
@@ -188,6 +220,7 @@ function bloqueATex(b, ctx) {
       // displaymath y math no tienen versión con * ni número
       const env = b.env + (b.num || EQ_SIN_NUMERO.has(b.env) ? '' : '*');
       let cuerpoEq = b.tex.trim();
+      detectarUsos(cuerpoEq, ctx);
       if (b.label && b.num) {
         if (!EQ_FILAS.has(b.env)) cuerpoEq += ` ${lab(b.label)}`;
         else {
@@ -270,7 +303,13 @@ export function generarTex(doc, bloques) {
   // Si el preámbulo propio ya carga el paquete no se repite (con otras opciones daría «Option clash»).
   // listings y setspace se cargan igual cuando hace falta configurarlos antes del preámbulo propio.
   const cargaExtra = (p) => new RegExp(`\\\\usepackage(\\[[^\\]]*\\])?\\{[^}]*\\b${p}\\b`).test(extra);
-  for (const p of ['booktabs', 'ulem']) if (cargaExtra(p)) ctx.usos.delete(p);
+  for (const p of ['booktabs', 'ulem', ...PAQUETES_AUTO]) if (cargaExtra(p)) ctx.usos.delete(p);
+  // \bm definido por el usuario (\newcommand{\bm}…) choca con el paquete bm
+  if (/\\(?:re)?newcommand\s*\{?\s*\\bm\b|\\def\s*\\bm\b/.test(extra)) ctx.usos.delete('bm');
+  // subcaption ya carga caption; tabularx, colortbl y makecell cargan array
+  if (ctx.usos.has('subcaption')) ctx.usos.delete('caption');
+  // enumitem ya entiende los atajos de enumerate
+  if (ctx.usos.has('enumitem')) ctx.usos.delete('enumerate');
   if (cargaExtra('setspace') && cfg.interlineado === 1) ctx.usos.delete('setspace');
 
   const opciones = [`${cfg.fuente}pt`, cfg.papel];
@@ -291,8 +330,11 @@ export function generarTex(doc, bloques) {
   if (ctx.usos.has('ulem')) pre.push('\\usepackage[normalem]{ulem}');
   if (cfg.interlineado !== 1 || ctx.usos.has('setspace')) pre.push('\\usepackage{setspace}');
   if (cfg.interlineado !== 1) pre.push(`\\setstretch{${cfg.interlineado}}`);
+  // xcolor también hace falta con listings (colores del código); si el preámbulo propio ya lo carga no se repite
+  if (ctx.usos.has('listings') && !ctx.usos.has('xcolor') && !cargaExtra('xcolor')) ctx.usos.add('xcolor');
+  for (const p of PAQUETES_AUTO) if (ctx.usos.has(p)) pre.push(`\\usepackage{${p}}`);
   if (ctx.usos.has('listings')) {
-    pre.push('\\usepackage{listings}', '\\usepackage{xcolor}',
+    pre.push('\\usepackage{listings}',
       `\\lstset{basicstyle=\\ttfamily\\small, breaklines=true, frame=single, numberstyle=\\tiny, keywordstyle=\\color{blue}, commentstyle=\\color{gray}, stringstyle=\\color{teal}, ${LST_ES}}`);
   }
   pre.push('\\usepackage[hidelinks]{hyperref}');
