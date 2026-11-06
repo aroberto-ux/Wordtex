@@ -1,0 +1,167 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\usepackage{hyperref}
+\newcommand{\R}{\mathbb{R}}
+\title{Documento de muestra}
+\author{Equipo LaTeX visual}
+\date{\today}
+\begin{document}
+\maketitle
+
+\section{Ecuaciones}\label{sec:ecuaciones}
+% align con cases dentro
+\begin{align}
+f(x) &= \begin{cases} x^2 & \text{si } x \ge 0 \\ -x & \text{si } x < 0 \end{cases} \label{eq:f}\\
+g(x) &= \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix} x
+\end{align}
+\begin{gather}
+a = b + c \\
+\begin{bmatrix} a & b \\ c & d \end{bmatrix} \nonumber
+\end{gather}
+\begin{equation}
+\begin{aligned}
+x &= 1 \\ y &= 2
+\end{aligned}
+\label{eq:sistema}
+\end{equation}
+\begin{multline}
+p(x) = a_0 + a_1 x + a_2 x^2 + a_3 x^3 \\
++ a_4 x^4 + a_5 x^5
+\end{multline}
+\begin{flalign}
+u &= v & w &= z
+\end{flalign}
+\begin{eqnarray}
+a & = & b + c \label{eq:arr1} \\
+d & = & e \label{eq:arr2}
+\end{eqnarray}
+\begin{displaymath}
+\int_0^1 x\,dx = \frac{1}{2}
+\end{displaymath}
+\begin{math}
+e^{i\pi} + 1 = 0
+\end{math}
+\begin{alignat}{2}
+x &= 1 &\quad y &= 2
+\end{alignat}
+Ver las ecuaciones \ref{eq:f}, \ref{eq:sistema}, \ref{eq:arr1} y \ref{eq:arr2}.
+
+\section{Listas}
+\begin{description}
+\item[Teorema] Un enunciado demostrado.
+\item[Lema] Un resultado auxiliar.
+\end{description}
+\begin{itemize}
+\item[a)] Primera opción con etiqueta propia.
+\item[] Sin viñeta.
+\item Normal.
+\end{itemize}
+
+\section{Tablas}
+\begin{table}[htbp]
+\centering
+\caption{Resultados agrupados}\label{tab:grupos}
+\begin{tabular}{|l|c|c|}
+\hline
+\multirow{2}{*}{Grupo} & \multicolumn{2}{c|}{Medición} \\ \cline{2-3}
+ & A & B \\ \hline
+Uno & 1 & 2 \\ \hline
+\end{tabular}
+\end{table}
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+Campo & Descripción larga que se ajusta al ancho disponible \\
+\bottomrule
+\end{tabularx}
+\begin{longtable}{ll}
+Clave & Valor \\
+uno & 1 \\
+\end{longtable}
+\begin{table*}[t]
+\centering
+\begin{tabular}{cc}
+x & y \\
+\end{tabular}
+\end{table*}
+
+\section{Figuras y espacios}
+\begin{center}
+\includegraphics[width=0.3\linewidth]{figura.png}
+\end{center}
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.45\linewidth}
+\centering
+Texto de la izquierda con \textbf{negrita}.
+\end{minipage}\hfill
+\begin{minipage}{0.45\linewidth}
+\centering
+$E = mc^2$
+\end{minipage}
+\caption{Dos columnas con minipage}\label{fig:mini}
+\end{figure}
+\hrule
+\vspace{1cm}
+Texto en \textcolor{red}{rojo}, en \textsc{Versalitas}, código \verb|x_1 = 2| y \lstinline|print(x)|, fecha \today, el logo \LaTeX, {\small texto pequeño} y {\Large \bfseries grande y en negrita}. Un dibujo en línea: \tikz \draw[fill=blue] (0,0) circle (2pt);.
+
+\input{capitulo1}
+
+\section{Dibujos}
+\begin{tikzpicture}
+\draw[thick, ->] (0,0) -- (2,0) node[right] {$x$};
+\draw[thick, ->] (0,0) -- (0,1.5) node[above] {$y$};
+\end{tikzpicture}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=0.8]
+\foreach \x in {0,1,...,4} {
+  \draw (\x,0) circle (0.3);
+  \node at (\x,-0.7) {\x};
+}
+\end{tikzpicture}
+\caption{Círculos con foreach}\label{fig:foreach}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1.5cm]
+\node[draw, rounded corners] (a) {Inicio};
+\node[draw, right=of a] (b) {Proceso};
+\draw[-{Stealth}] (a) -- (b);
+\end{tikzpicture}
+\caption{Con librerías positioning y arrows.meta}\label{fig:flujo}
+\end{figure}
+
+\begin{center}
+\resizebox{0.5\linewidth}{!}{%
+\begin{tikzpicture}
+\draw (0,0) rectangle (3,2);
+\end{tikzpicture}%
+}
+\end{center}
+Las figuras \ref{fig:mini}, \ref{fig:foreach} y \ref{fig:flujo}; la tabla \ref{tab:grupos}.
+
+% Un caso realmente exótico: un entorno propio
+\newenvironment{caja}{\begin{quote}\itshape}{\end{quote}}
+\begin{caja}
+Contenido en una caja propia.
+\end{caja}
+
+\bibliographystyle{plain}
+\bibliography{referencias}
+
+\end{document}
