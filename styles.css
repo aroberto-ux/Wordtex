@@ -408,6 +408,9 @@ table.rv-tab.con-lineas { border-top: 2px solid #111; border-bottom: 2px solid #
 .rv-ajuste { font-size: 12px; color: #8a7bb0; }
 .rv-comentario { font: 12px var(--mono); color: #8a919a; white-space: pre-wrap; }
 .rv-comentario::before { content: '% '; }
+/* Bloques que solo son comentarios (% ====== 13. MACROS ======): se conservan en el código pero no se ven en la página.
+   Reaparecen mientras se editan (foco dentro) o si el bloque está seleccionado. */
+.bq:has(> .bq-cuerpo > .raw[data-tipo="comentario"]):not(:focus-within):not(.sel) { display: none; }
 .rv-parte { font-size: 1.6em; font-weight: 700; text-align: center; margin: .6em 0; }
 .rv-p { margin: .2em 0; }
 .rv-lista { margin: .2em 0 .2em 1.6em; padding: 0; }
