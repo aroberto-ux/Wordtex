@@ -172,3 +172,24 @@ test('paquetes: ida y vuelta estable y sin llevarse nada al preámbulo propio', 
   const m2 = parsearTex(tex(raw('\\textcolor{red}{a}'), '\\usepackage[dvipsnames]{xcolor}'));
   assert.match(m2.extra, /\\usepackage\[dvipsnames\]\{xcolor\}/);
 });
+
+test('paquetes habituales: \\eqref, etiquetas de teoremas y numeración de tabularx/longtable', () => {
+  const src = String.raw`\documentclass[10pt,a4paper]{article}
+\usepackage{amsmath,amsthm}\usepackage{booktabs,tabularx,longtable,float}
+\newtheorem{teorema}{Teorema}
+\begin{document}
+\begin{teorema}\label{t:1} Algo. \end{teorema}
+Ver \ref{t:1}, \eqref{eq:1} y \ref{tab:x}, \ref{tab:l}.
+\begin{table}[H]\caption{X}\label{tab:x}\begin{tabularx}{\textwidth}{lX}\toprule a & b \\ \bottomrule\end{tabularx}\end{table}
+\begin{longtable}{ll}\caption{L}\label{tab:l}\\ a & b \\ \end{longtable}
+\end{document}`;
+  const m = parsearTex(src);
+  const t = generarTex(m, m.bloques).tex;
+  assert.match(t, /\\eqref\{eq:1\}/);                 // no se degrada a \ref ni a código crudo
+  assert.equal(generarTex(parsearTex(t), parsearTex(t).bloques).tex, t);
+  const bl = m.bloques.map((b, i) => ({ ...b, id: 'b' + i }));
+  const n = numerar(m.cfg, bl, []);
+  assert.equal(n.etiquetas.get('t:1'), '1');           // el \label dentro del teorema se resuelve
+  assert.equal(n.etiquetas.get('tab:x'), '1');
+  assert.equal(n.etiquetas.get('tab:l'), '2');         // longtable con \caption también cuenta
+});
