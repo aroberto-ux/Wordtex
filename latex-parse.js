@@ -179,9 +179,10 @@ export function parsearInline(src, marcas = {}) {
           const a = arg();
           if (a != null && nombre !== 'nocite') { vaciar(); nodos.push({ cita: a.trim() }); i = j; continue; }
         }
-        if (nombre === 'ref' || nombre === 'autoref' || nombre === 'pageref') {
+        if (nombre === 'ref' || nombre === 'eqref' || nombre === 'autoref' || nombre === 'pageref') {
           const a = arg();
           if (a != null && nombre === 'ref') { vaciar(); nodos.push({ ref: a.trim() }); i = j; continue; }
+          if (a != null && nombre === 'eqref') { vaciar(); nodos.push({ ref: a.trim(), eq: 1 }); i = j; continue; }
           if (a != null) { vaciar(); nodos.push({ raw: s.slice(i, j) }); i = j; continue; }
         }
         if (nombre === 'href') {

@@ -37,7 +37,7 @@ export function nodoInline(n) {
   }
   if (n.nota) return el('span', 'i-nota', { contenteditable: 'false', 'data-nota': JSON.stringify(n.nota), title: 'Nota al pie: clic para editar' });
   if (n.cita != null) return el('span', 'i-cita', { contenteditable: 'false', 'data-cita': n.cita, title: 'Cita bibliográfica' });
-  if (n.ref != null) return el('span', 'i-ref', { contenteditable: 'false', 'data-ref': n.ref, title: 'Referencia cruzada' });
+  if (n.ref != null) return el('span', 'i-ref', { contenteditable: 'false', 'data-ref': n.ref, ...(n.eq ? { 'data-eq': '1' } : {}), title: n.eq ? 'Referencia a ecuación (\\eqref)' : 'Referencia cruzada' });
   if (n.url != null) {
     const a = el('a', 'i-url', { 'data-url': n.url, title: n.url + ' (Ctrl+clic para abrir)' });
     a.append(pintarInline(n.c && n.c.length ? n.c : [{ s: n.url }]));
@@ -85,7 +85,7 @@ function leer(raiz, marcas, out) {
     if (c.contains('i-mate')) { out.push({ mate: n.getAttribute('data-tex') || '' }); continue; }
     if (c.contains('i-nota')) { try { out.push({ nota: JSON.parse(n.getAttribute('data-nota') || '[]') }); } catch { /* ignorar */ } continue; }
     if (c.contains('i-cita')) { out.push({ cita: n.getAttribute('data-cita') || '' }); continue; }
-    if (c.contains('i-ref')) { out.push({ ref: n.getAttribute('data-ref') || '' }); continue; }
+    if (c.contains('i-ref')) { out.push(n.hasAttribute('data-eq') ? { ref: n.getAttribute('data-ref') || '', eq: 1 } : { ref: n.getAttribute('data-ref') || '' }); continue; }
     if (c.contains('i-raw')) { out.push({ raw: n.getAttribute('data-raw') || '' }); continue; }
     if (c.contains('li-et')) continue; // el término de una lista de descripción se lee aparte
     if (c.contains('i-url')) { const sub = []; leer(n, {}, sub); out.push({ url: n.getAttribute('data-url') || '', c: compactar(sub) }); continue; }
@@ -118,7 +118,7 @@ export function numerarInline(raiz, num, biblio) {
   }
   for (const e of raiz.querySelectorAll('.i-ref')) {
     const t = num.etiquetas.get(e.getAttribute('data-ref') || '');
-    e.textContent = t || '?';
+    e.textContent = t ? (e.hasAttribute('data-eq') ? `(${t})` : t) : '?';
     e.classList.toggle('rota', !t);
   }
 }

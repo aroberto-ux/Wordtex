@@ -7,7 +7,7 @@
 // Texto en línea («inline»): lista de nodos.
 //   { s:'texto', b:1, i:1, u:1, c:1, st:1, sub:1, sup:1 }   texto con formato
 //   { mate:'x^2' }  fórmula en línea      { nota:[…] }  nota al pie
-//   { cita:'clave' } cita bibliográfica   { ref:'etiqueta' }  referencia cruzada
+//   { cita:'clave' } cita bibliográfica   { ref:'etiqueta', eq?:1 }  referencia cruzada (eq = \eqref, se ve «(n)»)
 //   { url:'https://…', c:[…] }  enlace    { raw:'\\cmd{…}' }  LaTeX que se conserva tal cual
 //   { br:1 }  salto de línea
 
@@ -168,7 +168,7 @@ export function sanearInline(c, prof = 0) {
     } else if (typeof n.mate === 'string') out.push({ mate: cadena(n.mate, 4000) });
     else if (Array.isArray(n.nota)) out.push({ nota: sanearInline(n.nota, prof + 1) });
     else if (typeof n.cita === 'string') out.push({ cita: cadena(n.cita, 200).replace(/[^\w:.,\- ]/g, '') });
-    else if (typeof n.ref === 'string') out.push({ ref: etiqueta(n.ref) });
+    else if (typeof n.ref === 'string') out.push(n.eq ? { ref: etiqueta(n.ref), eq: 1 } : { ref: etiqueta(n.ref) });
     else if (typeof n.url === 'string') out.push({ url: urlSegura(cadena(n.url, 2000)), c: sanearInline(n.c, prof + 1) });
     else if (typeof n.raw === 'string') out.push({ raw: cadena(n.raw, 4000) });
     else if (n.br) out.push({ br: 1 });

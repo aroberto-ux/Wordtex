@@ -53,7 +53,7 @@ export function inlineATex(c, ctx = {}) {
     } else if (n.mate != null) { o += `$${n.mate}$`; detectarUsos(n.mate, ctx); }
     else if (n.nota) o += `\\footnote{${inlineATex(recortarBr(n.nota), ctx)}}`;
     else if (n.cita != null) o += `\\cite{${n.cita}}`;
-    else if (n.ref != null) o += `\\ref{${n.ref}}`;
+    else if (n.ref != null) o += `\\${n.eq ? 'eqref' : 'ref'}{${n.ref}}`;
     else if (n.url != null) {
       const txt = n.c && n.c.length ? n.c : [{ s: n.url }];
       o += n.url ? `\\href{${escUrl(n.url)}}{${inlineATex(txt, ctx)}}` : inlineATex(txt, ctx);

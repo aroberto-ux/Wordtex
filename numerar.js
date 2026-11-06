@@ -2,6 +2,7 @@
 // referencias cruzadas). Se usa para que la vista de página muestre los mismos números que tendrá el PDF.
 
 import { TEOREMAS, textoPlano, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.05-a';
+import { sinComentarios } from './macros.js?v=2026.11.05-a';
 
 export const ROTULOS = {
   spanish: { fig: 'Figura', tab: 'Tabla', resumen: 'Resumen', indice: 'Índice general', refs: 'Referencias', cap: 'Capítulo', teo: 'es' },
@@ -21,6 +22,25 @@ function filasEq(b) {
   return filas.length ? filas : [{ etiquetas: [] }];
 }
 const etiquetasEn = (t) => [...String(t || '').matchAll(/\\label\{([^}]*)\}/g)].map((m) => m[1].trim());
+
+/**
+ * table, figure y longtable de un bloque de LaTeX crudo, en orden (los anidados no cuentan aparte).
+ * @returns {{tipo:'tab'|'fig', cap:boolean, texto:string, num?:string, nombre?:string}[]}
+ */
+function itemsFlotantes(tex) {
+  const src = sinComentarios(tex);
+  const out = [];
+  const re = /\\begin\{(table|figure|longtable)(\*?)\}/g;
+  let m;
+  while ((m = re.exec(src))) {
+    const fin = src.indexOf(`\\end{${m[1]}${m[2]}}`, re.lastIndex);
+    const texto = src.slice(m.index, fin < 0 ? src.length : fin);
+    out.push({ tipo: m[1] === 'figure' ? 'fig' : 'tab', cap: /\\caption\b/.test(texto), texto });
+    if (fin < 0) break;
+    re.lastIndex = fin;
+  }
+  return out;
+}
 
 /**
  * @returns {{ info: Map<string, {num:string, nombre?:string}>, etiquetas: Map<string,string>, titulos: Array, citas: Map<string,number> }}
@@ -77,14 +97,19 @@ export function numerar(cfg, bloques, biblio = []) {
     } else if (b.t === 'raw') {
       // LaTeX avanzado: también cuenta para la numeración (figuras y tablas con pie, ecuaciones numeradas)
       const t = String(b.tex || '').trim();
-      const flot = /^\\begin\{(figure|table)\*?\}/.exec(t);
       const mat = /^\\begin\{(equation|align|gather|multline|flalign|eqnarray|alignat|xalignat)\}/.exec(t);
       const pref = capitulos && c[0] ? `${c[0]}.` : '';
-      if (flot && /\\caption\b/.test(t)) {
-        let num;
-        if (flot[1] === 'figure') { fig++; num = pref + fig; } else { tab++; num = pref + tab; }
-        for (const l of etiquetasEn(t)) etiquetas.set(l, num);
-        info.set(b.id, { num });
+      const items = itemsFlotantes(t);
+      if (items.length) {
+        // cada table, figure o longtable del bloque cuenta como en LaTeX (solo si tiene \caption)
+        for (const it of items) {
+          if (!it.cap) { it.num = ''; continue; }
+          if (it.tipo === 'fig') { fig++; it.num = pref + fig; it.nombre = `${ro.fig} ${it.num}`; }
+          else { tab++; it.num = pref + tab; it.nombre = `${ro.tab} ${it.num}`; }
+          for (const l of etiquetasEn(it.texto)) etiquetas.set(l, it.num);
+        }
+        for (const it of items) delete it.texto;
+        info.set(b.id, { num: (items.find((x) => x.num) || {}).num || '', items });
       } else if (mat) {
         const filas = filasEq({ env: /^(equation|multline)$/.test(mat[1]) ? 'equation' : 'align', tex: t.slice(mat[0].length).replace(/\\end\{[^}]*\}\s*$/, '') });
         const a = eq + 1; eq += filas.length;
@@ -95,6 +120,8 @@ export function numerar(cfg, bloques, biblio = []) {
       teo[b.tipo] = (teo[b.tipo] || 0) + 1;
       const num = `${capitulos && c[0] ? c[0] + '.' : ''}${teo[b.tipo]}`;
       info.set(b.id, { num, nombre: `${(TEOREMAS[b.tipo] || TEOREMAS.theorem)[ro.teo]} ${num}` });
+      // \label dentro del enunciado (se conserva como LaTeX en línea)
+      for (const n of b.c || []) if (n.raw != null) for (const l of etiquetasEn(n.raw)) etiquetas.set(l, num);
     }
   }
   const citas = new Map((biblio || []).map((x, i) => [x.key, i + 1]));

@@ -180,6 +180,11 @@ export function decorar(raiz, num, cfg) {
     else if (t === 'eq') bq.querySelector('.eq-num').textContent = i.num ? `(${i.num})` : '';
     else if (t === 'tabla' || t === 'fig' || t === 'tikz') { const p = bq.querySelector('.pie'); p.dataset.pref = i.nombre ? `${i.nombre}${p.textContent.trim() ? '. ' : ''}` : ''; }
     else if (t === 'teo') bq.querySelector('.teo-nombre').textContent = i.nombre || '';
+    else if (t === 'raw' && i.items) {
+      // pies de tablas y figuras del LaTeX avanzado: «Tabla 2. …» con el número que tendrán en el PDF
+      const pies = [...bq.querySelectorAll('.rv-pie[data-flot]')];
+      i.items.filter((x) => x.cap).forEach((x, k) => { if (pies[k]) pies[k].dataset.pref = `${x.nombre}. `; });
+    }
     else if (t === 'resumen') bq.querySelector('.resumen-t').textContent = ro.resumen;
     else if (t === 'toc') {
       bq.querySelector('.toc-t').textContent = ro.indice;

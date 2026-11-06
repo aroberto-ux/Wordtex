@@ -398,6 +398,7 @@ table.tabx .ed.celda { min-height: 1.3em; white-space: pre-wrap; }
 .rv-env-et { display: none; }
 .raw:hover .rv-env-et { display: block; font: 11px system-ui, sans-serif; color: #8a70c0; margin-bottom: .2em; }
 .rv-pie { text-align: center; font-size: .95em; margin: .3em 0; }
+.rv-pie[data-pref]::before { content: attr(data-pref); font-weight: 700; }
 table.rv-tab { border-collapse: collapse; margin: .3em auto; }
 table.rv-tab td { padding: .2em .6em; vertical-align: top; }
 table.rv-tab.con-borde td { border: 1px solid #111; }

@@ -246,8 +246,12 @@ function vistaTabla(tex) {
     }
     tabla.append(tr);
   }
-  if (pie) caja.append(el('div', 'rv-pie', ''), tabla); else caja.append(tabla);
-  if (pie) caja.firstChild.append(document.createTextNode('Tabla: '), inlineTex(pie.txt));
+  if (pie) {
+    const p = el('div', 'rv-pie', '');
+    p.dataset.flot = 'tab'; p.dataset.pref = 'Tabla: ';   // numerar.js / decorar() cambian el prefijo por «Tabla N. »
+    p.append(inlineTex(pie.txt));
+    caja.append(p, tabla);
+  } else caja.append(tabla);
   return caja;
 }
 
@@ -342,7 +346,9 @@ function vistaEntorno(tex, prof) {
   caja.append(vistaBloques(bloques, prof));
   if (pie != null) {
     const p = el('div', 'rv-pie');
-    p.append(document.createTextNode(/^table/.test(nombre) ? 'Tabla: ' : 'Figura: '), inlineTex(pie));
+    const esTabla = /^table/.test(nombre);
+    p.dataset.flot = esTabla ? 'tab' : 'fig'; p.dataset.pref = esTabla ? 'Tabla: ' : 'Figura: ';
+    p.append(inlineTex(pie));
     caja.append(p);
   }
   return caja;
