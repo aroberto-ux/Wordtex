@@ -1,12 +1,12 @@
 // Pestaña «Código»: el documento como LaTeX, editable. Lo que se escribe aquí se interpreta y
 // pasa a la vista visual (y al revés). Lo que no se entiende se conserva como «LaTeX avanzado».
 
-import { S, E } from './estado.js?v=2026.11.06-c';
-import { generarTex } from './latex-gen.js?v=2026.11.06-c';
-import { parsearTex } from './latex-parse.js?v=2026.11.06-c';
-import { diffBloques } from './sync.js?v=2026.11.06-c';
-import { aplicarCambios, guardarPendientes, bus } from './ops.js?v=2026.11.06-c';
-import { resaltarTex } from './resaltar.js?v=2026.11.06-c';
+import { S, E } from './estado.js?v=2026.11.06-d';
+import { generarTex } from './latex-gen.js?v=2026.11.06-d';
+import { parsearTex } from './latex-parse.js?v=2026.11.06-d';
+import { diffBloques } from './sync.js?v=2026.11.06-d';
+import { aplicarCambios, guardarPendientes, bus } from './ops.js?v=2026.11.06-d';
+import { resaltarTex } from './resaltar.js?v=2026.11.06-d';
 
 let tPeg = null, tGen = null;
 let aplicando = false;

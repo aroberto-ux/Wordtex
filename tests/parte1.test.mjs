@@ -19,7 +19,8 @@ test('muestra: ida y vuelta estable y solo quedan como avanzados los casos exót
   const r = analizarMuestra();
   assert.ok(r.estable);
   assert.equal(r.sinVista.length, 0, r.sinVista.join(' | '));
-  assert.deepEqual(r.raw.map((x) => x.vista).sort(), ['archivo', 'archivo', 'archivo', 'entorno', 'entorno', 'espacio', 'mate', 'regla', 'tabla', 'tabla', 'tabla', 'tabla']);
+  // una tabularx con columnas >{…}p{…} X que antes quedaba como «avanzada» ahora se importa como tabla nativa editable
+  assert.deepEqual(r.raw.map((x) => x.vista).sort(), ['archivo', 'archivo', 'archivo', 'entorno', 'entorno', 'espacio', 'mate', 'regla', 'tabla', 'tabla', 'tabla']);
   assert.deepEqual(r.m.bloques.filter((b) => b.t === 'eq').map((b) => b.env), ['align', 'gather', 'equation', 'multline', 'flalign', 'eqnarray', 'displaymath', 'math']);
   assert.deepEqual(r.m.bloques.filter((b) => b.t === 'tikz').map((b) => [b.env, b.ancho, b.label]), [['', 0, ''], ['figure', 0, 'fig:foreach'], ['figure', 0, 'fig:flujo'], ['center', 50, '']]);
 });

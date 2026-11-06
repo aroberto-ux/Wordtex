@@ -1,10 +1,10 @@
 // Cada bloque del modelo ⇄ su representación editable en la página.
 
-import { h } from './ui.js?v=2026.11.06-c';
-import { TEOREMAS, LENGUAJES_COD, textoPlano } from './modelo.js?v=2026.11.06-c';
-import { rellenar, leerInline, renderMate, pintarInline } from './inline-dom.js?v=2026.11.06-c';
-import { rotulos } from './numerar.js?v=2026.11.06-c';
-import { texParaMate, vistaBloqueRaw, tipoVistaRaw, dibujarTikz } from './vista-latex.js?v=2026.11.06-c';
+import { h } from './ui.js?v=2026.11.06-d';
+import { TEOREMAS, LENGUAJES_COD, textoPlano } from './modelo.js?v=2026.11.06-d';
+import { rellenar, leerInline, renderMate, pintarInline } from './inline-dom.js?v=2026.11.06-d';
+import { rotulos } from './numerar.js?v=2026.11.06-d';
+import { texParaMate, vistaBloqueRaw, tipoVistaRaw, dibujarTikz } from './vista-latex.js?v=2026.11.06-d';
 
 const PH = {
   p: 'Escribe aquí… (pulsa «/» para insertar algo)', h: 'Título', teo: 'Enunciado…', cita: 'Texto de la cita…', resumen: 'Escribe el resumen…',
@@ -21,18 +21,29 @@ export function autoAlto(ta) { ta.style.height = 'auto'; ta.style.height = Math.
 
 const ALINEA = { j: 'justify', l: 'left', c: 'center', r: 'right' };
 
-/** Pone el símbolo de cada elemento de una lista (1., a), i. o viñetas). */
+export const NIVELES_LISTA = 5; // niveles de anidamiento admitidos (0..NIVELES_LISTA-1)
+const ROMANO = (k) => ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x', 'xi', 'xii'][k - 1] || String(k);
+const VINETAS = ['•', '–', '∗', '·', '‣']; // itemize por nivel, como LaTeX (bullet, dash, asterisk, dot…)
+
+/** Pone el símbolo de cada elemento de una lista (1., a), i., A. o viñetas) en todos los niveles. */
 export function marcarLista(lista) {
   const ord = lista.dataset.ord === '1';
-  const cont = [0, 0, 0];
+  const cont = new Array(NIVELES_LISTA).fill(0);
   for (const li of lista.querySelectorAll('.li')) {
-    const n = +li.dataset.n || 0;
-    cont[n]++; for (let k = n + 1; k < 3; k++) cont[k] = 0;
+    const n = Math.min(+li.dataset.n || 0, NIVELES_LISTA - 1);
+    cont[n]++; for (let k = n + 1; k < NIVELES_LISTA; k++) cont[k] = 0;
     li.style.marginLeft = (n * 28) + 'px';
     // con etiqueta propia (\item[…]) o en una lista de descripción no hay viñeta ni número
     if (lista.dataset.desc === '1' || li.querySelector(':scope > .li-et')) { li.dataset.m = ''; continue; }
-    if (!ord) li.dataset.m = ['•', '–', '∗'][n];
-    else li.dataset.m = [`${cont[0]}.`, `${String.fromCharCode(96 + cont[1])})`, `${['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x'][cont[2] - 1] || cont[2]}.`][n];
+    if (!ord) li.dataset.m = VINETAS[n] || VINETAS[VINETAS.length - 1];
+    else {
+      // enumerate anidado en LaTeX: 1.  (a)  i.  A.  y luego se repite
+      const estilo = n % 4;
+      if (estilo === 0) li.dataset.m = `${cont[n]}.`;
+      else if (estilo === 1) li.dataset.m = `${String.fromCharCode(96 + ((cont[n] - 1) % 26) + 1)})`;
+      else if (estilo === 2) li.dataset.m = `${ROMANO(cont[n])}.`;
+      else li.dataset.m = `${String.fromCharCode(64 + ((cont[n] - 1) % 26) + 1)}.`;
+    }
   }
 }
 
