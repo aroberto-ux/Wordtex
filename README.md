@@ -9,11 +9,12 @@ Es una página estática (HTML + módulos JS, sin compilación) pensada para **G
 - **Edición tipo Word**: negrita, cursiva, subrayado, tachado, superíndice/subíndice, monoespaciado, títulos (sección / subsección / …), listas con viñetas, numeradas y anidadas (Tab / Shift+Tab), alineación, citas, resúmenes, teoremas/definiciones/lemas/demostraciones, bloques de código, tabla de contenidos, saltos de página.
 - **Tablas** (agregar/quitar filas y columnas, encabezado, bordes, alineación por columna) y **figuras** (subir imagen, ancho, pie de figura).
 - **Ecuaciones** con un editor propio: se escribe en LaTeX con vista previa en vivo (KaTeX) y una paleta de símbolos (griegas, operadores, flechas, fracciones, raíces, sumatorias…). También ecuaciones en línea.
-- **LaTeX avanzado con vista previa**: el bloque «LaTeX avanzado» (menú `/`) conserva tu código tal cual y, si contiene tablas (`tabular`, `booktabs`, `\multicolumn`, `\multirow`, `[H]`, pies, notas), las dibuja encima del código con fórmulas en línea. Las macros del panel *Avanzado* (`\newcommand`, `\def`, `\DeclareMathOperator`) funcionan en todas las fórmulas y en esas vistas previas, y las tablas con `\caption` entran en la numeración y se pueden citar con `\ref`.
 - **Notas al pie, referencias cruzadas, citas y bibliografía**, enlaces.
 - **Numeración como en LaTeX** (secciones, ecuaciones, figuras, tablas, teoremas) y **vista de página** con aspecto de documento compilado.
 - **Menú `/`** para insertar bloques escribiendo, atajos de teclado, deshacer/rehacer, arrastrar bloques.
-- **Vista de código**: el `.tex` completo, editable. Lo que no se entiende se conserva tal cual (como bloque «LaTeX crudo»), nada se pierde.
+- **Vista de código**: el `.tex` completo, editable. Lo que no se entiende se conserva tal cual (como bloque «LaTeX avanzado»), nada se pierde.
+- **LaTeX avanzado con vista previa**: lo que no tiene editor propio se ve renderizado encima de su código (ecuaciones con KaTeX, tablas con `\multicolumn`/`\multirow`, `minipage` y entornos propios, `\hrule`, `\vspace`, `\input`, `\bibliography`…). El código está en «Ver/editar código» y la vista previa lo sigue mientras se escribe. En el texto, `\textcolor`, `\textsc`, `\verb`, `\lstinline`, `\today`, `\LaTeX` o `{\small …}` se ven con su formato y se editan con un clic.
+- **Dibujos TikZ**: bloque propio con vista previa en vivo, editor de código al lado, **herramienta de dibujo** (línea, flecha, rectángulo, círculo, texto, borrar; cuadrícula, ajuste, color y grosor) y plantillas (ejes cartesianos, diagrama de flujo, grafo, triángulo con ángulos, árbol). `\usepackage{tikz}` y las `\usetikzlibrary` necesarias se añaden solas.
 - **Plantillas**: en blanco, artículo, tarea, apuntes, informe y carta.
 - **Panel lateral**: esquema, ajustes del documento (clase, fuente, papel, márgenes, idioma, interlineado, columnas, portada), referencias, preámbulo avanzado y ayuda.
 - **Exportar**: `.tex`, `.zip` (con el `.tex` y la carpeta `imagenes/`, listo para compilar), PDF (imprimiendo la vista de página), **abrir en Overleaf** y copia de seguridad `.json`. También se puede **importar** un `.tex` o un `.json`.
@@ -65,9 +66,11 @@ La página **no compila LaTeX dentro del navegador**. Opciones:
 | `store.js` | Almacenamiento: local o Firebase |
 | `ops.js`, `acciones.js`, `eventos.js` | Estado, deshacer, formato, teclado y arrastre |
 | `bloques-dom.js`, `inline-dom.js`, `numerar.js` | Dibujo de bloques, texto en línea y numeración |
-| `macros.js`, `raw-vista.js` | Macros del preámbulo propio y vista previa del bloque «LaTeX avanzado» |
 | `matematica.js`, `dialogos.js`, `paneles.js`, `codigo.js` | Editor de ecuaciones, ventanas, panel lateral, vista de código |
 | `exportar.js`, `plantillas.js` | Exportaciones y plantillas |
+| `vista-latex.js` | Vistas previas del LaTeX avanzado (bloques y fragmentos en línea) |
+| `tikz.js`, `tikz-libs.js` | Intérprete de TikZ a SVG para la vista previa; librerías que necesita cada dibujo |
+| `tikz-editor.js`, `tikz-dibujo.js`, `tikz-plantillas.js` | Editor de dibujos, herramienta de dibujo visual y plantillas TikZ |
 | `firebase-config.js`, `firestore.rules` | Configuración y reglas de Firebase |
 | `vendor/katex/` | KaTeX (ecuaciones y tipografía de la vista de página) |
 | `tests/` | Pruebas automáticas (no hace falta subirlas a GitHub Pages, pero no estorban) |
@@ -84,19 +87,27 @@ La página **no compila LaTeX dentro del navegador**. Opciones:
 Con [Node.js](https://nodejs.org) 18 o más reciente, desde la carpeta del proyecto:
 
 ```bash
-node --test tests/*.test.mjs   # núcleo: modelo ⇄ LaTeX, ida y vuelta, numeración (segundos)
-node tests/compilar.mjs        # compila con pdflatex las plantillas y un documento con todo, en 3 clases y 6 idiomas
+node --test tests/*.test.mjs   # núcleo, LaTeX avanzado, TikZ y herramienta de dibujo (segundos)
+node tests/muestra.mjs         # informe del .tex de muestra: bloques, cuáles quedan como avanzados, ida y vuelta
+node tests/compilar.mjs        # compila con pdflatex plantillas, un documento con todo (3 clases × 6 idiomas) y la muestra
 ```
 
 La segunda necesita `pdflatex`; si a tu instalación le falta algún idioma de babel o `ulem`, lo avisa y lo sustituye para probar el resto.
 
+## Dibujos TikZ: cómo funciona la vista previa
+
+La página **no ejecuta TeX**: la vista previa la dibuja un intérprete propio (`tikz.js`) que traduce a SVG el TikZ habitual: `\draw`, `\fill`, `\filldraw`, `\path`, `\node`, `\coordinate`, `\foreach` (con `...`, varias variables y `count`), `scope`, `\tikzset`/`\tikzstyle`, `\pgfmathsetmacro`, `\definecolor`; caminos con `--`, `-|`, `|-`, `rectangle`, `circle`, `ellipse`, `arc`, `grid`, curvas `.. controls ..`, `to[out=…, in=…]`, `bend left/right`, `edge`, `plot` (funciones y `coordinates`) y árboles con `child`; coordenadas cartesianas, polares, relativas, de nodos y anclas, y `($(a)!0.5!(b)$)`; colores de xcolor con mezclas, grosores, discontinuas, flechas, opacidad, esquinas redondeadas, `scale`/`shift`/`rotate` y `right=of a`. Lo que no entiende aparece como aviso bajo el dibujo y **sí** sale en el PDF, porque el `.tex` lleva el código original.
+
+Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa varios MB, tarda segundos por dibujo, depende de cargar archivos externos (no hay versiones publicadas del proyecto original) y su licencia (LPPL 1.3c) obliga a distribuir sus archivos con condiciones propias. El intérprete propio es instantáneo, funciona sin conexión y el SVG se imprime con la vista de página.
+
 ## Límites que conviene conocer
 
 - No hay compilación real a PDF en el navegador (ver arriba). La vista de página es una aproximación.
-- La vista previa del LaTeX avanzado solo dibuja tablas; TikZ, `pgfplots`, algoritmos y demás entornos siguen apareciendo únicamente como código y se ven al compilar. Si un bloque mezcla una tabla con otras cosas, la vista previa muestra solo la tabla.
 - «Abrir en Overleaf» y el modo Firebase se probaron de forma limitada: el primero depende de Overleaf, el segundo requiere tu proyecto de Firebase.
 - Al **importar un `.tex`**, los comentarios al final de una línea (`texto % nota`) se descartan; los comentarios de línea completa se conservan. La `~` (espacio fijo) pasa a ser un espacio normal. Lo que el editor no reconoce se conserva como LaTeX crudo, y los paquetes que ese LaTeX necesita se siguen cargando.
 - Si **editas** en la vista de código, al salir se vuelve a formatear el `.tex`. Si solo lo miras, no se toca nada.
+- **TikZ en la vista previa** (en el PDF todo sale bien): no se dibujan `pic`, `\matrix`, decoraciones, `pattern` (se ve gris), sombreados (`\shade`, se ve gris), `\clip` (no recorta), `let`, intersecciones, 3D, `pgfplots` (`axis`), formas de `shapes` distintas de rectángulo, círculo, elipse y rombo, ni `foreach` dentro de un camino. El tamaño del texto de los nodos es aproximado.
+- La **herramienta de dibujo** solo edita líneas, flechas, rectángulos, círculos y textos sencillos (`\draw[color, grosor] (a) -- (b);` y similares); el resto del código se conserva y se ve de fondo, pero no se mueve ni se borra desde ahí. Trabaja en las coordenadas del código (tiene en cuenta `scale`, no `rotate` ni `shift` de la imagen).
 - Al importar, `\newtheorem` con contador compartido (`\newtheorem{lemma}[theorem]{Lema}`) pasa a usar un contador propio por tipo de enunciado.
 - Deshacer/rehacer cubre el contenido de los bloques; los cambios de ajustes del documento no se deshacen.
 - El tachado usa el paquete `ulem` y los idiomas usan `babel`; deben estar instalados al compilar (Overleaf y las instalaciones completas de TeX Live/MiKTeX los traen).
@@ -111,12 +122,12 @@ La segunda necesita `pdflatex`; si a tu instalación le falta algún idioma de b
 
 ## Cambios
 
-**2026.11.04-c**
-- «LaTeX avanzado» ya se ve: las tablas de un bloque crudo se dibujan encima del código (booktabs, `\multicolumn`, `\multirow`, `\cmidrule`, líneas verticales, `\footnotesize`, `\tabcolsep`, `\arraystretch`, pie, `\ref`, `\cite`, notas con macros). Lo demás sigue mostrándose solo como código.
-- Las macros del panel *Avanzado* (`\newcommand`, `\renewcommand`, `\def`, `\DeclareMathOperator`, con argumentos) se aplican a ecuaciones, fórmulas en línea y vistas previas, y se redibujan al editarlas.
-- Las tablas y figuras con `\caption` dentro de un bloque crudo se numeran como en el PDF (también desplazan a las siguientes) y sus `\label` se pueden citar.
-- Corregido: un bloque con `\begin{table}[H]` no compilaba sin `float`; ahora también se cargan solos `float`, `multirow`, `tabularx` y `longtable` cuando el LaTeX propio los usa.
-- Pruebas nuevas en `tests/raw.test.mjs` y un caso más en `tests/compilar.mjs`.
+**2026.11.05-a**
+- Ecuaciones: `multline`, `flalign`, `eqnarray`, `displaymath` y `math` son bloques editables, y también las que llevan `cases`, `pmatrix`, `aligned`… dentro. Las etiquetas escritas fila a fila se conservan y se numeran.
+- Listas de descripción (`description`) y `\item[etiqueta]` editables, sin perder la etiqueta. `\begin{center}\includegraphics…` es una figura; las figuras importadas conservan la ruta y las opciones de `\includegraphics`.
+- LaTeX avanzado con vista previa y código en «Ver/editar código»; fragmentos en línea renderizados. Importar un `.tex` informa de cuántos bloques quedaron como avanzados.
+- Bloque TikZ con editor, vista previa, herramienta de dibujo y plantillas; se reconoce al importar (suelto, en `figure`, en `center` o con `\resizebox`). Las referencias a figuras y tablas dentro del LaTeX avanzado se numeran.
+- Pruebas: `tests/parte1.test.mjs`, `tests/tikz.test.mjs`, `tests/muestra/` con su informe, y la muestra regenerada se compila y compara con la original.
 
 **2026.11.04-b**
 - La vista de código ya no altera el documento al entrar y salir sin editar (antes podía borrar símbolos del título, convertir símbolos del texto en LaTeX crudo y desactivar la portada).

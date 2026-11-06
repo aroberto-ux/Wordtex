@@ -1,7 +1,7 @@
 // Numeración como la haría LaTeX (secciones, ecuaciones, figuras, tablas, teoremas, citas y
 // referencias cruzadas). Se usa para que la vista de página muestre los mismos números que tendrá el PDF.
 
-import { TEOREMAS, textoPlano } from './modelo.js?v=2026.11.04-c';
+import { TEOREMAS, textoPlano, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.05-a';
 
 export const ROTULOS = {
   spanish: { fig: 'Figura', tab: 'Tabla', resumen: 'Resumen', indice: 'Índice general', refs: 'Referencias', cap: 'Capítulo', teo: 'es' },
@@ -15,11 +15,12 @@ export const rotulos = (idioma) => ROTULOS[idioma] || ROTULOS.english;
 
 /** Número de filas numeradas de un entorno align/gather (una por cada «\\»). */
 function filasEq(b) {
-  if (b.env === 'equation') return 1;
+  if (!EQ_FILAS.has(b.env)) return [{ etiquetas: etiquetasEn(b.tex) }]; // equation y multline: un solo número
   // las filas con \nonumber o \notag no llevan número
-  const partes = String(b.tex || '').split(/\\\\/).filter((x) => x.trim() && !/\\(nonumber|notag)\b/.test(x));
-  return Math.max(1, partes.length);
+  const filas = dividirFilas(b.tex).filter((x) => x.replace(/\\\\$/, '').trim() && !/\\(nonumber|notag)\b/.test(x)).map((x) => ({ etiquetas: etiquetasEn(x) }));
+  return filas.length ? filas : [{ etiquetas: [] }];
 }
+const etiquetasEn = (t) => [...String(t || '').matchAll(/\\label\{([^}]*)\}/g)].map((m) => m[1].trim());
 
 /**
  * @returns {{ info: Map<string, {num:string, nombre?:string}>, etiquetas: Map<string,string>, titulos: Array, citas: Map<string,number> }}
@@ -49,14 +50,16 @@ export function numerar(cfg, bloques, biblio = []) {
       titulos.push({ id: b.id, n: nivel, num, texto: textoPlano(b.c) });
     } else if (b.t === 'eq') {
       if (b.num) {
-        const k = filasEq(b);
+        const filas = filasEq(b);
         const pref = capitulos && c[0] ? `${c[0]}.` : '';
-        const a = eq + 1; eq += k;
-        const txt = k === 1 ? `${pref}${a}` : `${pref}${a}–${pref}${eq}`;
+        const a = eq + 1; eq += filas.length;
+        const txt = filas.length === 1 ? `${pref}${a}` : `${pref}${a}–${pref}${eq}`;
         info.set(b.id, { num: txt });
         if (b.label) etiquetas.set(b.label, `${pref}${a}`);
+        // etiquetas escritas dentro del código, fila a fila
+        filas.forEach((f, k) => { for (const l of f.etiquetas) etiquetas.set(l, `${pref}${a + k}`); });
       } else info.set(b.id, { num: '' });
-    } else if (b.t === 'fig') {
+    } else if (b.t === 'fig' || b.t === 'tikz') {
       // como en LaTeX: solo las figuras con pie (\caption) llevan número
       if (b.pie && b.pie.length) {
         fig++;
@@ -72,19 +75,21 @@ export function numerar(cfg, bloques, biblio = []) {
         if (b.label) etiquetas.set(b.label, num);
       } else info.set(b.id, { num: '' });
     } else if (b.t === 'raw') {
-      // \begin{table}…\caption{…} dentro de LaTeX propio: LaTeX también lo numera y se puede citar con \ref
-      const items = [];
-      const src = String(b.tex || '').replace(/(^|[^\\])%.*$/gm, '$1');
-      for (const m of src.matchAll(/\\begin\{(table|figure)\*?\}([\s\S]*?)\\end\{\1\*?\}/g)) {
-        if (!/\\caption(\[[^\]]*\])?\s*\{/.test(m[2])) { items.push({}); continue; }
-        const esTabla = m[1] === 'table';
-        const n = esTabla ? ++tab : ++fig;
-        const num = `${capitulos && c[0] ? c[0] + '.' : ''}${n}`;
-        items.push({ num, nombre: `${esTabla ? ro.tab : ro.fig} ${num}` });
-        const lab = /\\label\{([^}]+)\}/.exec(m[2]);
-        if (lab) etiquetas.set(lab[1], num);
+      // LaTeX avanzado: también cuenta para la numeración (figuras y tablas con pie, ecuaciones numeradas)
+      const t = String(b.tex || '').trim();
+      const flot = /^\\begin\{(figure|table)\*?\}/.exec(t);
+      const mat = /^\\begin\{(equation|align|gather|multline|flalign|eqnarray|alignat|xalignat)\}/.exec(t);
+      const pref = capitulos && c[0] ? `${c[0]}.` : '';
+      if (flot && /\\caption\b/.test(t)) {
+        let num;
+        if (flot[1] === 'figure') { fig++; num = pref + fig; } else { tab++; num = pref + tab; }
+        for (const l of etiquetasEn(t)) etiquetas.set(l, num);
+        info.set(b.id, { num });
+      } else if (mat) {
+        const filas = filasEq({ env: /^(equation|multline)$/.test(mat[1]) ? 'equation' : 'align', tex: t.slice(mat[0].length).replace(/\\end\{[^}]*\}\s*$/, '') });
+        const a = eq + 1; eq += filas.length;
+        filas.forEach((f, k) => { for (const l of f.etiquetas) etiquetas.set(l, `${pref}${a + k}`); });
       }
-      info.set(b.id, { num: (items[0] && items[0].num) || '', nombre: items[0] && items[0].nombre, items });
     } else if (b.t === 'teo') {
       if (b.tipo === 'proof') { info.set(b.id, { num: '', nombre: TEOREMAS.proof[ro.teo] }); continue; }
       teo[b.tipo] = (teo[b.tipo] || 0) + 1;
@@ -102,7 +107,7 @@ export function etiquetasDisponibles(bloques, num) {
   for (const b of bloques) {
     if (!b.label) continue;
     const i = num.info.get(b.id) || {};
-    const tipo = b.t === 'h' ? 'Sección' : b.t === 'eq' ? 'Ecuación' : b.t === 'fig' ? 'Figura' : 'Tabla';
+    const tipo = b.t === 'h' ? 'Sección' : b.t === 'eq' ? 'Ecuación' : b.t === 'fig' || b.t === 'tikz' ? 'Figura' : 'Tabla';
     out.push({ label: b.label, num: num.etiquetas.get(b.label) || '?', tipo, texto: b.t === 'h' ? textoPlano(b.c) : (b.t === 'eq' ? b.tex.slice(0, 30) : textoPlano(b.pie || [])) });
   }
   return out;
@@ -110,7 +115,7 @@ export function etiquetasDisponibles(bloques, num) {
 
 /** Etiqueta nueva para un bloque (única en el documento). */
 export function etiquetaNueva(bloques, b) {
-  const pref = b.t === 'h' ? 'sec' : b.t === 'eq' ? 'eq' : b.t === 'fig' ? 'fig' : 'tab';
+  const pref = b.t === 'h' ? 'sec' : b.t === 'eq' ? 'eq' : b.t === 'fig' || b.t === 'tikz' ? 'fig' : 'tab';
   let base = pref + ':' + (b.t === 'h' ? textoPlano(b.c) : b.t === 'eq' ? '' : textoPlano(b.pie || []))
     .normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 20);
   if (base.endsWith(':')) base += 'x';

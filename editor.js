@@ -1,21 +1,20 @@
 // Vista del editor: une la cinta, la página, el código, el panel lateral y la colaboración.
 
-import { S, E } from './estado.js?v=2026.11.04-c';
-import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.04-c';
-import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.04-c';
-import { rotulos } from './numerar.js?v=2026.11.04-c';
+import { S, E } from './estado.js?v=2026.11.05-a';
+import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.05-a';
+import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.05-a';
+import { rotulos } from './numerar.js?v=2026.11.05-a';
 import {
-  bus, limpiarEstado, recibirBloques, guardarPendientes, haySinGuardar, deshacer, rehacer, refrescarDerivados, reconciliar, aplicarCambios,
-  aplicarMacros, redibujarMate,
-} from './ops.js?v=2026.11.04-c';
-import { instalarEventos } from './eventos.js?v=2026.11.04-c';
+  bus, limpiarEstado, recibirBloques, guardarPendientes, haySinGuardar, deshacer, rehacer, refrescarDerivados, reconciliar, aplicarCambios, insertarBloque,
+} from './ops.js?v=2026.11.05-a';
+import { instalarEventos } from './eventos.js?v=2026.11.05-a';
 import {
   seguirSeleccion, restaurarRango, formato, estadoFormato, alinear, alternarLista, sangria, accionMate, accionNota, accionCita, accionRef,
-  accionEnlace, accionSimbolo, accionSaltoLinea, accionTabla, accionFig, accionImagen, menuInsertar, alElegirEstilo, edDe, celdaActual,
-} from './acciones.js?v=2026.11.04-c';
-import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.04-c';
-import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.04-c';
-import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON } from './exportar.js?v=2026.11.04-c';
+  accionEnlace, accionSimbolo, accionSaltoLinea, accionTabla, accionFig, accionImagen, menuInsertar, alElegirEstilo, edDe, celdaActual, accionTikz,
+} from './acciones.js?v=2026.11.05-a';
+import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.05-a';
+import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.05-a';
+import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON } from './exportar.js?v=2026.11.05-a';
 
 let unsubs = [];
 let listo = false;
@@ -93,6 +92,7 @@ const CMD = {
   'tb-col+': () => accionTabla('col+'), 'tb-col-': () => accionTabla('col-'), 'tb-borrar-col': () => accionTabla('borrar-col'),
   'tb-al-l': () => accionTabla('al', 'l'), 'tb-al-c': () => accionTabla('al', 'c'), 'tb-al-r': () => accionTabla('al', 'r'), 'tb-enc': () => accionTabla('enc'),
   'fig-cambiar': () => accionImagen(S.sel), 'fig-quitar': () => accionFig('quitar'),
+  tikz: async () => { const id = insertarBloque('tikz'); await accionTikz(id, { nuevo: true }); },
 };
 
 function cablearCinta() {
@@ -284,14 +284,13 @@ export function entrarEditor(did) {
     if (!d) { aviso('Ese documento no existe o fue eliminado.', 'error', 4000); location.hash = '#documentos'; return; }
     const primera = !S.doc;
     S.doc = d;
-    const macrosNuevas = aplicarMacros(d.extra);
     document.title = (d.titulo || 'Documento') + ' · LaTeX visual';
     if (document.activeElement !== E.titulo) E.titulo.value = d.titulo;
     docRecibido = true;
     aplicarEstiloHoja();
     pintarPanel();
     bus.dispatchEvent(new CustomEvent('doc'));
-    if (primera) { intentarListo(); actualizarCodigo(true); } else if (listo) { if (macrosNuevas) redibujarMate(); else refrescarDerivados(); }
+    if (primera) { intentarListo(); actualizarCodigo(true); } else if (listo) refrescarDerivados();
   }));
   unsubs.push(S.store.suscribirBloques(did, (lista) => {
     ultimaLista = lista;

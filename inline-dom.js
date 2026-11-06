@@ -1,13 +1,9 @@
 // Texto en línea del modelo ⇄ DOM editable (contenteditable).
 
-import { compactar } from './modelo.js?v=2026.11.04-c';
+import { compactar } from './modelo.js?v=2026.11.05-a';
+import { vistaRawInline, usarPintorInline } from './vista-latex.js?v=2026.11.05-a';
 
 const K = () => (typeof window !== 'undefined' ? window.katex : null);
-
-// Macros del preámbulo propio (\\newcommand…): las usan las fórmulas y las vistas previas.
-let MACROS = {};
-export const setMacros = (m) => { MACROS = m || {}; };
-export const getMacros = () => MACROS;
 
 export function renderMate(el, tex, display = false) {
   const katex = K();
@@ -15,7 +11,7 @@ export function renderMate(el, tex, display = false) {
   if (!tex.trim()) { el.textContent = '▢'; el.classList.add('vacia'); return; }
   el.classList.remove('vacia');
   if (katex) {
-    try { katex.render(tex, el, { throwOnError: false, displayMode: display, output: 'html', strict: 'ignore', trust: false, macros: { ...MACROS } }); return; } catch { /* sigue */ }
+    try { katex.render(tex, el, { throwOnError: false, displayMode: display, output: 'html', strict: 'ignore', trust: false }); return; } catch { /* sigue */ }
   }
   el.textContent = tex;
 }
@@ -51,12 +47,21 @@ export function nodoInline(n) {
     a.append(pintarInline(n.c && n.c.length ? n.c : [{ s: n.url }]));
     return a;
   }
-  if (n.raw != null) {
-    const e = el('span', 'i-raw', { contenteditable: 'false', 'data-raw': n.raw, title: 'Código LaTeX que se conserva tal cual: clic para editar' });
-    e.textContent = n.raw.length > 28 ? n.raw.slice(0, 26) + '…' : n.raw;
-    return e;
-  }
+  if (n.raw != null) return chipRaw(n.raw);
   return document.createTextNode('');
+}
+
+/**
+ * Fragmento de LaTeX que se conserva tal cual. Si se sabe mostrar (\textcolor, \textsc, \today, \LaTeX,
+ * \verb, {\small …}…) se ve renderizado; si no, se ve el código. El código original va en data-raw.
+ */
+export function chipRaw(raw) {
+  const e = el('span', 'i-raw', { contenteditable: 'false', 'data-raw': raw });
+  let vista = null;
+  try { vista = vistaRawInline(raw); } catch { /* sin vista */ }
+  if (vista) { e.classList.add('vista'); e.title = `LaTeX: ${raw.length > 160 ? raw.slice(0, 158) + '…' : raw}\nClic para editar`; e.append(vista); }
+  else { e.title = 'Código LaTeX que se conserva tal cual: clic para editar'; e.textContent = raw.length > 28 ? raw.slice(0, 26) + '…' : raw; }
+  return e;
 }
 
 export function pintarInline(nodos) {
@@ -86,6 +91,7 @@ function leer(raiz, marcas, out) {
     if (c.contains('i-cita')) { out.push({ cita: n.getAttribute('data-cita') || '' }); continue; }
     if (c.contains('i-ref')) { out.push({ ref: n.getAttribute('data-ref') || '' }); continue; }
     if (c.contains('i-raw')) { out.push({ raw: n.getAttribute('data-raw') || '' }); continue; }
+    if (c.contains('li-et')) continue; // el término de una lista de descripción se lee aparte
     if (c.contains('i-url')) { const sub = []; leer(n, {}, sub); out.push({ url: n.getAttribute('data-url') || '', c: compactar(sub) }); continue; }
     const m = MARCAS_TAG[n.tagName];
     if (m) { leer(n, { ...marcas, [m]: 1 }, out); continue; }
@@ -120,3 +126,5 @@ export function numerarInline(raiz, num, biblio) {
     e.classList.toggle('rota', !t);
   }
 }
+
+usarPintorInline(pintarInline);

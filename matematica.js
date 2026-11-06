@@ -2,8 +2,9 @@
 // El «‸» de cada plantilla marca dónde queda el cursor (no se usa «|» porque es un símbolo real: |x|, ‖x‖).
 const CURSOR = '‸';
 
-import { h, modal } from './ui.js?v=2026.11.04-c';
-import { renderMate } from './inline-dom.js?v=2026.11.04-c';
+import { h, modal } from './ui.js?v=2026.11.05-a';
+import { renderMate } from './inline-dom.js?v=2026.11.05-a';
+import { texParaKatex } from './vista-latex.js?v=2026.11.05-a';
 
 const G = (...l) => l.map((x) => [x[0], x[1] || x[0]]);
 const griegas = [
@@ -72,15 +73,17 @@ export function editarMate({ tex = '', titulo = 'Fórmula', bloque = false, opc 
     const vista = h('div', { class: 'mate-vista', 'aria-live': 'polite' });
     const aviso = h('div', { class: 'mate-aviso' });
     const env = h('select', { 'aria-label': 'Tipo de ecuación' },
-      h('option', { value: 'equation' }, 'Una línea'), h('option', { value: 'align' }, 'Varias líneas alineadas (usa & y \\\\)'), h('option', { value: 'gather' }, 'Varias líneas centradas (usa \\\\)'));
+      h('option', { value: 'equation' }, 'Una línea'), h('option', { value: 'align' }, 'Varias líneas alineadas (usa & y \\\\)'), h('option', { value: 'gather' }, 'Varias líneas centradas (usa \\\\)'),
+      h('option', { value: 'multline' }, 'Una fórmula larga partida en líneas (un solo número)'), h('option', { value: 'flalign' }, 'Alineadas a todo el ancho (flalign)'),
+      h('option', { value: 'eqnarray' }, 'eqnarray (antiguo: mejor «alineadas»)'), h('option', { value: 'displaymath' }, 'displaymath (sin número)'), h('option', { value: 'math' }, 'math (fórmula en línea como bloque)'));
     env.value = opc.env;
     const num = h('input', { type: 'checkbox', checked: !!opc.num });
     const label = h('input', { type: 'text', value: opc.label || '', maxlength: 40, placeholder: 'ej. eq:energia', 'aria-label': 'Etiqueta para referencias' });
     const pintar = () => {
-      let t = ta.value;
-      const multi = bloque && env.value !== 'equation';
-      if (multi) t = `\\begin{aligned}${t}\\end{aligned}`;
-      renderMate(vista, t, bloque);
+      const t = bloque ? texParaKatex(env.value, ta.value) : ta.value;
+      // displaymath y math no se numeran nunca
+      if (bloque) { const sinNum = env.value === 'displaymath' || env.value === 'math'; num.disabled = sinNum; if (sinNum) num.checked = false; }
+      renderMate(vista, t, bloque && env.value !== 'math');
       vista.classList.toggle('vacia', !ta.value.trim());
       const err = vista.querySelector('.katex-error');
       aviso.textContent = err ? 'Hay algo que LaTeX no entenderá (revisa llaves y comandos).' : '';

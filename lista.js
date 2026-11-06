@@ -1,11 +1,12 @@
 // Lista de documentos: crear (con plantillas), importar .tex / .json, renombrar, duplicar, descargar, eliminar.
 
-import { S, E } from './estado.js?v=2026.11.04-c';
-import { h, aviso, pedir, confirmar, abrirMenu, hace, modal, descargar, nombreArchivo } from './ui.js?v=2026.11.04-c';
-import { PLANTILLAS, crearDesdePlantilla } from './plantillas.js?v=2026.11.04-c';
-import { parsearTex } from './latex-parse.js?v=2026.11.04-c';
-import { generarTex } from './latex-gen.js?v=2026.11.04-c';
-import { sanearBloque } from './modelo.js?v=2026.11.04-c';
+import { S, E } from './estado.js?v=2026.11.05-a';
+import { h, aviso, pedir, confirmar, abrirMenu, hace, modal, descargar, nombreArchivo } from './ui.js?v=2026.11.05-a';
+import { PLANTILLAS, crearDesdePlantilla } from './plantillas.js?v=2026.11.05-a';
+import { parsearTex } from './latex-parse.js?v=2026.11.05-a';
+import { generarTex } from './latex-gen.js?v=2026.11.05-a';
+import { sanearBloque } from './modelo.js?v=2026.11.05-a';
+import { resumenImportacion } from './vista-latex.js?v=2026.11.05-a';
 
 let unsub = null;
 let cableado = false;
@@ -50,8 +51,7 @@ async function importarArchivo(f) {
   const bloques = m.bloques.map(({ id, orden, ...r }) => r);
   if (!bloques.length) bloques.push({ t: 'p', c: [], al: 'j' });
   const id = await S.store.crearDocumento({ titulo, cfg: m.cfg, biblio: m.biblio, extra: m.extra }, bloques);
-  const raw = bloques.filter((b) => b.t === 'raw').length;
-  aviso(`Documento importado${raw ? `. ${raw} fragmento(s) de LaTeX avanzado se conservaron tal cual.` : '.'}${m.avisos.length ? ' ' + m.avisos[0] : ''}`, 'ok', 6500);
+  aviso(`${resumenImportacion(bloques)}${m.avisos.length ? ' ' + m.avisos[0] : ''}`, 'ok', 9000);
   location.hash = `#documentos/${id}`;
 }
 

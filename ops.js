@@ -1,13 +1,12 @@
 // Núcleo del editor: mantiene la lista de bloques, la dibuja en la página, la guarda en el almacén
 // y aplica cambios de estructura (insertar, dividir, mover, borrar…) con deshacer/rehacer.
 
-import { S, E } from './estado.js?v=2026.11.04-c';
-import { nuevoId, bloqueNuevo } from './modelo.js?v=2026.11.04-c';
-import { diffPorId, firma, necesitaReindexar } from './sync.js?v=2026.11.04-c';
-import { pintarBloque, leerBloque, decorar } from './bloques-dom.js?v=2026.11.04-c';
-import { numerar } from './numerar.js?v=2026.11.04-c';
-import { numerarInline, renderMate, setMacros } from './inline-dom.js?v=2026.11.04-c';
-import { macrosDe } from './macros.js?v=2026.11.04-c';
+import { S, E } from './estado.js?v=2026.11.05-a';
+import { nuevoId, bloqueNuevo } from './modelo.js?v=2026.11.05-a';
+import { diffPorId, firma, necesitaReindexar } from './sync.js?v=2026.11.05-a';
+import { pintarBloque, leerBloque, decorar } from './bloques-dom.js?v=2026.11.05-a';
+import { numerar } from './numerar.js?v=2026.11.05-a';
+import { numerarInline } from './inline-dom.js?v=2026.11.05-a';
 
 export const bus = new EventTarget();
 const avisar = (tipo, detalle) => bus.dispatchEvent(new CustomEvent(tipo, { detail: detalle }));
@@ -80,25 +79,6 @@ export function guardarPendientes(sinDerivados = false) {
   if (actualizar.length) S.store.aplicarBloques(S.did, { actualizar });
   if (!sinDerivados) refrescarDerivados();
   avisar('cambio');
-}
-
-let firmaMacros = '';
-/** Toma las macros del preámbulo propio. Devuelve true si cambiaron (hay que redibujar las fórmulas). */
-export function aplicarMacros(extra) {
-  const m = macrosDe(extra || '');
-  const f = JSON.stringify(m);
-  if (f === firmaMacros) return false;
-  firmaMacros = f; setMacros(m);
-  return true;
-}
-
-/** Vuelve a dibujar todas las fórmulas (tras cambiar las macros del preámbulo). */
-export function redibujarMate() {
-  for (const raiz of [E.bloques, E.portada]) {
-    if (!raiz) continue;
-    for (const e of raiz.querySelectorAll('.i-mate')) renderMate(e, e.getAttribute('data-tex') || '');
-  }
-  reconciliar(new Set(S.bloques.filter((b) => b.t === 'eq' || b.t === 'raw').map((b) => b.id)));
 }
 
 /** Vuelve a calcular números, índice y referencias. */

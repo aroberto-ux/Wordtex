@@ -4,9 +4,9 @@
 // de modo que al volver a generar el .tex no se pierde nada.
 
 import {
-  cfgPorDefecto, CLASES, IDIOMAS, ALIAS_TEOREMA, compactar, sanearBloque, sanearCfg, sanearBiblio, nuevoId,
-} from './modelo.js?v=2026.11.04-c';
-import { SIMBOLOS, ABSTRACT_BOOK } from './latex-gen.js?v=2026.11.04-c';
+  cfgPorDefecto, CLASES, IDIOMAS, ALIAS_TEOREMA, compactar, sanearBloque, sanearCfg, sanearBiblio, nuevoId, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas,
+} from './modelo.js?v=2026.11.05-a';
+import { SIMBOLOS, ABSTRACT_BOOK } from './latex-gen.js?v=2026.11.05-a';
 
 // \ensuremath{\alpha} → α (lo contrario de lo que hace latex-gen.js con los símbolos Unicode)
 const SIMBOLO_DE = new Map(Object.entries(SIMBOLOS).map(([u, cmd]) => [cmd, u]));
@@ -61,7 +61,7 @@ function sinComentarios(s) {
     for (let k = 0; k < l.length; k++) {
       if (l[k] === '\\') {
         // \verb|…%…| no es un comentario
-        const v = /^\\verb\*?([^a-zA-Z\s*])/.exec(l.slice(k, k + 8));
+        const v = /^\\(?:verb\*?|lstinline(?:\[[^\]]*\])?)([^a-zA-Z\s*{])/.exec(l.slice(k, k + 60));
         if (v) { const f = l.indexOf(v[1], k + v[0].length); if (f > 0) { k = f; continue; } }
         k++; continue;
       }
@@ -137,6 +137,24 @@ export function parsearInline(src, marcas = {}) {
         const delim = s[ini];
         const f = delim ? s.indexOf(delim, ini + 1) : -1;
         if (f > 0) { vaciar(); nodos.push({ raw: s.slice(i, f + 1) }); i = f + 1; continue; }
+      }
+      // \lstinline[…]|…| o \lstinline{…}: código en línea, se conserva entero
+      if (s.startsWith('lstinline', i + 1) && !esLetra(s[i + 10])) {
+        let k = i + 10;
+        const op = opcional(s, k); if (op) k = op.fin;
+        let f = -1;
+        if (s[k] === '{') { const g = grupo(s, k); if (g) f = g.fin - 1; }
+        else if (s[k] && !/\s/.test(s[k])) f = s.indexOf(s[k], k + 1);
+        if (f > 0) { vaciar(); nodos.push({ raw: s.slice(i, f + 1) }); i = f + 1; continue; }
+      }
+      // \tikz[…]{…} o \tikz[…] \draw …; — dibujo en línea
+      if (s.startsWith('tikz', i + 1) && !esLetra(s[i + 5])) {
+        let k = saltarEsp(s, i + 5);
+        const op = opcional(s, k); if (op) k = saltarEsp(s, op.fin);
+        let f = -1;
+        if (s[k] === '{') { const g = grupo(s, k); if (g) f = g.fin; }
+        else { const pc = s.indexOf(';', k); if (pc > 0) f = pc + 1; }
+        if (f > 0) { vaciar(); nodos.push({ raw: s.slice(i, f) }); i = f; continue; }
       }
       const cm = comando(s, i);
       if (cm && !cm.simbolo) {
@@ -226,7 +244,6 @@ const inlineLimpio = (s) => {
 // ── Bloques ─────────────────────────────────────────────────────────────
 
 const SECCIONES = { chapter: 0, section: 1, subsection: 2, subsubsection: 3 };
-const EQ_ENV = { equation: 'equation', align: 'align', gather: 'gather' };
 
 function sacarEtiqueta(t) {
   let label = '';
@@ -234,7 +251,12 @@ function sacarEtiqueta(t) {
   return { texto: out, label };
 }
 
-function parsearItems(cuerpo, nivel, items) {
+/**
+ * Elementos de una lista. Con `estricto` devuelve false si la lista tiene algo que el modelo no puede
+ * representar sin perderlo (otra clase de lista anidada, texto después de una sublista, más de tres
+ * niveles, contenido antes del primer \item): entonces se conserva como LaTeX avanzado.
+ */
+function parsearItems(cuerpo, nivel, items, env = 'itemize', estricto = true) {
   // trozos separados por \item de nivel superior
   const trozos = [];
   let i = 0, ini = -1;
@@ -247,25 +269,31 @@ function parsearItems(cuerpo, nivel, items) {
     i++;
   }
   if (ini >= 0) trozos.push(cuerpo.slice(ini));
+  const antes = ini >= 0 ? cuerpo.slice(0, cuerpo.search(/\\item(?![a-zA-Z])/)) : cuerpo;
+  if (estricto && sinComentarios(antes).trim()) return false;
+  if (estricto && nivel > 2) return false;
   for (let t of trozos) {
-    let etiqueta = '';
+    let et = null;
     // \item[etiqueta]: LaTeX también lo lee así aunque haya un espacio antes del corchete
     const o = opcional(t, saltarEsp(t, 0));
-    if (o) { etiqueta = o.txt; t = t.slice(o.fin); }
+    if (o) { et = inlineLimpio(o.txt.replace(/^\{([\s\S]*)\}$/, '$1')); t = t.slice(o.fin); }
     // separar listas anidadas
     let texto = '', resto = '';
     let k = 0, anidadas = [];
     while (k < t.length) {
-      const m = /^\\begin\{(itemize|enumerate)\}/.exec(t.slice(k, k + 30));
+      const m = /^\\begin\{(itemize|enumerate|description)\}/.exec(t.slice(k, k + 30));
       if (m) { const e = entorno(t, k); if (e) { anidadas.push(e); k = e.fin; continue; } }
       if (anidadas.length) resto += t[k]; else texto += t[k];
       k++;
     }
-    let c = inlineLimpio(texto + (resto.trim() ? ' ' + resto : ''));
-    if (etiqueta) c = [{ s: etiqueta + ' ', b: 1 }, ...c];
-    items.push({ c, n: Math.min(nivel, 2) });
-    for (const a of anidadas) parsearItems(a.cuerpoCompleto, nivel + 1, items);
+    if (estricto && (anidadas.some((a) => a.nombre !== env) || sinComentarios(resto).trim())) return false;
+    const c = inlineLimpio(texto + (resto.trim() ? ' ' + resto : ''));
+    const it = { c, n: Math.min(nivel, 2) };
+    if (et) it.et = et;
+    items.push(it);
+    for (const a of anidadas) if (parsearItems(a.cuerpoCompleto, nivel + 1, items, env, estricto) === false) return false;
   }
+  return true;
 }
 
 /** Parte `s` en piezas separadas por `sep` (nivel superior: fuera de llaves y de entornos). */
@@ -363,7 +391,7 @@ function parsearFigura(cuerpo) {
     // recuadro «Imagen pendiente» que genera latex-gen.js para una figura sin imagen
     const p = FIG_PENDIENTE.exec(cuerpo);
     if (!p) return null;
-    m = [p[0], `[width=${p[1]}\\linewidth]`, 'imagen.png'];
+    m = [p[0], `[width=${p[1]}\\linewidth]`, 'imagenes/imagen.png'];
   }
   let resto = cuerpo.replace(m[0], '');
   let pie = [];
@@ -375,7 +403,8 @@ function parsearFigura(cuerpo) {
   const { texto, label } = sacarEtiqueta(resto);
   if (texto.replace(/\\(centering|small|footnotesize|large|normalsize)\b/g, '').trim()) return null;
   let ancho = 70;
-  const w = /width\s*=\s*([\d.]+)\s*(\\linewidth|\\textwidth|\\columnwidth|cm|mm|pt)?/.exec(m[1] || '');
+  const opc = (m[1] || '').replace(/^\[|\]$/g, '').trim();
+  const w = /width\s*=\s*([\d.]+)\s*(\\linewidth|\\textwidth|\\columnwidth|cm|mm|pt)?/.exec(opc);
   if (w) {
     const v = parseFloat(w[1]);
     if (!w[2]) ancho = 100 * v;
@@ -386,7 +415,70 @@ function parsearFigura(cuerpo) {
   }
   const ruta = m[2].trim();
   const nombre = ruta.split('/').pop() || 'imagen.png';
-  return { t: 'fig', src: '', nombre, ancho: Math.round(Math.min(100, Math.max(10, ancho))), pie, label };
+  const f = { t: 'fig', src: '', nombre, ancho: Math.round(Math.min(100, Math.max(10, ancho))), pie, label };
+  // Lo que no sea «width=0.N\linewidth» se guarda tal cual (escala, alto, cm…), igual que la ruta original
+  if (opc && !/^width=(0?\.\d+|1(\.0+)?)\\linewidth$/.test(opc.replace(/\s+/g, ''))) f.opcImg = opc;
+  if (ruta !== 'imagenes/' + nombre) f.ruta = ruta;
+  return f;
+}
+
+/** \begin{tikzpicture}[opc] … \end{tikzpicture}, quizá dentro de \resizebox{N\linewidth}{!}{…}. */
+function leerTikz(texto) {
+  let t = texto.trim(), ancho = 0;
+  const rb = /^\\resizebox\{([\d.]+)\\linewidth\}\{!\}\{%?\s*([\s\S]*?)%?\s*\}$/.exec(t);
+  if (rb) { ancho = Math.round(parseFloat(rb[1]) * 100); t = rb[2].trim(); if (!(ancho >= 1 && ancho <= 100)) return null; }
+  if (!t.startsWith('\\begin{tikzpicture}')) return null;
+  const e = entorno(t, 0);
+  if (!e || e.fin !== t.length) return null;
+  let cuerpo = e.cuerpoCompleto, opc = '';
+  const o = opcional(cuerpo, 0);
+  if (o) { opc = o.txt; cuerpo = cuerpo.slice(o.fin); }
+  const src = cuerpo.replace(/^[ \t]*\n/, '').replace(/\s+$/, '');
+  return { t: 'tikz', libs: [], opc, src, pie: [], ancho, label: '', env: '' };
+}
+
+/** Figura con un dibujo TikZ (con pie y etiqueta opcionales). */
+function parsearFiguraTikz(cuerpo) {
+  cuerpo = sinPosicion(cuerpo);
+  const i = cuerpo.search(/\\resizebox\{[^}]*\}\{!\}\{%?\s*\\begin\{tikzpicture\}|\\begin\{tikzpicture\}/);
+  if (i < 0) return null;
+  let fin;
+  if (cuerpo.startsWith('\\resizebox', i)) {
+    const a = grupo(cuerpo, i + 10), b = a && grupo(cuerpo, a.fin), c = b && grupo(cuerpo, b.fin);
+    if (!c) return null; fin = c.fin;
+  } else { const e = entorno(cuerpo, i); if (!e) return null; fin = e.fin; }
+  const tk = leerTikz(cuerpo.slice(i, fin));
+  if (!tk) return null;
+  let resto = cuerpo.slice(0, i) + cuerpo.slice(fin);
+  let pie = [];
+  const cap = /\\caption\s*\{/.exec(resto);
+  if (cap) {
+    const g = grupo(resto, cap.index + cap[0].length - 1);
+    if (g) { pie = inlineLimpio(g.txt); resto = resto.slice(0, cap.index) + resto.slice(g.fin); }
+  }
+  const { texto, label } = sacarEtiqueta(resto);
+  if (texto.replace(/\\centering\b/g, '').trim()) return null;
+  return { ...tk, pie, label, env: 'figure' };
+}
+
+// Entornos que pueden ir dentro de una ecuación (KaTeX los dibuja)
+const MATE_INTERNOS = /^(cases|dcases|rcases|aligned|alignedat|gathered|split|matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array|subarray|substack)\*?$/;
+
+/**
+ * Etiqueta de una ecuación. Solo se separa del código si al volver a generarlo queda igual: una etiqueta
+ * en la ecuación numerada, o en la primera fila numerada de align/gather/flalign/eqnarray (ahí la pone
+ * latex-gen.js). Si hay varias, o está en otra fila, se queda dentro del código.
+ */
+function etiquetaEq(env, cuerpo, numerada) {
+  const labels = [...cuerpo.matchAll(/\\label\{([^}]*)\}/g)];
+  if (labels.length !== 1 || !numerada) return { tex: cuerpo.trim(), label: '' };
+  if (EQ_FILAS.has(env)) {
+    const filas = dividirFilas(cuerpo);
+    const k = filas.findIndex((f) => !/\\(nonumber|notag)\b/.test(f));
+    const enFila = filas.findIndex((f) => /\\label\{/.test(f));
+    if (k !== enFila) return { tex: cuerpo.trim(), label: '' };
+  }
+  return { tex: cuerpo.replace(/\s*\\label\{[^}]*\}/, '').trim(), label: labels[0][1].trim() };
 }
 
 function bloqueEntorno(e, ctx) {
@@ -394,24 +486,34 @@ function bloqueEntorno(e, ctx) {
   const estrella = e.nombre.endsWith('*');
   const cuerpo = e.cuerpoCompleto;
   switch (nombre) {
-    case 'itemize': case 'enumerate': {
+    case 'itemize': case 'enumerate': case 'description': {
+      if (estrella) return null;
       const items = [];
-      parsearItems(cuerpo, 0, items);
-      return items.length ? [{ t: 'lista', ord: nombre === 'enumerate', items }] : null;
+      const ok = parsearItems(cuerpo, 0, items, nombre, !ctx.vista);
+      if (ok === false || !items.length) return null;
+      return [{ t: 'lista', ord: nombre === 'enumerate', ...(nombre === 'description' ? { desc: true } : {}), items }];
     }
-    case 'equation': case 'align': case 'gather': {
-      if (nombre !== 'equation' && /\\begin\{/.test(cuerpo)) return null;
-      const { texto, label } = sacarEtiqueta(cuerpo);
-      return [{ t: 'eq', env: EQ_ENV[nombre], tex: texto.trim(), num: !estrella, label }];
+    case 'equation': case 'align': case 'gather': case 'multline': case 'flalign': case 'eqnarray': case 'displaymath': case 'math': {
+      if (estrella && EQ_SIN_NUMERO.has(nombre)) return null;
+      // dentro solo se aceptan entornos matemáticos (cases, pmatrix, aligned…)
+      for (const m of cuerpo.matchAll(/\\begin\{([^}]+)\}/g)) if (!MATE_INTERNOS.test(m[1])) return null;
+      const num = !estrella && !EQ_SIN_NUMERO.has(nombre);
+      const { tex, label } = etiquetaEq(nombre, cuerpo, num);
+      return [{ t: 'eq', env: nombre, tex, num, label }];
     }
+    case 'tikzpicture': { const tk = leerTikz(e.raw); return tk ? [tk] : null; }
     case 'tabular': {
       const g = grupo(cuerpo, saltarEsp(cuerpo, 0));
       if (!g) return null;
       const t = parsearTabular(cuerpo.slice(g.fin), g.txt);
       return t ? [t] : null;
     }
-    case 'table': { const t = parsearFloatTabla(cuerpo); return t ? [t] : null; }
-    case 'figure': { const f = parsearFigura(cuerpo); return f ? [f] : null; }
+    case 'table': { if (estrella) return null; const t = parsearFloatTabla(cuerpo); return t ? [t] : null; }
+    case 'figure': {
+      if (estrella) return null;
+      if (/\\begin\{tikzpicture\}/.test(cuerpo)) { const tk = parsearFiguraTikz(cuerpo); return tk ? [tk] : null; }
+      const f = parsearFigura(cuerpo); return f ? [f] : null;
+    }
     case 'lstlisting': case 'verbatim': {
       let lang = '', num = false, src = cuerpo;
       if (nombre === 'lstlisting') {
@@ -424,6 +526,13 @@ function bloqueEntorno(e, ctx) {
     case 'quote': case 'quotation': return [{ t: 'cita', c: inlineLimpio(sinComentarios(cuerpo)) }];
     case 'abstract': return [{ t: 'resumen', c: inlineLimpio(sinComentarios(cuerpo)) }];
     case 'center': case 'flushleft': case 'flushright': {
+      if (nombre === 'center') {
+        // \begin{center}\includegraphics…\end{center} → figura centrada; un dibujo TikZ → bloque tikz
+        const solo = cuerpo.trim();
+        const tk = leerTikz(solo);
+        if (tk) return [{ ...tk, env: 'center' }];
+        if (/^\\includegraphics\s*(\[[^\]]*\])?\s*\{[^}]*\}$/.test(solo)) { const f = parsearFigura(solo); if (f) return [{ ...f, env: 'center' }]; }
+      }
       const al = nombre === 'center' ? 'c' : nombre === 'flushleft' ? 'l' : 'r';
       const bl = parsearBloques(cuerpo, ctx);
       if (!bl.length) return null;
@@ -516,6 +625,12 @@ export function parsearBloques(cuerpo, ctx = { biblio: [], cfg: {} }) {
           empujar({ t: 'raw', tex: e.raw }); i = e.fin; continue;
         }
       }
+      // \resizebox{N\linewidth}{!}{…tikzpicture…} suelto: un dibujo con tamaño
+      if (n === 'resizebox' && !par.trim()) {
+        const a1 = grupo(s, saltarEsp(s, cm.fin)), a2 = a1 && grupo(s, saltarEsp(s, a1.fin)), a3 = a2 && grupo(s, saltarEsp(s, a2.fin));
+        const tk = a3 && leerTikz(s.slice(i, a3.fin));
+        if (tk) { empujar(tk); i = a3.fin; continue; }
+      }
       if (n === 'newpage' || n === 'clearpage') { empujar({ t: 'salto' }); i = cm.fin; continue; }
       if (n === 'tableofcontents') { empujar({ t: 'toc' }); i = cm.fin; continue; }
       if (n === 'maketitle') { ctx.cfg.mostrarTitulo = true; vaciar(); i = cm.fin; continue; }
@@ -548,7 +663,7 @@ export function parsearBloques(cuerpo, ctx = { biblio: [], cfg: {} }) {
 
 // ── Preámbulo ───────────────────────────────────────────────────────────
 
-const PAQUETES_PROPIOS = new Set(['inputenc', 'fontenc', 'lmodern', 'microtype', 'babel', 'amsmath', 'amssymb', 'amsthm', 'amsfonts', 'graphicx', 'booktabs', 'ulem', 'setspace', 'listings', 'hyperref', 'geometry', 'float', 'multirow', 'tabularx', 'longtable']);
+const PAQUETES_PROPIOS = new Set(['inputenc', 'fontenc', 'lmodern', 'microtype', 'babel', 'tikz', 'amsmath', 'amssymb', 'amsthm', 'amsfonts', 'graphicx', 'booktabs', 'ulem', 'setspace', 'listings', 'hyperref', 'geometry']);
 
 /** Salta espacios y tabuladores, pero no el cambio de línea. */
 const saltarEspLinea = (s, i) => { while (i < s.length && (s[i] === ' ' || s[i] === '\t')) i++; return i; };
@@ -638,6 +753,13 @@ function parsearPreambulo(pre, cfg, ctx) {
       case 'singlespacing': cfg.interlineado = 1; break;
       case 'pagestyle': if (a0 === 'empty') cfg.numPag = false; else extra.push(raw.trim()); break;
       case 'lstset': if (!/literate/.test(raw)) extra.push(raw.trim()); break;
+      case 'usetikzlibrary': {
+        // si el documento tiene bloques TikZ las librerías pasan a ellos (parsearTex); si no, se quedan aquí
+        const linea = raw.trim();
+        extra.push(linea);
+        ctx.tikzLibs.push({ linea, libs: a0.split(',').map((x) => x.trim()).filter(Boolean) });
+        break;
+      }
       case 'hypersetup': {
         // pdftitle y pdfauthor salen del título y el autor; lo demás se conserva
         const claves = a0.replace(/\{[^{}]*\}/g, '').split(',').map((x) => x.split('=')[0].trim()).filter(Boolean);
@@ -658,7 +780,7 @@ function parsearPreambulo(pre, cfg, ctx) {
 export function parsearTex(src) {
   const avisos = [];
   const cfg = cfgPorDefecto();
-  const ctx = { biblio: [], cfg, avisos };
+  const ctx = { biblio: [], cfg, avisos, tikzLibs: [] };
   src = String(src || '').replace(/\r\n?/g, '\n');
   const ini = src.indexOf('\\begin{document}');
   const fin = src.lastIndexOf('\\end{document}');
@@ -674,7 +796,16 @@ export function parsearTex(src) {
   // sin título no se genera \maketitle: eso no significa que la portada esté desactivada
   if (!cfg.titulo) cfg.mostrarTitulo = true;
   let extraFinal = extra;
-  if (bloques.some((b) => b.t === 'cod')) extraFinal = extra.split('\n').filter((l) => l.trim() !== '\\usepackage{xcolor}').join('\n');
+  // latex-gen.js carga xcolor junto con listings: si se va a cargar listings, el xcolor sin opciones sobra
+  const conListings = bloques.some((b) => b.t === 'cod') || /\\(lstinline|lstinputlisting)\b|\\begin\{lstlisting\}/.test(JSON.stringify(bloques) + literal);
+  if (conListings) extraFinal = extra.split('\n').filter((l) => l.trim() !== '\\usepackage{xcolor}').join('\n');
+  const tikz = bloques.filter((b) => b.t === 'tikz');
+  if (tikz.length && ctx.tikzLibs.length) {
+    const libs = [...new Set(ctx.tikzLibs.flatMap((x) => x.libs))];
+    for (const b of tikz) b.libs = [...new Set([...libs, ...b.libs])];
+    const lineas = new Set(ctx.tikzLibs.map((x) => x.linea));
+    extraFinal = extraFinal.split('\n').filter((l) => !lineas.has(l.trim())).join('\n');
+  }
   extraFinal = [extraFinal, literal].filter(Boolean).join('\n');
   return {
     cfg: sanearCfg(cfg), biblio: sanearBiblio(ctx.biblio), extra: extraFinal, avisos,

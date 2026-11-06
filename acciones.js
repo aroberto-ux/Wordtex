@@ -1,17 +1,20 @@
 // Acciones de la cinta y de los bloques: formato, inserciones en el texto, tablas, figuras, menús.
 
-import { S, E } from './estado.js?v=2026.11.04-c';
-import { h, abrirMenu, aviso } from './ui.js?v=2026.11.04-c';
-import { nuevoId } from './modelo.js?v=2026.11.04-c';
-import { nodoInline, renderMate, leerInline, rellenar } from './inline-dom.js?v=2026.11.04-c';
-import { editarMate } from './matematica.js?v=2026.11.04-c';
-import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.04-c';
-import { etiquetaNueva } from './numerar.js?v=2026.11.04-c';
-import { procesarImagen, marcarLista } from './bloques-dom.js?v=2026.11.04-c';
+import { S, E } from './estado.js?v=2026.11.05-a';
+import { h, abrirMenu, aviso, pedir } from './ui.js?v=2026.11.05-a';
+import { nuevoId } from './modelo.js?v=2026.11.05-a';
+import { nodoInline, renderMate, leerInline, rellenar, chipRaw } from './inline-dom.js?v=2026.11.05-a';
+import { editarMate } from './matematica.js?v=2026.11.05-a';
+import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.05-a';
+import { etiquetaNueva } from './numerar.js?v=2026.11.05-a';
+import { procesarImagen, marcarLista, chipTermino } from './bloques-dom.js?v=2026.11.05-a';
+import { editarTikz } from './tikz-editor.js?v=2026.11.05-a';
+import { textoPlano } from './modelo.js?v=2026.11.05-a';
+import { parsearInline } from './latex-parse.js?v=2026.11.05-a';
 import {
   mapa, bloqueDe, modificar, insertarBloque, eliminarBloque, duplicarBloque, moverBloque, convertirBloque, editarLista,
   guardarPendientes, marcarSucio, numeracion, refrescarDerivados, enfocar, aplicarCambios,
-} from './ops.js?v=2026.11.04-c';
+} from './ops.js?v=2026.11.05-a';
 
 // ── Selección ───────────────────────────────────────────────────────────
 
@@ -128,11 +131,11 @@ export async function accionCita() {
 function candidatosRef() {
   const cands = [];
   for (const b of S.bloques) {
-    if (!['h', 'eq', 'fig', 'tabla'].includes(b.t)) continue;
+    if (!['h', 'eq', 'fig', 'tabla', 'tikz'].includes(b.t)) continue;
     const i = numeracion.info.get(b.id) || {};
     if (!i.num) continue;
     cands.push({
-      id: b.id, label: b.label || '', num: i.num, tipo: b.t === 'h' ? 'Sección' : b.t === 'eq' ? 'Ecuación' : b.t === 'fig' ? 'Figura' : 'Tabla',
+      id: b.id, label: b.label || '', num: i.num, tipo: b.t === 'h' ? 'Sección' : b.t === 'eq' ? 'Ecuación' : b.t === 'fig' || b.t === 'tikz' ? 'Figura' : 'Tabla',
       texto: b.t === 'h' ? leerTexto(b.c) : b.t === 'eq' ? b.tex.slice(0, 40) : leerTexto(b.pie || []),
     });
   }
@@ -221,7 +224,7 @@ export async function editarExistente(el) {
   } else if (el.classList.contains('i-raw')) {
     const t = await dlgRaw(el.getAttribute('data-raw') || '');
     if (t === null) return;
-    el.setAttribute('data-raw', t); el.textContent = t.length > 28 ? t.slice(0, 26) + '…' : t; fin();
+    el.replaceWith(chipRaw(t)); fin();
   }
 }
 
@@ -234,6 +237,28 @@ export async function accionEq(id) {
   if (!r.tex) { eliminarBloque(id); return; }
   modificar(id, (x) => ({ ...x, tex: r.tex, env: r.env, num: r.num, label: r.label }), { foco: { id, donde: 'fin' } });
 }
+
+/** Abre el editor de dibujos TikZ de un bloque. Si se cancela un dibujo recién insertado, se quita. */
+export async function accionTikz(id, { nuevo = false } = {}) {
+  const b = bloqueDe(id); if (!b) return;
+  const r = await editarTikz(b, { nuevo });
+  if (!r) { if (nuevo) eliminarBloque(id); return; }
+  modificar(id, (x) => ({ ...x, ...r }), { foco: null });
+}
+
+/** Clic en el término de un elemento de lista (\item[término]). */
+export async function editarTermino(chip) {
+  const ed = edDe(chip); if (!ed) return;
+  let actual = [];
+  try { actual = JSON.parse(chip.dataset.et || '[]'); } catch { /* vacío */ }
+  const previo = textoPlano(actual);
+  const r = await pedir({ titulo: 'Término', etiqueta: 'Texto del término (para una fórmula escribe $…$)', valor: previo, ok: 'Guardar' });
+  if (!r || r.valor === previo) return;
+  chip.replaceWith(chipTermino(compactarNodos(parsearInline(r.valor))));
+  marcarLista(ed.parentElement);
+  ed.dispatchEvent(new Event('input', { bubbles: true }));
+}
+const compactarNodos = (n) => n.filter((x) => x.s == null || x.s.trim() || n.length === 1);
 
 function nombresDeImagenes(salvo) { return new Set(S.bloques.filter((b) => b.t === 'fig' && b.id !== salvo).map((b) => b.nombre)); }
 
@@ -255,7 +280,7 @@ export async function accionImagen(id) {
 export async function ponerImagen(id, archivo) {
   try {
     const { src, nombre } = await procesarImagen(archivo, nombresDeImagenes(id));
-    modificar(id, (x) => ({ ...x, src, nombre }), { foco: { id, donde: 'fin' } });
+    modificar(id, (x) => { const { ruta, ...r } = x; return { ...r, src, nombre }; }, { foco: { id, donde: 'fin' } });
   } catch (e) { aviso(e.message || 'No se pudo usar la imagen.', 'error', 5000); }
 }
 
@@ -302,7 +327,8 @@ export function accionTabla(op, valor) {
 export function accionFig(op, valor) {
   const id = S.sel; const b = bloqueDe(id);
   if (!b || b.t !== 'fig') return;
-  if (op === 'ancho') modificar(id, (x) => ({ ...x, ancho: valor }), { foco: null });
+  // al mover el ancho se dejan de usar las opciones originales de \includegraphics (escala, alto…)
+  if (op === 'ancho') modificar(id, (x) => { const { opcImg, ...r } = x; return { ...r, ancho: valor }; }, { foco: null });
   else if (op === 'quitar') modificar(id, (x) => ({ ...x, src: '' }));
 }
 
@@ -323,10 +349,12 @@ export function itemsInsertar(fn = (t, o) => insertarBloque(t, o)) {
     '-',
     { texto: 'Lista con viñetas', icono: '•', fn: () => fn('lista', { datos: { ord: false } }) },
     { texto: 'Lista numerada', icono: '1.', fn: () => fn('lista', { datos: { ord: true } }) },
+    { texto: 'Lista de definiciones', icono: '≔', fn: () => fn('lista', { datos: { desc: true, items: [{ c: [{ s: 'Su definición.' }], n: 0, et: [{ s: 'Término' }] }] } }) },
     '-',
     { texto: 'Ecuación…', icono: '∑', fn: async () => { const id = fn('eq', {}); await accionEq(id); } },
     { texto: 'Tabla', icono: '▦', fn: () => fn('tabla', { datos: { filas: 3, cols: 3 } }) },
     { texto: 'Imagen…', icono: '🖼', fn: async () => { const f = await elegirImagen(); if (f) await crearFiguraDesde(f); } },
+    { texto: 'Dibujo (TikZ)…', icono: '✎', fn: async () => { const id = fn('tikz', {}); await accionTikz(id, { nuevo: true }); } },
     '-',
     teo('theorem', 'Teorema'), teo('definition', 'Definición'), teo('example', 'Ejemplo'), teo('proof', 'Demostración'), teo('lemma', 'Lema'), teo('remark', 'Observación'),
     '-',

@@ -1,18 +1,18 @@
 // Teclado, pegado, clics y arrastre dentro de la página de edición.
 
-import { S, E } from './estado.js?v=2026.11.04-c';
-import { abrirMenu, aviso } from './ui.js?v=2026.11.04-c';
-import { nuevoId, bloqueNuevo, urlSegura } from './modelo.js?v=2026.11.04-c';
-import { leerInline } from './inline-dom.js?v=2026.11.04-c';
-import { autoAlto, marcarLista } from './bloques-dom.js?v=2026.11.04-c';
+import { S, E } from './estado.js?v=2026.11.05-a';
+import { abrirMenu, aviso } from './ui.js?v=2026.11.05-a';
+import { nuevoId, bloqueNuevo, urlSegura } from './modelo.js?v=2026.11.05-a';
+import { leerInline } from './inline-dom.js?v=2026.11.05-a';
+import { autoAlto, marcarLista, actualizarVistaRaw } from './bloques-dom.js?v=2026.11.05-a';
 import {
   mapa, bloqueDe, indiceDe, editablesDe, colocarCursor, marcarSucio, guardarPendientes, editarLista, modificar, reconciliar, enfocar,
-  dividirBloque, fusionarConAnterior, refrescarDerivados, eliminarBloque, moverBloqueA, deshacer, rehacer, insertarBloque, convertirBloque,
-} from './ops.js?v=2026.11.04-c';
+  dividirBloque, fusionarConAnterior, eliminarBloque, moverBloqueA, deshacer, rehacer, insertarBloque, convertirBloque,
+} from './ops.js?v=2026.11.05-a';
 import {
   edDe, menuBloque, accionEq, accionImagen, editarExistente, celdaVecina, accionTabla, itemsInsertar, cambiarNivelItem, crearFiguraDesde,
-  accionEnlace, formato,
-} from './acciones.js?v=2026.11.04-c';
+  accionEnlace, formato, accionTikz, editarTermino,
+} from './acciones.js?v=2026.11.05-a';
 
 const FILA_DE = (ed) => ed.closest('.bq');
 
@@ -21,6 +21,7 @@ const FILA_DE = (ed) => ed.closest('.bq');
 function vacioAntes(ed, r) {
   const pre = document.createRange(); pre.selectNodeContents(ed); pre.setEnd(r.startContainer, r.startOffset);
   const f = pre.cloneContents();
+  f.querySelectorAll('.li-et').forEach((x) => x.remove()); // el término de la lista no cuenta como texto
   return !f.textContent.replace(/​/g, '') && !f.querySelector('.i-mate,.i-nota,.i-cita,.i-ref,.i-raw,br');
 }
 function vacioDespues(ed, r) {
@@ -70,6 +71,7 @@ function alTeclado(e) {
   if (ctrl && e.key.toLowerCase() === 'k' && t.classList && t.classList.contains('ed')) { e.preventDefault(); accionEnlace(); return; }
   if (ctrl && e.key.toLowerCase() === 'e' && t.classList && t.classList.contains('ed')) { e.preventDefault(); formato('c'); return; }
   if (t.classList && t.classList.contains('eq-vista') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); accionEq(FILA_DE(t).dataset.id); return; }
+  if (t.classList && t.classList.contains('tikz-vista') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); accionTikz(FILA_DE(t).dataset.id); return; }
   if (!t.classList || !t.classList.contains('ed')) {
     if (t.tagName === 'TEXTAREA' && t.classList.contains('cod-ta') && e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '    '); }
     return;
@@ -179,8 +181,9 @@ function enterEnLista(li, bq, b) {
   editarLista((l) => {
     const i = l.findIndex((x) => x.id === id);
     const items = l[i].items.slice();
-    items[k] = { c: antes, n };
-    items.splice(k + 1, 0, { c: despues, n });
+    items[k] = { ...items[k], c: antes, n };
+    // en una lista de descripción el elemento nuevo lleva su término (vacío)
+    items.splice(k + 1, 0, l[i].desc ? { c: despues, n, et: [] } : { c: despues, n });
     l[i] = { ...l[i], items };
   }, { foco: { id, donde: { idx: k + 1, pos: 'inicio' } } });
 }
@@ -243,6 +246,8 @@ function alClic(e) {
   const bq = t.closest('.bq');
   const ir = t.closest('[data-ir]');
   if (ir) { const b = mapa.get(ir.dataset.ir); if (b) { b.scrollIntoView({ behavior: 'smooth', block: 'center' }); enfocar(ir.dataset.ir, 'inicio'); } return; }
+  const term = t.closest('.li-et');
+  if (term && E.bloques.contains(term)) { e.preventDefault(); editarTermino(term); return; }
   const inl = t.closest('.i-mate,.i-nota,.i-cita,.i-ref,.i-raw');
   if (inl && E.bloques.contains(inl)) { e.preventDefault(); editarExistente(inl); return; }
   const url = t.closest('a.i-url');
@@ -257,6 +262,7 @@ function alClic(e) {
   if (a === 'menu') { e.preventDefault(); S.sel = id; menuBloque(act, id); }
   else if (a === 'eq') accionEq(id);
   else if (a === 'img') accionImagen(id);
+  else if (a === 'tikz') accionTikz(id);
 }
 
 function alCambiar(e) {
@@ -288,10 +294,13 @@ function alSalir(e) {
   if (bq && !bq.contains(e.relatedTarget)) guardarPendientes();
 }
 
+let tVista = null;
 function alEscribir(e) {
   const bq = e.target.closest && e.target.closest('.bq');
   if (!bq) return;
   if (e.target.tagName === 'TEXTAREA') autoAlto(e.target);
+  // la vista previa del LaTeX avanzado sigue al código mientras se escribe
+  if (e.target.classList.contains('raw-ta')) { clearTimeout(tVista); tVista = setTimeout(() => actualizarVistaRaw(bq), 300); }
   marcarSucio(bq.dataset.id);
 }
 
@@ -347,7 +356,6 @@ export function instalarEventos() {
   r.addEventListener('click', alClic);
   r.addEventListener('input', alEscribir);
   r.addEventListener('change', alCambiar);
-  r.addEventListener('raw-vista', () => refrescarDerivados());
   r.addEventListener('focusin', alEntrar);
   r.addEventListener('focusout', alSalir);
   // clic en el espacio vacío bajo el último bloque: enfocar el final

@@ -1,10 +1,10 @@
 // Cada bloque del modelo ⇄ su representación editable en la página.
 
-import { h } from './ui.js?v=2026.11.04-c';
-import { TEOREMAS, LENGUAJES_COD, textoPlano } from './modelo.js?v=2026.11.04-c';
-import { rellenar, leerInline, renderMate, getMacros } from './inline-dom.js?v=2026.11.04-c';
-import { rotulos } from './numerar.js?v=2026.11.04-c';
-import { vistaRaw } from './raw-vista.js?v=2026.11.04-c';
+import { h } from './ui.js?v=2026.11.05-a';
+import { TEOREMAS, LENGUAJES_COD, textoPlano } from './modelo.js?v=2026.11.05-a';
+import { rellenar, leerInline, renderMate, pintarInline } from './inline-dom.js?v=2026.11.05-a';
+import { rotulos } from './numerar.js?v=2026.11.05-a';
+import { texParaKatex, vistaBloqueRaw, tipoVistaRaw, dibujarTikz } from './vista-latex.js?v=2026.11.05-a';
 
 const PH = {
   p: 'Escribe aquí… (pulsa «/» para insertar algo)', h: 'Título', teo: 'Enunciado…', cita: 'Texto de la cita…', resumen: 'Escribe el resumen…',
@@ -29,6 +29,8 @@ export function marcarLista(lista) {
     const n = +li.dataset.n || 0;
     cont[n]++; for (let k = n + 1; k < 3; k++) cont[k] = 0;
     li.style.marginLeft = (n * 28) + 'px';
+    // con etiqueta propia (\item[…]) o en una lista de descripción no hay viñeta ni número
+    if (lista.dataset.desc === '1' || li.querySelector(':scope > .li-et')) { li.dataset.m = ''; continue; }
     if (!ord) li.dataset.m = ['•', '–', '∗'][n];
     else li.dataset.m = [`${cont[0]}.`, `${String.fromCharCode(96 + cont[1])})`, `${['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x'][cont[2] - 1] || cont[2]}.`][n];
   }
@@ -64,8 +66,9 @@ export function pintarBloque(b) {
     }
     case 'h': cuerpo = ed(b.c, `h h${b.n}${b.num === false ? ' sinnum' : ''}`, PH.h); break;
     case 'lista': {
-      cuerpo = h('div', { class: 'lista', 'data-ord': b.ord ? '1' : '0' }, b.items.map((it) => {
+      cuerpo = h('div', { class: `lista${b.desc ? ' desc' : ''}`, 'data-ord': b.ord ? '1' : '0', 'data-desc': b.desc ? '1' : '0' }, b.items.map((it) => {
         const li = ed(it.c, 'li', PH.li, { 'data-n': it.n || 0 });
+        if (Array.isArray(it.et)) li.prepend(chipTermino(it.et));
         return li;
       }));
       marcarLista(cuerpo);
@@ -73,8 +76,7 @@ export function pintarBloque(b) {
     }
     case 'eq': {
       const vista = h('div', { class: 'eq-vista', tabindex: '0', role: 'button', 'data-accion': 'eq', title: 'Clic para editar la ecuación' });
-      const t = b.env === 'equation' ? b.tex : `\\begin{aligned}${b.tex}\\end{aligned}`;
-      renderMate(vista, t, true);
+      renderMate(vista, texParaKatex(b.env, b.tex), b.env !== 'math');
       cuerpo = h('div', { class: 'eq', contenteditable: 'false' }, vista, h('span', { class: 'eq-num' }));
       break;
     }
@@ -88,6 +90,14 @@ export function pintarBloque(b) {
         ? h('img', { src: b.src, alt: b.nombre, style: { width: b.ancho + '%' }, draggable: 'false' })
         : h('button', { type: 'button', class: 'fig-vacia', 'data-accion': 'img' }, h('span', { class: 'fig-ico' }, '🖼'), 'Haz clic para añadir una imagen');
       cuerpo = h('figure', { class: 'fig' }, h('div', { class: 'fig-img', contenteditable: 'false', 'data-accion': b.src ? 'img' : null }, img), ed(b.pie, 'pie', PH.pie));
+      if (!b.src && b.ruta) cuerpo.querySelector('.fig-vacia').append(h('small', { class: 'fig-ruta' }, `Archivo original: ${b.ruta}`));
+      break;
+    }
+    case 'tikz': {
+      const vista = h('div', { class: 'tikz-vista', tabindex: '0', role: 'button', 'data-accion': 'tikz', title: 'Clic para editar el dibujo' });
+      const avisos = h('div', { class: 'tikz-avisos', contenteditable: 'false' });
+      cuerpo = h('figure', { class: 'fig tikz-bq', contenteditable: 'false' }, vista, avisos, ed(b.pie, 'pie', PH.pie, { contenteditable: 'true' }));
+      pintarTikz(cuerpo, b);
       break;
     }
     case 'cod': {
@@ -113,23 +123,14 @@ export function pintarBloque(b) {
     case 'salto': cuerpo = h('div', { class: 'salto', contenteditable: 'false' }, h('span', {}, 'Salto de página')); break;
     case 'toc': cuerpo = h('div', { class: 'toc', contenteditable: 'false' }, h('div', { class: 'toc-t' }, 'Índice general'), h('div', { class: 'toc-lista' })); break;
     case 'raw': {
+      // Vista previa (si la hay) y, debajo, el código dentro de «Ver/editar código». El textarea está siempre
+      // en el DOM para que leerBloque lo encuentre aunque el desplegable esté cerrado.
       const ta = h('textarea', { class: 'raw-ta', spellcheck: 'false', rows: 2, 'aria-label': 'Código LaTeX', wrap: 'off' });
       ta.value = b.tex;
-      // Vista previa aproximada (tablas, fórmulas, macros del preámbulo). El código de abajo es lo que se exporta.
-      const vista = h('div', { class: 'raw-vista', contenteditable: 'false', title: 'Vista previa aproximada: clic para editar el código' });
-      const caja = h('div', { class: 'raw' });
-      const pintar = () => {
-        const v = vistaRaw(ta.value, getMacros());
-        vista.replaceChildren(...(v ? [v] : []));
-        vista.hidden = !v;
-        caja.classList.toggle('raw-con-vista', !!v);
-      };
-      let tp = null;
-      ta.addEventListener('input', () => { clearTimeout(tp); tp = setTimeout(() => { pintar(); bq.dispatchEvent(new CustomEvent('raw-vista', { bubbles: true })); }, 200); });
-      vista.addEventListener('click', () => ta.focus());
-      pintar();
-      caja.append(h('div', { class: 'raw-et', contenteditable: 'false' }, 'LaTeX avanzado · se conserva tal cual'), vista, ta);
-      cuerpo = caja;
+      const det = h('details', { class: 'raw-det' }, h('summary', { contenteditable: 'false' }, 'Ver/editar código'), ta);
+      det.addEventListener('toggle', () => autoAlto(ta));
+      cuerpo = h('div', { class: 'raw' }, h('div', { class: 'raw-et', contenteditable: 'false' }), h('div', { class: 'raw-vista', contenteditable: 'false' }), det);
+      pintarVistaRaw(cuerpo, b.tex, true);
       queueMicrotask(() => autoAlto(ta));
       break;
     }
@@ -146,12 +147,20 @@ export function leerBloque(bq, orig) {
   switch (orig.t) {
     case 'p': return { ...base, c: leerInline(q('.ed')) };
     case 'h': return { ...base, c: leerInline(q('.ed')) };
-    case 'lista': return { ...base, items: Array.from(bq.querySelectorAll('.li')).map((li) => ({ c: leerInline(li), n: +li.dataset.n || 0 })) };
+    case 'lista': return {
+      ...base,
+      items: Array.from(bq.querySelectorAll('.li')).map((li) => {
+        const it = { c: leerInline(li), n: +li.dataset.n || 0 };
+        const et = li.querySelector(':scope > .li-et');
+        if (et) { try { it.et = JSON.parse(et.dataset.et || '[]'); } catch { it.et = []; } }
+        return it;
+      }),
+    };
     case 'tabla': {
       const filas = Array.from(bq.querySelectorAll('tbody tr')).map((tr) => Array.from(tr.querySelectorAll('.celda')).map((c) => leerInline(c)));
       return { ...base, filas, pie: leerInline(q('.pie')) };
     }
-    case 'fig': return { ...base, pie: leerInline(q('.pie')) };
+    case 'fig': case 'tikz': return { ...base, pie: leerInline(q('.pie')) };
     case 'cod': return { ...base, src: q('.cod-ta').value, lang: q('.cod-lang').value, num: q('.cod-num').checked };
     case 'teo': return { ...base, tipo: q('.teo-tipo').value, titulo: q('.teo-titulo').value, c: leerInline(q('.teo-c')) };
     case 'cita': return { ...base, c: leerInline(q('.cita-c')) };
@@ -169,28 +178,55 @@ export function decorar(raiz, num, cfg) {
     const t = bq.dataset.t;
     if (t === 'h') bq.querySelector('.ed').dataset.num = i.num || '';
     else if (t === 'eq') bq.querySelector('.eq-num').textContent = i.num ? `(${i.num})` : '';
-    else if (t === 'tabla' || t === 'fig') { const p = bq.querySelector('.pie'); p.dataset.pref = i.nombre ? `${i.nombre}${p.textContent.trim() ? '. ' : ''}` : ''; }
+    else if (t === 'tabla' || t === 'fig' || t === 'tikz') { const p = bq.querySelector('.pie'); p.dataset.pref = i.nombre ? `${i.nombre}${p.textContent.trim() ? '. ' : ''}` : ''; }
     else if (t === 'teo') bq.querySelector('.teo-nombre').textContent = i.nombre || '';
-    else if (t === 'raw') {
-      const its = i.items || [];
-      for (const s of bq.querySelectorAll('.rawcap-n')) { const it = its[+s.dataset.k]; s.textContent = it && it.nombre ? `${it.nombre}. ` : ''; }
-      for (const e of bq.querySelectorAll('.rv-ref')) {
-        const v = num.etiquetas.get(e.dataset.ref);
-        e.textContent = v ? (e.dataset.eq ? `(${v})` : v) : '?';
-        e.classList.toggle('rota', !v);
-      }
-      for (const e of bq.querySelectorAll('.rv-cita')) {
-        const n = (e.dataset.cita || '').split(',').map((x) => num.citas.get(x.trim()) || '?');
-        e.textContent = `[${n.join(', ')}]`;
-        e.classList.toggle('rota', n.includes('?'));
-      }
-    }
     else if (t === 'resumen') bq.querySelector('.resumen-t').textContent = ro.resumen;
     else if (t === 'toc') {
       bq.querySelector('.toc-t').textContent = ro.indice;
       bq.querySelector('.toc-lista').replaceChildren(...(num.titulos.length ? num.titulos.map((x) => h('div', { class: `toc-f toc-n${x.n}`, 'data-ir': x.id }, h('span', { class: 'toc-num' }, x.num), x.texto || '(sin título)'))
         : [h('div', { class: 'toc-vacio' }, 'Aún no hay secciones: aparecerán aquí.')]));
     }
+  }
+}
+
+// ── LaTeX avanzado, términos de listas y dibujos TikZ ──────────────────
+
+const NOMBRE_VISTA = { mate: 'ecuación', tabla: 'tabla', tikz: 'dibujo TikZ', entorno: 'entorno', regla: 'línea', espacio: 'espacio', archivo: 'archivo incluido', ajuste: 'configuración', comentario: 'comentario' };
+
+/** Pinta (o vuelve a pintar al editar el código) la vista previa de un bloque «LaTeX avanzado». */
+export function pintarVistaRaw(cont, tex, inicial = false) {
+  const vista = cont.querySelector('.raw-vista'), et = cont.querySelector('.raw-et'), det = cont.querySelector('.raw-det');
+  let v = null;
+  try { v = vistaBloqueRaw(tex); } catch { v = null; }
+  vista.replaceChildren(...(v ? [v] : []));
+  vista.hidden = !v;
+  const tipo = v ? tipoVistaRaw(tex) : null;
+  et.textContent = v ? `LaTeX avanzado · ${NOMBRE_VISTA[tipo] || 'vista previa'} · se compila tal cual` : 'LaTeX avanzado · sin vista previa · se conserva tal cual';
+  cont.classList.toggle('sin-vista', !v);
+  // sin vista previa, o si solo hay comentarios (un bloque recién creado), el código se ve abierto
+  if (inicial || !v) det.open = !v || tipo === 'comentario';
+}
+export function actualizarVistaRaw(bq) {
+  const c = bq && bq.querySelector('.raw');
+  if (c) pintarVistaRaw(c, c.querySelector('.raw-ta').value);
+}
+
+/** Término de un elemento de lista (\item[término]): se edita con un clic, como las fórmulas. */
+export function chipTermino(et) {
+  const e = h('span', { class: 'li-et', contenteditable: 'false', 'data-et': JSON.stringify(et || []), title: 'Término o etiqueta del elemento: clic para cambiarlo' });
+  if (et && et.length) e.append(pintarInline(et)); else e.classList.add('vacio');
+  return e;
+}
+
+/** Dibuja el TikZ de un bloque en su vista previa y resume los avisos del intérprete. */
+export function pintarTikz(cuerpo, b) {
+  const vista = cuerpo.querySelector('.tikz-vista'), av = cuerpo.querySelector('.tikz-avisos');
+  const avisos = dibujarTikz(vista, b.src, { opc: b.opc, ancho: b.ancho });
+  av.replaceChildren();
+  av.hidden = !avisos.length;
+  if (avisos.length) {
+    const d = h('details', {}, h('summary', {}, `⚠ ${avisos.length === 1 ? 'Algo no se ve' : `${avisos.length} cosas no se ven`} en la vista previa (el PDF sí las tendrá)`), h('ul', {}, avisos.map((a) => h('li', {}, a))));
+    av.append(d);
   }
 }
 

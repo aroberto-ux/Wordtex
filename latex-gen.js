@@ -4,7 +4,8 @@
 //   · El .tex generado compila con pdfLaTeX en una distribución estándar (TeX Live / MiKTeX / Overleaf).
 //   · Lo que genera esta función lo vuelve a leer latex-parse.js sin perder nada (ida y vuelta estable).
 
-import { TEOREMAS, NIVELES } from './modelo.js?v=2026.11.04-c';
+import { TEOREMAS, NIVELES, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.05-a';
+import { libreriasNecesarias } from './tikz-libs.js?v=2026.11.05-a';
 
 const ESC = { '\\': '\\textbackslash{}', '&': '\\&', '%': '\\%', '$': '\\$', '#': '\\#', '_': '\\_', '{': '\\{', '}': '\\}', '~': '\\textasciitilde{}', '^': '\\textasciicircum{}', '\u00a0': '~' };
 // Símbolos Unicode que pdfLaTeX no entiende por sí solo: se escriben como comandos de LaTeX.
@@ -67,23 +68,25 @@ const USOS_RAW = [
   [/\\(toprule|midrule|bottomrule|cmidrule|addlinespace)\b/, 'booktabs'],
   [/\\(lstinline|lstinputlisting)\b|\\begin\{lstlisting\}/, 'listings'],
   [/\\(sout|uline|uuline|uwave|xout|dashuline|dotuline)\b/, 'ulem'],
-  [/\\begin\{(table|figure)\*?\}\s*\[[^\]]*H|\\(restylefloat|newfloat|floatstyle)\b/, 'float'],
-  [/\\multirow\b/, 'multirow'],
-  [/\\begin\{tabularx\}/, 'tabularx'],
-  [/\\begin\{longtable\}|\\endhead\b/, 'longtable'],
   [/\\(onehalfspacing|doublespacing|singlespacing|setstretch)\b|\\begin\{(spacing|onehalfspace|doublespace)\}/, 'setspace'],
+  [/\\begin\{tikzpicture\}|\\tikz\b|\\tikzset\b|\\tikzstyle\b|\\usetikzlibrary\b/, 'tikz'],
 ];
 function detectarUsos(tex, ctx) {
   if (!ctx || !ctx.usos || !tex) return;
   for (const [re, p] of USOS_RAW) if (re.test(tex)) ctx.usos.add(p);
+  // dibujos TikZ dentro de LaTeX avanzado: también necesitan sus librerías
+  if (ctx.libs && /\\begin\{tikzpicture\}|\\tikz\b/.test(tex)) for (const l of libreriasNecesarias(tex)) ctx.libs.add(l);
 }
 
 const LST_ES = "literate={á}{{\\'a}}1 {é}{{\\'e}}1 {í}{{\\'i}}1 {ó}{{\\'o}}1 {ú}{{\\'u}}1 {Á}{{\\'A}}1 {É}{{\\'E}}1 {Í}{{\\'I}}1 {Ó}{{\\'O}}1 {Ú}{{\\'U}}1 {ñ}{{\\~n}}1 {Ñ}{{\\~N}}1 {ü}{{\\\"u}}1 {Ü}{{\\\"U}}1 {¿}{{?`}}1 {¡}{{!`}}1";
 
 const LST_LANG = { python: 'Python', java: 'Java', c: 'C', 'c++': 'C++', matlab: 'Matlab', sql: 'SQL', bash: 'bash', html: 'HTML', tex: 'TeX', r: 'R' };
 
-function listaATex(items, ord, ctx) {
-  const env = ord ? 'enumerate' : 'itemize';
+/** Etiqueta de \item[…]: si lleva «]» va entre llaves para no cerrar el corchete antes de tiempo. */
+const etiquetaItem = (et, ctx) => { const t = inlineATex(et, ctx); return /\]/.test(t) ? `[{${t}}]` : `[${t}]`; };
+
+function listaATex(items, ord, ctx, desc = false) {
+  const env = desc ? 'description' : ord ? 'enumerate' : 'itemize';
   let o = '';
   const stack = [];
   const abrir = () => { o += `${'  '.repeat(stack.length)}\\begin{${env}}\n`; stack.push(env); };
@@ -92,7 +95,8 @@ function listaATex(items, ord, ctx) {
     const n = Math.min(it.n || 0, stack.length); // no se salta de nivel
     while (stack.length < n + 1) abrir();
     while (stack.length > n + 1) cerrar();
-    o += `${'  '.repeat(stack.length)}\\item ${inlineATex(recortarBr(it.c), ctx)}\n`;
+    const et = Array.isArray(it.et) ? etiquetaItem(it.et, ctx) : '';
+    o += `${'  '.repeat(stack.length)}\\item${et} ${inlineATex(recortarBr(it.c), ctx)}\n`.replace(/ \n$/, '\n');
   }
   while (stack.length) cerrar();
   return o.trimEnd();
@@ -150,6 +154,18 @@ export function archivoDe(b, imagenes) {
   return arch;
 }
 
+function tikzATex(b, ctx, lab) {
+  ctx.usos.add('tikz');
+  for (const l of b.libs || []) ctx.libs.add(l);
+  for (const l of libreriasNecesarias(b.src)) ctx.libs.add(l);
+  let dibujo = `\\begin{tikzpicture}${b.opc ? `[${b.opc}]` : ''}\n${b.src.replace(/^\n+|\s+$/g, '')}\n\\end{tikzpicture}`;
+  if (b.ancho) dibujo = `\\resizebox{${anchoLatex(b.ancho)}\\linewidth}{!}{%\n${dibujo}%\n}`;
+  const pie = b.pie && b.pie.length ? `\\caption{${inlineATex(recortarBr(b.pie), ctx)}}\n` : '';
+  if (b.env === 'figure' || pie) return `\\begin{figure}[htbp]\n\\centering\n${dibujo}\n${pie}${b.label && pie ? lab(b.label) + '\n' : ''}\\end{figure}`;
+  if (b.env === 'center') return `\\begin{center}\n${dibujo}\n\\end{center}`;
+  return dibujo;
+}
+
 const anchoLatex = (ancho) => (ancho / 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 
 function bloqueATex(b, ctx) {
@@ -167,15 +183,16 @@ function bloqueATex(b, ctx) {
       const real = (b.n === 0 && ctx.cfg.clase === 'article') ? 'section' : cmd;
       return `\\${real}${b.num === false ? '*' : ''}{${inlineATex(recortarBr(b.c), ctx)}}${lab(b.label)}`;
     }
-    case 'lista': return listaATex(b.items, b.ord, ctx);
+    case 'lista': return listaATex(b.items, b.ord, ctx, b.desc);
     case 'eq': {
-      const env = b.env + (b.num ? '' : '*');
+      // displaymath y math no tienen versión con * ni número
+      const env = b.env + (b.num || EQ_SIN_NUMERO.has(b.env) ? '' : '*');
       let cuerpoEq = b.tex.trim();
       if (b.label && b.num) {
-        if (b.env === 'equation') cuerpoEq += ` ${lab(b.label)}`;
+        if (!EQ_FILAS.has(b.env)) cuerpoEq += ` ${lab(b.label)}`;
         else {
           // en align/gather la etiqueta va en la primera fila numerada (si cae en una con \nonumber, \ref da «??»)
-          const filas = cuerpoEq.split(/(?<=\\\\)/);
+          const filas = dividirFilas(cuerpoEq);
           let k = filas.findIndex((f) => !/\\(nonumber|notag)\b/.test(f));
           if (k < 0) k = 0;
           filas[k] = filas[k].replace(/^([\s\S]*?)(\s*\\\\)?$/, (m, a, fin) => `${a.replace(/\s+$/, '')}${lab(b.label)}${fin || ''}`);
@@ -189,15 +206,22 @@ function bloqueATex(b, ctx) {
       const w = anchoLatex(b.ancho);
       const pie = b.pie && b.pie.length ? `\\caption{${inlineATex(recortarBr(b.pie), ctx)}}\n` : '';
       let img;
+      const opcImg = b.opcImg || `width=${w}\\linewidth`;
       if (b.src) {
         const arch = archivoDe(b, ctx.imagenes);
-        img = `\\includegraphics[width=${w}\\linewidth]{imagenes/${arch}}`;
+        img = `\\includegraphics[${opcImg}]{imagenes/${arch}}`;
+      } else if (b.ruta) {
+        // figura importada de un .tex: se mantiene la referencia original al archivo
+        img = `\\includegraphics[${opcImg}]{${b.ruta}}`;
       } else {
         // sin imagen todavía: un recuadro del mismo tamaño para que el documento compile igual
         img = `\\fbox{\\parbox[c][0.3\\linewidth][c]{${w}\\linewidth}{\\centering Imagen pendiente}}`;
       }
+      // centrada sin pie: \begin{center} (no flota). Con pie hace falta un figure: \caption fuera de un flotante no compila.
+      if (b.env === 'center' && !pie) return `\\begin{center}\n${img}\n\\end{center}`;
       return `\\begin{figure}[htbp]\n\\centering\n${img}\n${pie}${b.label && pie ? lab(b.label) + '\n' : ''}\\end{figure}`;
     }
+    case 'tikz': return tikzATex(b, ctx, lab);
     case 'cod': {
       ctx.usos.add('listings');
       const lang = LST_LANG[(b.lang || '').toLowerCase()];
@@ -239,14 +263,14 @@ const textoPdf = (s) => String(s).replace(/[\\{}%#&$^_~]/g, ' ').replace(/[^ -ſ
  */
 export function generarTex(doc, bloques) {
   const cfg = doc.cfg;
-  const ctx = { cfg, usos: new Set(), teoremas: new Set(), imagenes: [] };
+  const ctx = { cfg, usos: new Set(), teoremas: new Set(), imagenes: [], libs: new Set() };
   const cuerpo = bloques.map((b) => bloqueATex(b, ctx)).filter((s) => s !== '');
   const extra = (doc.extra || '').trim();
   detectarUsos(extra, ctx);
   // Si el preámbulo propio ya carga el paquete no se repite (con otras opciones daría «Option clash»).
   // listings y setspace se cargan igual cuando hace falta configurarlos antes del preámbulo propio.
   const cargaExtra = (p) => new RegExp(`\\\\usepackage(\\[[^\\]]*\\])?\\{[^}]*\\b${p}\\b`).test(extra);
-  for (const p of ['booktabs', 'ulem', 'float', 'multirow', 'tabularx', 'longtable']) if (cargaExtra(p)) ctx.usos.delete(p);
+  for (const p of ['booktabs', 'ulem']) if (cargaExtra(p)) ctx.usos.delete(p);
   if (cargaExtra('setspace') && cfg.interlineado === 1) ctx.usos.delete('setspace');
 
   const opciones = [`${cfg.fuente}pt`, cfg.papel];
@@ -259,9 +283,12 @@ export function generarTex(doc, bloques) {
   if (cfg.margen !== 'extra') pre.push(`\\usepackage[${cfg.papel},margin=${cfg.margen}cm]{geometry}`);
   pre.push('\\usepackage{amsmath,amssymb,amsthm}');
   pre.push('\\usepackage{graphicx}');
+  if (ctx.usos.has('tikz') || ctx.libs.size) {
+    pre.push('\\usepackage{tikz}');
+    if (ctx.libs.size) pre.push(`\\usetikzlibrary{${[...ctx.libs].join(',')}}`);
+  }
   if (ctx.usos.has('booktabs')) pre.push('\\usepackage{booktabs}');
   if (ctx.usos.has('ulem')) pre.push('\\usepackage[normalem]{ulem}');
-  for (const p of ['float', 'multirow', 'tabularx', 'longtable']) if (ctx.usos.has(p)) pre.push(`\\usepackage{${p}}`);
   if (cfg.interlineado !== 1 || ctx.usos.has('setspace')) pre.push('\\usepackage{setspace}');
   if (cfg.interlineado !== 1) pre.push(`\\setstretch{${cfg.interlineado}}`);
   if (ctx.usos.has('listings')) {
