@@ -13,6 +13,8 @@ import {
   accionEnlace, accionSimbolo, accionSaltoLinea, accionTabla, accionFig, accionImagen, menuInsertar, alElegirEstilo, edDe, celdaActual, accionTikz,
 } from './acciones.js?v=2026.11.05-a';
 import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.05-a';
+import { registrarPreambulo, comprobarPreambulo } from './mathjax.js?v=2026.11.05-a';
+import { definicionesMathJax } from './macros.js?v=2026.11.05-a';
 import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.05-a';
 import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON } from './exportar.js?v=2026.11.05-a';
 
@@ -243,6 +245,8 @@ function cablear() {
   cablearDivisor();
   if (innerWidth < 1000) { E.panel.hidden = true; E.cuerpo.classList.add('sin-panel'); document.getElementById('btn-panel').setAttribute('aria-pressed', 'false'); }
   cablearCinta(); cablearPortada(); iniciarCodigo(); iniciarPaneles(); instalarEventos(); seguirSeleccion();
+  registrarPreambulo(() => (S.doc ? S.doc.extra : ''), definicionesMathJax);
+  bus.addEventListener('doc', comprobarPreambulo); // si cambia el preámbulo propio, las fórmulas se recomponen
   document.getElementById('btn-volver').addEventListener('click', () => { guardarPendientes(); location.hash = '#documentos'; });
   E.btnExportar.addEventListener('click', (e) => menuExportar(e.currentTarget));
   document.getElementById('btn-compartir').addEventListener('click', compartir);

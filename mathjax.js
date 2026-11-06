@@ -26,6 +26,35 @@ const siguienteFotograma = () => new Promise((ok) => {
   setTimeout(fin, 80);
 });
 
+// ── Preámbulo propio (\newcommand, \definecolor…) ───────────────────────
+
+let fuentePreambulo = null;      // () => texto del preámbulo propio del documento
+let definiciones = () => [];     // texto → órdenes para MathJax (se inyecta desde editor.js para no acoplar módulos)
+let preambuloAplicado = null;
+
+export function registrarPreambulo(fuente, convertir) { fuentePreambulo = fuente; definiciones = convertir; }
+
+/** Aplica las definiciones del preámbulo si cambiaron. Devuelve true si hubo cambio (hay que recomponer). */
+function aplicarPreambulo() {
+  const mj = MJ();
+  if (!fuentePreambulo || !mj || typeof mj.tex2chtml !== 'function') return false;
+  const texto = String(fuentePreambulo() || '');
+  if (texto === preambuloAplicado) return false;
+  const primera = preambuloAplicado === null;
+  preambuloAplicado = texto;
+  for (const d of definiciones(texto)) { try { mj.tex2chtml(d, { display: false }); } catch { /* una definición mala no impide las demás */ } }
+  return !primera || texto !== '';
+}
+
+/** Si el preámbulo cambió desde la última vez, recompone todas las fórmulas de la página. */
+export function comprobarPreambulo() {
+  const anterior = preambuloAplicado;
+  if (!aplicarPreambulo() || anterior === null || typeof document === 'undefined') return;
+  for (const el of document.querySelectorAll('[data-mj-d]')) {
+    if (el._mjTex != null) renderMate(el, el._mjTex, el.getAttribute('data-mj-d') === '1');
+  }
+}
+
 const envolver = (tex, display) => (display ? `\\[${tex}\\]` : `\\(${tex}\\)`);
 
 // ── Cola de composición ──────────────────────────────────────────────────
@@ -80,6 +109,7 @@ async function vaciarCola() {
         lote.push([el, p]);
       }
       if (!lote.length) continue;
+      if (listo) aplicarPreambulo();                           // macros propias antes de componer
 
       if (!listo || !MJ() || !MJ().typesetPromise) {           // sin MathJax: se queda el código como texto
         for (const [el, p] of lote) { el.textContent = p.tex; el.removeAttribute('data-mj'); p.esperan.forEach((f) => f({ ok: false, error: 'MathJax no está disponible' })); }
@@ -122,6 +152,7 @@ export function renderMate(el, tex, display = false) {
       return ok({ ok: true, error: '' });
     }
     el.classList.remove('vacia');
+    el._mjTex = tex; el.setAttribute('data-mj-d', display ? '1' : '0');   // para recomponer si cambia el preámbulo
     if (!el.querySelector('mjx-container')) {                 // primera vez: se ve el código mientras se compone
       limpiarMate(el);
       el.textContent = tex;

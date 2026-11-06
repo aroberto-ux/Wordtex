@@ -41,3 +41,34 @@ export function macrosDe(extra = '') {
   while ((x = op.exec(src))) m['\\' + x[2]] = `\\operatorname${x[1]}{${x[3]}}`;
   return m;
 }
+
+/**
+ * Definiciones del preámbulo propio en forma de órdenes que MathJax entiende, en el orden en que aparecen:
+ * \newcommand (con [n] y [valor] por defecto) y \def pasan tal cual (siempre como \renewcommand, para poder
+ * redefinirlas al editar el preámbulo), \DeclareMathOperator, \definecolor y \DeclareSIUnit (→ \mathrm{…}).
+ * @returns {string[]}
+ */
+export function definicionesMathJax(extra = '') {
+  const src = sinComentarios(extra);
+  const out = [];
+  let x;
+  const re = /\\(?:re|provide)?newcommand\*?\s*(?:\{\s*\\([a-zA-Z@]+)\s*\}|\\([a-zA-Z@]+))\s*((?:\[[^\]]*\]\s*)*)\{/g;
+  while ((x = re.exec(src))) {
+    const g = grupo(src, x.index + x[0].length - 1);
+    if (g) { out.push({ pos: x.index, tex: `\\renewcommand{\\${x[1] || x[2]}}${x[3].replace(/\s+/g, '')}{${g.txt}}` }); re.lastIndex = g.fin; }
+  }
+  const def = /\\def\s*\\([a-zA-Z@]+)\s*((?:#\d)*)\s*\{/g;
+  while ((x = def.exec(src))) {
+    const g = grupo(src, x.index + x[0].length - 1);
+    if (g) { out.push({ pos: x.index, tex: `\\def\\${x[1]}${x[2]}{${g.txt}}` }); def.lastIndex = g.fin; }
+  }
+  const op = /\\DeclareMathOperator(\*?)\s*\{\s*\\([a-zA-Z]+)\s*\}\s*\{([^{}]*)\}/g;
+  while ((x = op.exec(src))) out.push({ pos: x.index, tex: `\\DeclareMathOperator${x[1]}{\\${x[2]}}{${x[3]}}` });
+  const col = /\\definecolor\s*\{([^{}]*)\}\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g;
+  while ((x = col.exec(src))) out.push({ pos: x.index, tex: x[0].replace(/\s+/g, '') });
+  // \DeclareSIUnit\kgf{kgf}  (la orden puede ir en otra línea)
+  const si = /\\DeclareSIUnit\s*\\([a-zA-Z]+)\s*\{([^{}]*)\}/g;
+  while ((x = si.exec(src))) out.push({ pos: x.index, tex: `\\def\\${x[1]}{\\mathrm{${x[2]}}}` });
+  // \strut dentro de \colorbox{…}{\strut …}: MathJax lo escribiría como texto; no aporta nada visible
+  return out.sort((a, b) => a.pos - b.pos).map((d) => d.tex.replace(/\\strut\b\s*/g, ''));
+}

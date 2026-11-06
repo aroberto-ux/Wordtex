@@ -30,6 +30,12 @@
       tags: 'none', // la numeración de ecuaciones la pone numerar.js, no MathJax
       macros: {
         bm: ['{\\boldsymbol{#1}}', 1], // KaTeX lo traía; en LaTeX viene del paquete bm
+        // aproximaciones de siunitx para las fórmulas (el PDF usa el paquete de verdad)
+        SI: ['{#1\\,\\mathrm{#2}}', 2],
+        si: ['\\mathrm{#1}', 1],
+        num: ['{#1}', 1],
+        ang: ['{#1^{\\circ}}', 1],
+        strut: '\\vphantom{\\mathstrut}',
       },
     },
     chtml: {
