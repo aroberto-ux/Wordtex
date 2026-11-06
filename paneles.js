@@ -1,9 +1,9 @@
 // Panel lateral: esquema, ajustes del documento, bibliografía y preámbulo propio.
 
-import { S, E } from './estado.js?v=2026.11.05-a';
-import { h, aviso, confirmar } from './ui.js?v=2026.11.05-a';
-import { CLASES, TAMANOS, PAPELES, IDIOMAS, textoPlano } from './modelo.js?v=2026.11.05-a';
-import { numeracion, bus, mapa, enfocar } from './ops.js?v=2026.11.05-a';
+import { S, E } from './estado.js?v=2026.11.06-a';
+import { h, aviso, confirmar } from './ui.js?v=2026.11.06-a';
+import { CLASES, TAMANOS, PAPELES, IDIOMAS, textoPlano } from './modelo.js?v=2026.11.06-a';
+import { numeracion, bus, mapa, enfocar } from './ops.js?v=2026.11.06-a';
 
 const PESTANAS = [['esquema', 'Esquema'], ['doc', 'Documento'], ['bib', 'Referencias'], ['avanzado', 'Avanzado'], ['ayuda', 'Ayuda']];
 let activa = 'esquema';

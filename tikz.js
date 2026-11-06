@@ -11,9 +11,9 @@
 // y ($(a)!t!(b)$) / ($(a)+(b)$); colores de xcolor con mezclas (red!30!blue); grosores, discontinuas,
 // flechas, opacidad, esquinas redondeadas, scale/xscale/yscale/shift/rotate, posiciones «above=of a».
 
-import { parsearInline } from './latex-parse.js?v=2026.11.05-a';
-import { quitarComentarios } from './tikz-libs.js?v=2026.11.05-a';
-import { mateHtml } from './mathjax.js?v=2026.11.05-a';
+import { parsearInline } from './latex-parse.js?v=2026.11.06-a';
+import { quitarComentarios } from './tikz-libs.js?v=2026.11.06-a';
+import { mateHtml } from './mathjax.js?v=2026.11.06-a';
 
 export const PT_CM = 28.4527559;
 const UNIDAD = { pt: 1, cm: PT_CM, mm: PT_CM / 10, in: 72.27, bp: 72.27 / 72, em: 10, ex: 4.3, sp: 1 / 65536 };
@@ -1340,4 +1340,4 @@ export function tikzSvg(src, { opc = '', medir = null, ancho = 0 } = {}) {
 }
 
 // Detección de librerías: vive en tikz-libs.js (sin dependencias) para que latex-gen.js pueda usarla.
-export { libreriasNecesarias } from './tikz-libs.js?v=2026.11.05-a';
+export { libreriasNecesarias } from './tikz-libs.js?v=2026.11.06-a';
