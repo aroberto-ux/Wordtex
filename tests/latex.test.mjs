@@ -245,3 +245,17 @@ test('listas anidadas de hasta 5 niveles se importan sin degradarse a LaTeX avan
   const m2 = parsearTex(t1);
   assert.equal(generarTex(m2, m2.bloques).tex, t1);
 });
+
+test('itemize: \\item seguido solo de [texto] es el contenido, no una viñeta propia', () => {
+  const m = parsearTex(docTex('\\begin{itemize}\n\\item [Ensayo 1: verificar.]\n\\item [Ensayo 2: medir.]\n\\end{itemize}'));
+  assert.equal(m.bloques[0].t, 'lista');
+  // el corchete es el contenido del elemento; no debe quedar como etiqueta con el texto vacío
+  assert.deepEqual(m.bloques[0].items[0], { c: [{ s: '[Ensayo 1: verificar.]' }], n: 0 });
+  assert.equal(m.bloques[0].items[0].et, undefined);
+  // una etiqueta de verdad (con contenido después) sí se conserva
+  const conEt = parsearTex(docTex('\\begin{enumerate}\n\\item[a)] Primero.\n\\end{enumerate}'));
+  assert.deepEqual(conEt.bloques[0].items[0], { c: [{ s: 'Primero.' }], n: 0, et: [{ s: 'a)' }] });
+  // en description el corchete sigue siendo la etiqueta aunque no haya más texto
+  const desc = parsearTex(docTex('\\begin{description}\n\\item[Término]\n\\end{description}'));
+  assert.deepEqual(desc.bloques[0].items[0].et, [{ s: 'Término' }]);
+});

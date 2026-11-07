@@ -1,6 +1,6 @@
 // Diálogos pequeños para insertar notas, citas, referencias, enlaces y símbolos.
 
-import { h, modal } from './ui.js?v=2026.11.07-a';
+import { h, modal } from './ui.js?v=2026.11.07-b';
 
 function simple({ titulo, cuerpo, ok = 'Aceptar', ancho = 460, valor, extraAcc = [] }) {
   return new Promise((res) => {

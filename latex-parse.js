@@ -5,9 +5,9 @@
 
 import {
   cfgPorDefecto, CLASES, IDIOMAS, ALIAS_TEOREMA, compactar, sanearBloque, sanearCfg, sanearBiblio, nuevoId, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas,
-} from './modelo.js?v=2026.11.07-a';
-import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO, PAQUETES_TARDIOS } from './latex-gen.js?v=2026.11.07-a';
-import { tablaMacros } from './macros.js?v=2026.11.07-a';
+} from './modelo.js?v=2026.11.07-b';
+import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO, PAQUETES_TARDIOS } from './latex-gen.js?v=2026.11.07-b';
+import { tablaMacros } from './macros.js?v=2026.11.07-b';
 
 // \ensuremath{\alpha} → α (lo contrario de lo que hace latex-gen.js con los símbolos Unicode)
 const SIMBOLO_DE = new Map(Object.entries(SIMBOLOS).map(([u, cmd]) => [cmd, u]));
@@ -276,9 +276,15 @@ function parsearItems(cuerpo, nivel, items, env = 'itemize', estricto = true) {
   if (estricto && nivel > 4) return false;
   for (let t of trozos) {
     let et = null;
-    // \item[etiqueta]: LaTeX también lo lee así aunque haya un espacio antes del corchete
+    // \item[etiqueta]: LaTeX también lo lee así aunque haya un espacio antes del corchete.
+    // En description la etiqueta es lo habitual. En itemize/enumerate, en cambio, un \item seguido
+    // solo de «[texto]» casi siempre es el contenido del elemento (p. ej. «[Ensayo 1: …]»), no una
+    // viñeta propia: tomarlo como etiqueta dejaría el elemento sin texto. Por eso aquí solo se trata
+    // como etiqueta si es una lista de descripción o si después del corchete queda contenido real.
     const o = opcional(t, saltarEsp(t, 0));
-    if (o) { et = inlineLimpio(o.txt.replace(/^\{([\s\S]*)\}$/, '$1')); t = t.slice(o.fin); }
+    if (o && (env === 'description' || sinComentarios(t.slice(o.fin)).trim())) {
+      et = inlineLimpio(o.txt.replace(/^\{([\s\S]*)\}$/, '$1')); t = t.slice(o.fin);
+    }
     // separar listas anidadas
     let texto = '', resto = '';
     let k = 0, anidadas = [];

@@ -124,6 +124,9 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.07-b**
+- Listas: un `\item` seguido solo de `[texto]` (p. ej. `\item [Ensayo 1: …]`) en `itemize`/`enumerate` ahora se lee como el **contenido** del elemento, no como una viñeta propia que dejaba el elemento vacío. Las etiquetas de verdad (`\item[a)] texto`) y las listas de descripción no cambian.
+
 **2026.11.07-a**
 - **Celdas fusionadas editables y sin pérdida**: `\multicolumn` y los casos comunes de `\multirow` se importan como celdas HTML fusionadas, se pueden editar visualmente y se vuelven a exportar conservando sus spans, alineación y ancho. La cinta permite unir a la derecha/abajo y separar. Para evitar corrupción, insertar o eliminar filas/columnas queda bloqueado hasta separar las celdas fusionadas.
 - Las tablas `tabularx`/`tabulary` conservan su entorno, ancho y especificación avanzada de columnas. Si una tabla usa reglas parciales (`\cline`, `\cmidrule`) o espaciado explícito por fila, permanece como LaTeX avanzado hasta que Wordtex pueda reproducirlo exactamente.
