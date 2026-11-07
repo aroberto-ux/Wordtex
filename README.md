@@ -125,6 +125,9 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.07-l**
+- **Editor de ecuaciones con color y mejor diseño**: al escribir una fórmula, el código LaTeX ahora se **resalta con colores** (comandos, llaves, separadores de línea, comentarios…), con el mismo coloreado que la vista de código. Además el editor recibió un lavado de cara: foco con anillo del color de acento, vista previa que respeta el tema y marca de posición cuando está vacía. El resaltado se mantiene al insertar símbolos con los botones y al cargar ejemplos.
+
 **2026.11.07-k**
 - **Ajuste de línea en el editor de código**: un botón «Ajustar línea» en la cabecera de la vista de código envuelve las líneas largas al ancho del panel, para editar sin scroll horizontal. Se recuerda la preferencia. (Con el ajuste activo se oculta la numeración de líneas, porque una línea lógica ocupa varias visuales.)
 
