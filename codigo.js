@@ -1,13 +1,19 @@
 // Pestaña «Código»: el documento como LaTeX, editable. Lo que se escribe aquí se interpreta y
 // pasa a la vista visual (y al revés). Lo que no se entiende se conserva como «LaTeX avanzado».
 
-import { S, E } from './estado.js?v=2026.11.07-n';
-import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-n';
-import { parsearTex } from './latex-parse.js?v=2026.11.07-n';
-import { diffBloques } from './sync.js?v=2026.11.07-n';
-import { aplicarCambios, guardarPendientes, bus, mapa as mapaBloques, enfocar } from './ops.js?v=2026.11.07-n';
-import { resaltarTex } from './resaltar.js?v=2026.11.07-n';
-import { conectarAutocompletado } from './autocompletar.js?v=2026.11.07-n';
+import { S, E } from './estado.js?v=2026.11.07-o';
+import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-o';
+import { generarCodigo, formatoDe } from './generar.js?v=2026.11.07-o';
+import { parsearTex } from './latex-parse.js?v=2026.11.07-o';
+import { diffBloques } from './sync.js?v=2026.11.07-o';
+import { aplicarCambios, guardarPendientes, bus, mapa as mapaBloques, enfocar } from './ops.js?v=2026.11.07-o';
+import { resaltarTex } from './resaltar.js?v=2026.11.07-o';
+import { conectarAutocompletado } from './autocompletar.js?v=2026.11.07-o';
+
+// En Typst (Fase 1) la pestaña de código es de solo lectura: generamos Typst desde los bloques pero
+// todavía no interpretamos Typst de vuelta, así que no hay edición ni sincronización código→documento.
+const esTypst = () => formatoDe(S.doc) === 'typst';
+const escaparHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 let tPeg = null, tGen = null;
 let aplicando = false;
@@ -16,7 +22,7 @@ let aplicando = false;
 let ultimoAplicado = null;
 
 export function textoActual() {
-  return generarTex({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques).tex;
+  return generarCodigo({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques).tex;
 }
 
 // Coloreado: un <pre> con el mismo texto (coloreado) va DEBAJO del textarea, que se vuelve transparente.
@@ -44,7 +50,9 @@ function sincronizarResalte() {
   const ta = E.codigoTa;
   if (textoResaltado !== ta.value) {
     textoResaltado = ta.value;
-    preResalte.innerHTML = resaltarTex(textoResaltado) + '\n'; // el \n final iguala la altura de la última línea
+    // El resaltador es de LaTeX; en Typst se muestra el texto sin colorear (solo se escapa el HTML).
+    const html = esTypst() ? escaparHtml(textoResaltado) : resaltarTex(textoResaltado);
+    preResalte.innerHTML = html + '\n'; // el \n final iguala la altura de la última línea
   }
   preResalte.scrollTop = ta.scrollTop;
   preResalte.scrollLeft = ta.scrollLeft;
@@ -76,6 +84,11 @@ export function mostrarAvisos(lista, error) {
 /** Regenera el texto a partir del modelo (si no se está escribiendo ahí). */
 export function actualizarCodigo(forzar = false) {
   if (S.vista === 'visual' || !S.doc) return;
+  // En Typst el código es solo lectura (aún no se interpreta de vuelta).
+  const typ = esTypst();
+  E.codigoTa.readOnly = typ;
+  E.codigoTa.setAttribute('aria-readonly', String(typ));
+  E.codigoTa.title = typ ? 'Código Typst generado (solo lectura en esta versión)' : '';
   if (!forzar && document.activeElement === E.codigoTa) return;
   const t = textoActual();
   if (E.codigoTa.value !== t) { E.codigoTa.value = t; }
@@ -93,6 +106,7 @@ export function programarActualizacion() {
 }
 
 function aplicarTexto() {
+  if (esTypst()) return;   // Fase 1: el código Typst no se interpreta de vuelta
   const texto = E.codigoTa.value;
   if (texto === ultimoAplicado) return;
   let m;
@@ -126,7 +140,7 @@ function aplicarTexto() {
  * código sea visible.
  */
 export function irABloque(id) {
-  if (!S.doc) return false;
+  if (!S.doc || esTypst()) return false;   // el mapeo SyncTeX usa LaTeX; en Typst no aplica
   if (S.vista === 'visual') bus.dispatchEvent(new CustomEvent('ir-vista', { detail: 'dividida' }));
   // asegurar que el textarea tiene el .tex al día (si veníamos de la vista visual estaba en pausa)
   actualizarCodigo(true);
@@ -149,7 +163,7 @@ export function irABloque(id) {
 
 /** Qué bloque corresponde a la posición `offset` del código: el último que empieza en o antes de ahí. */
 function bloqueEnPosicion(offset) {
-  if (!S.doc) return null;
+  if (!S.doc || esTypst()) return null;
   const posiciones = mapearBloques({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques, E.codigoTa.value);
   let elegido = null, mejor = -1;
   for (const [id, pos] of posiciones) if (pos <= offset && pos > mejor) { mejor = pos; elegido = id; }
@@ -204,7 +218,7 @@ function situarBanda() {
 /** Marca en el código el bloque `id` (el que se está editando en el documento). */
 export function marcarBloqueEnCodigo(id) {
   if (!bandaBloque) return;
-  if (S.vista === 'codigo' || !id || !S.doc) { bloqueMarcado = null; rangoMarcado = null; bandaBloque.hidden = true; return; }
+  if (S.vista === 'codigo' || !id || !S.doc || esTypst()) { bloqueMarcado = null; rangoMarcado = null; bandaBloque.hidden = true; return; }
   if (id === bloqueMarcado) { situarBanda(); return; }
   const tex = E.codigoTa.value;
   const pos = mapearBloques({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques, tex);

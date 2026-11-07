@@ -130,6 +130,15 @@ input[type="range"] { accent-color: var(--ac); }
 .plantilla[aria-selected="true"] { border-color: var(--ac); background: var(--ac-suave); }
 .plantilla small { color: var(--suave); font-size: 12px; line-height: 1.3; }
 .pl-ico { font-size: 22px; }
+/* Selector de formato (LaTeX/Typst) dentro del modal «Nuevo documento»: variante sobre fondo claro */
+.seg-formato { border-color: var(--borde); margin-bottom: 4px; }
+.seg-formato button { color: var(--txt); min-height: 32px; padding: 0 16px; }
+.seg-formato button + button { border-left-color: var(--borde); }
+.seg-formato button[aria-pressed="true"] { background: var(--ac-suave); color: var(--ac); }
+.formato-nota { margin: 2px 0 6px; }
+/* Chip del formato en el panel de ajustes del documento */
+.formato-chip { font-size: 12px; color: var(--suave); background: var(--sup2); border: 1px solid var(--borde); border-radius: 6px; padding: 5px 9px; margin-bottom: 4px; }
+.formato-chip strong { color: var(--txt); }
 
 /* ── Editor: estructura ───────────────────────────────────────────── */
 #vista-editor { flex: 1; display: flex; flex-direction: column; min-height: 0; }
@@ -643,7 +652,7 @@ table.rv-tab.con-lineas { border-top: 2px solid #111; border-bottom: 2px solid #
 .autocompletar-item.sel, .autocompletar-item:hover { background: rgba(47, 109, 246, .14); }
 .autocompletar-item.sel .ac-cmd { color: var(--ac, #2f6df6); }
 
-/* ── Pulido visual (2026.11.07-n) ─────────────────────────────────────── */
+/* ── Pulido visual (2026.11.07-o) ─────────────────────────────────────── */
 
 /* La zona de trabajo: un degradado suave para que la hoja «flote» como papel */
 #zona-visual {

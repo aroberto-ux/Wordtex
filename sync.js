@@ -2,8 +2,8 @@
 // el código LaTeX o de pegar contenido): calcula el mínimo de cambios para que quienes editan a la vez
 // no pisen todo el documento. Funciones puras (se prueban en Node).
 
-import { nuevoId } from './modelo.js?v=2026.11.07-n';
-import { archivoDe } from './latex-gen.js?v=2026.11.07-n';
+import { nuevoId } from './modelo.js?v=2026.11.07-o';
+import { archivoDe } from './latex-gen.js?v=2026.11.07-o';
 
 export const firma = (b) => { const { id, orden, ...r } = b; return JSON.stringify(r); };
 
