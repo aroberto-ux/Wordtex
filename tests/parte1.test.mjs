@@ -68,9 +68,19 @@ test('listas: description y \\item[…] sin pérdida; lo irrepresentable queda c
   assert.deepEqual(sinId(m.bloques)[0], { t: 'lista', ord: false, desc: true, items: [{ c: [{ s: 'uno' }], n: 0, et: [{ s: 'A' }] }, { c: [{ s: 'dos' }], n: 0, et: [{ s: 'B]' }] }] });
   assert.match(t1, /\\item\[\{B\]\}\] dos/);
   assert.deepEqual(m.bloques[1].items.map((i) => i.et), [[{ s: 'i)' }], undefined]);
-  // otra clase de lista anidada, o texto antes del primer \item: se conserva tal cual
+  // otra clase de lista anidada mezclada: se conserva tal cual (no se puede representar)
   assert.equal(parsearTex(doc('\\begin{itemize}\n\\item a\n\\begin{enumerate}\\item b\\end{enumerate}\n\\end{itemize}')).bloques[0].t, 'raw');
-  assert.equal(parsearTex(doc('\\begin{itemize}\n\\setlength{\\itemsep}{0pt}\n\\item a\n\\end{itemize}')).bloques[0].t, 'raw');
+  // ajustes de formato antes del primer \item (etiquetas, contadores, medidas): la lista es editable y
+  // el ajuste se conserva en `opt` para el round-trip
+  const conAjuste = idaYVuelta(doc('\\begin{itemize}\n\\setlength{\\itemsep}{0pt}\n\\item a\n\\end{itemize}'));
+  assert.equal(conAjuste.m.bloques[0].t, 'lista');
+  assert.equal(conAjuste.m.bloques[0].opt, '\\setlength{\\itemsep}{0pt}');
+  assert.equal(conAjuste.t1, conAjuste.t2);
+  const etiqueta = idaYVuelta(doc('\\begin{enumerate}\n\\renewcommand{\\labelenumi}{\\alph{enumi})}\n\\item uno\n\\item dos\n\\end{enumerate}'));
+  assert.equal(etiqueta.m.bloques[0].t, 'lista');
+  assert.equal(etiqueta.m.bloques[0].items.length, 2);
+  assert.match(etiqueta.t1, /\\renewcommand\{\\labelenumi\}\{\\alph\{enumi\}\)\}/);
+  assert.equal(etiqueta.t1, etiqueta.t2);
 });
 
 test('figura centrada y opciones/ruta de \\includegraphics se conservan', () => {

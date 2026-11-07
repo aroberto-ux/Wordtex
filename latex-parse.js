@@ -5,9 +5,9 @@
 
 import {
   cfgPorDefecto, CLASES, IDIOMAS, ALIAS_TEOREMA, compactar, sanearBloque, sanearCfg, sanearBiblio, nuevoId, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas,
-} from './modelo.js?v=2026.11.07-l';
-import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO, PAQUETES_TARDIOS } from './latex-gen.js?v=2026.11.07-l';
-import { tablaMacros } from './macros.js?v=2026.11.07-l';
+} from './modelo.js?v=2026.11.07-m';
+import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO, PAQUETES_TARDIOS } from './latex-gen.js?v=2026.11.07-m';
+import { tablaMacros } from './macros.js?v=2026.11.07-m';
 
 // \ensuremath{\alpha} → α (lo contrario de lo que hace latex-gen.js con los símbolos Unicode)
 const SIMBOLO_DE = new Map(Object.entries(SIMBOLOS).map(([u, cmd]) => [cmd, u]));
@@ -610,6 +610,33 @@ function etiquetaEq(env, cuerpo, numerada) {
   return { tex: cuerpo.replace(/\s*\\label\{[^}]*\}/, '').trim(), label: labels[0][1].trim() };
 }
 
+// Comandos de formato que pueden aparecer dentro de una lista antes del primer \item (etiquetas
+// personalizadas, contadores, medidas). Se conservan tal cual en `opt` para el round-trip.
+const AJUSTE_LISTA = new Set(['renewcommand', 'newcommand', 'providecommand', 'setcounter', 'addtocounter', 'setlength', 'addtolength', 'setlistdepth', 'setitemize', 'setenumerate']);
+
+/** Avanza sobre los comandos de ajuste (y espacios) que preceden al primer \item; devuelve el índice final
+ *  (= k si no hay ningún ajuste, para no tocar listas normales). */
+function prefijoAjustes(cuerpo, k) {
+  let i = saltarEsp(cuerpo, k);
+  let capturado = false, fin = i;
+  for (;;) {
+    if (cuerpo[i] !== '\\') break;
+    const cm = comando(cuerpo, i);
+    if (!cm || cm.simbolo || !AJUSTE_LISTA.has(cm.nombre)) break;
+    let j = cm.fin;
+    // consume solo los argumentos entre llaves \cmd{a}{b}… (los comandos de AJUSTE_LISTA no llevan [opcional])
+    for (;;) {
+      const s2 = saltarEsp(cuerpo, j);
+      if (cuerpo[s2] !== '{') break;
+      const g = grupo(cuerpo, s2); if (!g) return k; j = g.fin;
+    }
+    capturado = true; fin = j; i = saltarEsp(cuerpo, j);
+  }
+  // solo cuenta como prefijo si capturamos algún ajuste y de verdad llegamos a un \item
+  if (!capturado) return k;
+  return cuerpo.startsWith('\\item', i) && !esLetra(cuerpo[i + 5]) ? fin : k;
+}
+
 function bloqueEntorno(e, ctx) {
   const nombre = e.nombre.replace(/\*$/, '');
   const estrella = e.nombre.endsWith('*');
@@ -630,6 +657,11 @@ function bloqueEntorno(e, ctx) {
         const o = opcional(cuerpo, ini);
         if (o) { opt = cuerpo.slice(ini, o.fin); k = o.fin; }
       }
+      // Ajustes de formato antes del primer \item (p. ej. \renewcommand{\labelenumi}{\alph{enumi})},
+      // \setcounter, \setlength): se guardan en `opt` para devolverlos al exportar y la lista se parsea
+      // igual. Sin esto, cualquier contenido antes del primer \item degrada toda la lista a raw.
+      const pre = prefijoAjustes(cuerpo, k);
+      if (pre > k) { opt = (opt ? opt + '\n' : '') + cuerpo.slice(k, pre).trim(); k = pre; }
       const items = [];
       const ok = parsearItems(cuerpo.slice(k), 0, items, nombre, !ctx.vista);
       if (ok === false || !items.length) return null;

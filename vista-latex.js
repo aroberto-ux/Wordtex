@@ -3,11 +3,11 @@
 //
 // Las funciones puras (texParaMate, tipoVistaRaw) también se usan en Node (pruebas, aviso al importar).
 
-import { parsearBloques, parsearInline } from './latex-parse.js?v=2026.11.07-l';
-import { colorCss, tikzSvg } from './tikz.js?v=2026.11.07-l';
-import { renderMate, mathjaxListo, mateDisponible } from './mathjax.js?v=2026.11.07-l';
-import { expandirMacros, usaMacrosPropias } from './macros.js?v=2026.11.07-l';
-import { nodoDeTex } from './macros-vista.js?v=2026.11.07-l';
+import { parsearBloques, parsearInline } from './latex-parse.js?v=2026.11.07-m';
+import { colorCss, tikzSvg } from './tikz.js?v=2026.11.07-m';
+import { renderMate, mathjaxListo, mateDisponible } from './mathjax.js?v=2026.11.07-m';
+import { expandirMacros, usaMacrosPropias } from './macros.js?v=2026.11.07-m';
+import { nodoDeTex } from './macros-vista.js?v=2026.11.07-m';
 
 // ── Puras ──────────────────────────────────────────────────────────────
 
@@ -327,6 +327,16 @@ function vistaEntorno(tex, prof) {
   // argumentos: [pos]{ancho} en minipage, posición [htbp] en flotantes, {n} en multicols
   let i = 0;
   const o = opc(cuerpo, i); if (o) i = o.fin;
+  // tcolorbox/tcbox: caja de color destacada. Se muestra como tal, con su «title=…» como cabecera.
+  const esCaja = /^(tcolorbox|tcbox|tcblisting|mybox|cajita|caja)\*?$/.test(nombre);
+  if (esCaja) {
+    caja.classList.add('rv-caja');
+    const tit = o ? /(?:^|,)\s*title\s*=\s*(\{[^}]*\}|[^,]+)/.exec(o.txt) : null;
+    if (tit) {
+      const t = tit[1].replace(/^\{|\}$/g, '').trim();
+      if (t) caja.append(el('div', 'rv-caja-cab', t));
+    }
+  }
   if (nombre === 'minipage' || nombre === 'multicols' || nombre === 'wrapfigure' || nombre === 'subfigure') {
     const a = arg(cuerpo, i);
     if (a) {
@@ -344,7 +354,7 @@ function vistaEntorno(tex, prof) {
   cuerpo = cuerpo.replace(/\\label\{[^}]*\}/g, '');
   if (/\\centering\b/.test(cuerpo) || nombre === 'center') { caja.style.textAlign = 'center'; cuerpo = cuerpo.replace(/\\centering\b/g, ''); }
   const conocidos = /^(figure|table|minipage|center|flushleft|flushright|multicols|subfigure|wrapfigure|quote|quotation)\*?$/;
-  if (!conocidos.test(nombre)) caja.append(el('div', 'rv-env-et', `Entorno «${nombre}»`));
+  if (!conocidos.test(nombre) && !esCaja) caja.append(el('div', 'rv-env-et', `Entorno «${nombre}»`));
   let bloques;
   try { bloques = parsearBloques(cuerpo, CTX_VISTA()); } catch { bloques = [{ t: 'raw', tex: cuerpo }]; }
   // un entorno que se lee como sí mismo daría un bucle

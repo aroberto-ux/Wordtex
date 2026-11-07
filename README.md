@@ -125,6 +125,10 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.07-m**
+- **Listas con etiquetas o ajustes personalizados editables**: una `enumerate`/`itemize` que empieza con comandos de formato antes del primer `\item` (p. ej. `\renewcommand{\labelenumi}{\alph{enumi})}` para numerar `a)`, `b)`…, o `\setcounter`, `\setlength`) ahora se importa como **lista editable** en vez de quedar como un bloque de código. El ajuste se conserva al exportar. Esto recupera, por ejemplo, soluciones numeradas con incisos que antes se veían como LaTeX crudo.
+- **Cajas destacadas tipo `tcolorbox`**: las cajas de color (`tcolorbox`, `tcbox`…) se muestran en la vista como una **caja con marco y cabecera** usando su `title=…`, en lugar de la etiqueta genérica «Entorno». Su contenido (texto, fórmulas, dibujos TikZ) se sigue viendo dentro.
+
 **2026.11.07-l**
 - **Editor de ecuaciones con color y mejor diseño**: al escribir una fórmula, el código LaTeX ahora se **resalta con colores** (comandos, llaves, separadores de línea, comentarios…), con el mismo coloreado que la vista de código. Además el editor recibió un lavado de cara: foco con anillo del color de acento, vista previa que respeta el tema y marca de posición cuando está vacía. El resaltado se mantiene al insertar símbolos con los botones y al cargar ejemplos.
 
