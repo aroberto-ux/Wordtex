@@ -1,19 +1,19 @@
 // Teclado, pegado, clics y arrastre dentro de la página de edición.
 
-import { S, E } from './estado.js?v=2026.11.07-g';
-import { abrirMenu, aviso } from './ui.js?v=2026.11.07-g';
-import { nuevoId, bloqueNuevo, urlSegura } from './modelo.js?v=2026.11.07-g';
-import { leerInline } from './inline-dom.js?v=2026.11.07-g';
-import { autoAlto, marcarLista, actualizarVistaRaw } from './bloques-dom.js?v=2026.11.07-g';
-import { irABloque } from './codigo.js?v=2026.11.07-g';
+import { S, E } from './estado.js?v=2026.11.07-h';
+import { abrirMenu, aviso } from './ui.js?v=2026.11.07-h';
+import { nuevoId, bloqueNuevo, urlSegura } from './modelo.js?v=2026.11.07-h';
+import { leerInline } from './inline-dom.js?v=2026.11.07-h';
+import { autoAlto, marcarLista, actualizarVistaRaw } from './bloques-dom.js?v=2026.11.07-h';
+import { irABloque } from './codigo.js?v=2026.11.07-h';
 import {
   mapa, bloqueDe, indiceDe, editablesDe, colocarCursor, marcarSucio, guardarPendientes, editarLista, modificar, reconciliar, enfocar,
   dividirBloque, fusionarConAnterior, eliminarBloque, moverBloqueA, deshacer, rehacer, insertarBloque, convertirBloque,
-} from './ops.js?v=2026.11.07-g';
+} from './ops.js?v=2026.11.07-h';
 import {
   edDe, menuBloque, accionEq, accionImagen, editarExistente, celdaVecina, accionTabla, itemsInsertar, cambiarNivelItem, crearFiguraDesde,
   accionEnlace, formato, accionTikz, editarTermino,
-} from './acciones.js?v=2026.11.07-g';
+} from './acciones.js?v=2026.11.07-h';
 
 const FILA_DE = (ed) => ed.closest('.bq');
 

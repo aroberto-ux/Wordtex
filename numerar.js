@@ -1,8 +1,8 @@
 // Numeración como la haría LaTeX (secciones, ecuaciones, figuras, tablas, teoremas, citas y
 // referencias cruzadas). Se usa para que la vista de página muestre los mismos números que tendrá el PDF.
 
-import { TEOREMAS, textoPlano, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.07-g';
-import { sinComentarios, expandirMacros, usaMacrosPropias } from './macros.js?v=2026.11.07-g';
+import { TEOREMAS, textoPlano, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.07-h';
+import { sinComentarios, expandirMacros, usaMacrosPropias } from './macros.js?v=2026.11.07-h';
 
 export const ROTULOS = {
   spanish: { fig: 'Figura', tab: 'Tabla', resumen: 'Resumen', indice: 'Índice general', refs: 'Referencias', cap: 'Capítulo', teo: 'es' },

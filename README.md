@@ -12,7 +12,7 @@ Es una página estática (HTML + módulos JS, sin compilación) pensada para **G
 - **Notas al pie, referencias cruzadas, citas y bibliografía**, enlaces.
 - **Numeración como en LaTeX** (secciones, ecuaciones, figuras, tablas, teoremas) y **vista de página** con aspecto de documento compilado.
 - **Menú `/`** para insertar bloques escribiendo, atajos de teclado, deshacer/rehacer, arrastrar bloques.
-- **Vista de código**: el `.tex` completo, editable. Lo que no se entiende se conserva tal cual (como bloque «LaTeX avanzado»), que se puede reintentar convertir en editable desde su menú. Nada se pierde. Navegación bidireccional como en Overleaf: **doble clic** en el documento lleva el cursor del código a esa parte, y mover el cursor en el código resalta el bloque en el documento.
+- **Vista de código**: el `.tex` completo, editable. Lo que no se entiende se conserva tal cual (como bloque «LaTeX avanzado»), que se puede reintentar convertir en editable desde su menú. Nada se pierde. Navegación bidireccional como en Overleaf: **doble clic** en el documento lleva el cursor del código a esa parte; mover el cursor en el código resalta el bloque en el documento; y, en vista dividida, editar un bloque en el documento resalta su código con una banda de color.
 - **LaTeX avanzado con vista previa**: lo que no tiene editor propio se ve renderizado encima de su código (ecuaciones con MathJax, tablas con `\multicolumn`/`\multirow`, `minipage` y entornos propios, `\hrule`, `\vspace`, `\input`, `\bibliography`…). El código está en «Ver/editar código» y la vista previa lo sigue mientras se escribe. En el texto, `\textcolor`, `\textsc`, `\verb`, `\lstinline`, `\today`, `\LaTeX` o `{\small …}` se ven con su formato y se editan con un clic.
 - **Dibujos TikZ**: bloque propio con vista previa en vivo, editor de código al lado, **herramienta de dibujo** (línea, flecha, rectángulo, círculo, texto, borrar; cuadrícula, ajuste, color y grosor) y plantillas (ejes cartesianos, diagrama de flujo, grafo, triángulo con ángulos, árbol). `\usepackage{tikz}` y las `\usetikzlibrary` necesarias se añaden solas.
 - **Plantillas**: en blanco, artículo, tarea, apuntes, informe y carta.
@@ -124,6 +124,9 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 - **No aparece la lista de documentos de otra persona**: en modo local cada navegador tiene los suyos; hace falta Firebase para compartir.
 
 ## Cambios
+
+**2026.11.07-h**
+- **Sincronización documento → código** (en vista dividida): al editar un bloque en la vista del documento, su código correspondiente se resalta con una banda de color en el editor de LaTeX. Completa la navegación en ambos sentidos: ya existía código → documento (mover el cursor en el código resalta el bloque), y ahora también documento → código.
 
 **2026.11.07-g**
 - **Tablas con espacio extra entre filas**: una tabla con `\\[2ex]` (u otra dimensión por fila) ya no se degrada a «LaTeX avanzado»; se importa como tabla editable y conserva ese espaciado al exportar. Es un patrón muy común en informes y antes convertía la tabla entera en código.
