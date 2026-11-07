@@ -1,9 +1,9 @@
 // Panel lateral: esquema, ajustes del documento, bibliografía y preámbulo propio.
 
-import { S, E } from './estado.js?v=2026.11.07-b';
-import { h, aviso, confirmar } from './ui.js?v=2026.11.07-b';
-import { CLASES, TAMANOS, PAPELES, IDIOMAS, textoPlano } from './modelo.js?v=2026.11.07-b';
-import { numeracion, bus, mapa, enfocar } from './ops.js?v=2026.11.07-b';
+import { S, E } from './estado.js?v=2026.11.07-c';
+import { h, aviso, confirmar } from './ui.js?v=2026.11.07-c';
+import { CLASES, TAMANOS, PAPELES, IDIOMAS, textoPlano } from './modelo.js?v=2026.11.07-c';
+import { numeracion, bus, mapa, enfocar } from './ops.js?v=2026.11.07-c';
 
 const PESTANAS = [['esquema', 'Esquema'], ['doc', 'Documento'], ['bib', 'Referencias'], ['avanzado', 'Avanzado'], ['ayuda', 'Ayuda']];
 let activa = 'esquema';
@@ -113,7 +113,7 @@ function ayuda() {
     h('table', {}, h('tbody', {},
       f('Enter', 'Nuevo párrafo (o elemento de lista)'), f('Mayús+Enter', 'Salto de línea'), f('/', 'En un párrafo vacío: menú para insertar'),
       f('Tab / Mayús+Tab', 'Sangría en listas; celda siguiente en tablas'), f('Ctrl+B / I / U', 'Negrita, cursiva, subrayado'), f('Ctrl+E', 'Código en línea'),
-      f('Ctrl+K', 'Enlace'), f('Ctrl+Z / Y', 'Deshacer / rehacer'))),
+      f('Ctrl+K', 'Enlace'), f('Ctrl+Z / Y', 'Deshacer / rehacer'), f('Doble clic', 'Salta a esa parte en el código LaTeX'))),
     h('h3', {}, 'Cómo se traduce a LaTeX'),
     h('table', {}, h('tbody', {},
       f('Sección', '\\section{…}'), f('Negrita', '\\textbf{…}'), f('Lista', '\\begin{itemize}…'), f('Ecuación', '\\begin{equation}…'),

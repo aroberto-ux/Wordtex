@@ -1,18 +1,19 @@
 // Teclado, pegado, clics y arrastre dentro de la página de edición.
 
-import { S, E } from './estado.js?v=2026.11.07-b';
-import { abrirMenu, aviso } from './ui.js?v=2026.11.07-b';
-import { nuevoId, bloqueNuevo, urlSegura } from './modelo.js?v=2026.11.07-b';
-import { leerInline } from './inline-dom.js?v=2026.11.07-b';
-import { autoAlto, marcarLista, actualizarVistaRaw } from './bloques-dom.js?v=2026.11.07-b';
+import { S, E } from './estado.js?v=2026.11.07-c';
+import { abrirMenu, aviso } from './ui.js?v=2026.11.07-c';
+import { nuevoId, bloqueNuevo, urlSegura } from './modelo.js?v=2026.11.07-c';
+import { leerInline } from './inline-dom.js?v=2026.11.07-c';
+import { autoAlto, marcarLista, actualizarVistaRaw } from './bloques-dom.js?v=2026.11.07-c';
+import { irABloque } from './codigo.js?v=2026.11.07-c';
 import {
   mapa, bloqueDe, indiceDe, editablesDe, colocarCursor, marcarSucio, guardarPendientes, editarLista, modificar, reconciliar, enfocar,
   dividirBloque, fusionarConAnterior, eliminarBloque, moverBloqueA, deshacer, rehacer, insertarBloque, convertirBloque,
-} from './ops.js?v=2026.11.07-b';
+} from './ops.js?v=2026.11.07-c';
 import {
   edDe, menuBloque, accionEq, accionImagen, editarExistente, celdaVecina, accionTabla, itemsInsertar, cambiarNivelItem, crearFiguraDesde,
   accionEnlace, formato, accionTikz, editarTermino,
-} from './acciones.js?v=2026.11.07-b';
+} from './acciones.js?v=2026.11.07-c';
 
 const FILA_DE = (ed) => ed.closest('.bq');
 
@@ -272,6 +273,27 @@ function alClic(e) {
   else if (a === 'tikz') accionTikz(id);
 }
 
+/**
+ * Doble clic en la vista del documento → el editor de código salta a ese bloque (como Overleaf).
+ * No se activa si se está editando ese mismo bloque: ahí el doble clic debe seleccionar la palabra,
+ * como en cualquier editor. Para saltar al código basta un doble clic en un bloque que no tenga el
+ * cursor (o mantener Alt, por si se quiere saltar sin salir del que se edita).
+ */
+function alDobleClic(e) {
+  const t = e.target;
+  // los elementos con editor propio (fórmulas, chips, términos, imágenes) ya responden al clic
+  if (t.closest('.i-mate,.i-nota,.i-cita,.i-ref,.i-raw,.li-et,[data-accion="eq"],[data-accion="tikz"],[data-accion="img"]')) return;
+  // no robar el foco mientras se edita o selecciona dentro de un campo de texto
+  if (t.closest('textarea, input')) return;
+  const bq = t.closest('.bq');
+  if (!bq) return;
+  const editandoEste = document.activeElement && bq.contains(document.activeElement) && document.activeElement.isContentEditable;
+  const sel = getSelection();
+  const seleccionandoTexto = sel && !sel.isCollapsed && bq.contains(sel.anchorNode);
+  if (!e.altKey && (editandoEste || seleccionandoTexto)) return; // dejar la selección de palabra normal
+  irABloque(bq.dataset.id);
+}
+
 function alCambiar(e) {
   const t = e.target;
   const bq = t.closest && t.closest('.bq');
@@ -361,6 +383,7 @@ export function instalarEventos() {
   r.addEventListener('keydown', alTeclado);
   r.addEventListener('paste', alPegar);
   r.addEventListener('click', alClic);
+  r.addEventListener('dblclick', alDobleClic);
   r.addEventListener('input', alEscribir);
   r.addEventListener('change', alCambiar);
   r.addEventListener('focusin', alEntrar);
