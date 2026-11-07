@@ -250,6 +250,8 @@ body.arrastrando-divisor { cursor: col-resize; user-select: none; -webkit-user-s
 .asa-mover { cursor: grab; }
 .asa-btn:hover, .asa-mover:hover { background: #e9ecf0; color: #333; }
 .bq.sel { background: linear-gradient(90deg, rgba(47, 109, 246, .06), transparent 70%); box-shadow: -3px 0 0 rgba(47, 109, 246, .55); }
+/* Eco del cursor del código en el documento (SyncTeX): resaltado suave y temporal */
+.bq.bq-eco { background: linear-gradient(90deg, rgba(240, 180, 40, .16), transparent 75%); box-shadow: -3px 0 0 rgba(230, 160, 20, .8); transition: background .15s, box-shadow .15s; }
 .bq[style*="--quien"] { box-shadow: -3px 0 0 var(--quien); }
 .bq-quien { position: absolute; right: 0; top: -1.3em; font: 600 10.5px system-ui, sans-serif; color: #fff; padding: 1px 7px; border-radius: 6px 6px 0 0; pointer-events: none; z-index: 3; }
 .bq-quien:empty { display: none; }

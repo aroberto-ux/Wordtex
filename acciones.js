@@ -1,20 +1,20 @@
 // Acciones de la cinta y de los bloques: formato, inserciones en el texto, tablas, figuras, menús.
 
-import { S, E } from './estado.js?v=2026.11.07-c';
-import { h, abrirMenu, aviso, pedir } from './ui.js?v=2026.11.07-c';
-import { nuevoId } from './modelo.js?v=2026.11.07-c';
-import { nodoInline, renderMate, leerInline, rellenar, chipRaw } from './inline-dom.js?v=2026.11.07-c';
-import { editarMate } from './matematica.js?v=2026.11.07-c';
-import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.07-c';
-import { etiquetaNueva } from './numerar.js?v=2026.11.07-c';
-import { procesarImagen, marcarLista, chipTermino, NIVELES_LISTA } from './bloques-dom.js?v=2026.11.07-c';
-import { editarTikz } from './tikz-editor.js?v=2026.11.07-c';
-import { textoPlano } from './modelo.js?v=2026.11.07-c';
-import { parsearInline } from './latex-parse.js?v=2026.11.07-c';
+import { S, E } from './estado.js?v=2026.11.07-d';
+import { h, abrirMenu, aviso, pedir } from './ui.js?v=2026.11.07-d';
+import { nuevoId } from './modelo.js?v=2026.11.07-d';
+import { nodoInline, renderMate, leerInline, rellenar, chipRaw } from './inline-dom.js?v=2026.11.07-d';
+import { editarMate } from './matematica.js?v=2026.11.07-d';
+import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.07-d';
+import { etiquetaNueva } from './numerar.js?v=2026.11.07-d';
+import { procesarImagen, marcarLista, chipTermino, NIVELES_LISTA } from './bloques-dom.js?v=2026.11.07-d';
+import { editarTikz } from './tikz-editor.js?v=2026.11.07-d';
+import { textoPlano } from './modelo.js?v=2026.11.07-d';
+import { parsearInline, parsearTex } from './latex-parse.js?v=2026.11.07-d';
 import {
   mapa, bloqueDe, modificar, insertarBloque, eliminarBloque, duplicarBloque, moverBloque, convertirBloque, editarLista,
   guardarPendientes, marcarSucio, numeracion, refrescarDerivados, enfocar, aplicarCambios,
-} from './ops.js?v=2026.11.07-c';
+} from './ops.js?v=2026.11.07-d';
 
 // ── Selección ───────────────────────────────────────────────────────────
 
@@ -190,6 +190,37 @@ export async function accionSimbolo() {
 export async function accionRawLinea() {
   const t = await dlgRaw();
   if (t) insertarEnLinea(nodoInline({ raw: t }));
+}
+
+/**
+ * Reintenta convertir un bloque «LaTeX avanzado» en elementos editables volviéndolo a interpretar con
+ * el parser actual. Útil para documentos guardados antes de que el parser supiera reconocer algo
+ * (listas, tablas con multirow, etc.). Devuelve cuántos bloques nativos se obtuvieron, o 0 si no se pudo.
+ */
+export function reinterpretarRaw(id) {
+  const b = bloqueDe(id);
+  if (!b || b.t !== 'raw') return 0;
+  let bloques = [];
+  try {
+    const m = parsearTex(`\\documentclass{article}\n\\begin{document}\n${b.tex}\n\\end{document}`);
+    bloques = m.bloques;
+  } catch { aviso('No se pudo reinterpretar este bloque.', 'error', 4000); return 0; }
+  // No hay mejora real si: vuelve a salir un único bloque raw, o un único párrafo cuyo contenido es
+  // un solo fragmento LaTeX crudo (el mismo comando que no se sabe representar, ahora dentro de un p).
+  const u = bloques.length === 1 ? bloques[0] : null;
+  const sigueCrudo = u && (u.t === 'raw' || (u.t === 'p' && (u.c || []).length === 1 && u.c[0].raw != null));
+  if (!bloques.length || sigueCrudo) { aviso('Este bloque no se puede convertir todavía; se queda como LaTeX avanzado.', 'info', 5000); return 0; }
+  editarLista((l) => {
+    const i = l.findIndex((x) => x.id === id);
+    if (i < 0) return false;
+    const orden = l[i].orden;
+    const nuevos = bloques.map((nb, k) => ({ ...nb, id: k === 0 ? id : nuevoId('b'), ...(k === 0 ? { orden } : {}) }));
+    l.splice(i, 1, ...nuevos);
+  }, { foco: { id, donde: 'inicio' } });
+  const tipos = [...new Set(bloques.map((x) => x.t))].length;
+  aviso(`Convertido en ${bloques.length} elemento${bloques.length === 1 ? '' : 's'} editable${bloques.length === 1 ? '' : 's'}.`, 'ok', 3500);
+  void tipos;
+  return bloques.length;
 }
 
 export function accionSaltoLinea() {
@@ -415,6 +446,8 @@ export function menuBloque(ancla, id) {
     { texto: 'Bajar', icono: '↓', deshabilitado: i === S.bloques.length - 1, fn: () => moverBloque(id, 1) },
     { texto: 'Duplicar', icono: '⧉', fn: () => duplicarBloque(id) },
     { texto: 'Insertar debajo…', icono: '＋', fn: () => { S.sel = id; setTimeout(() => abrirMenu(ancla, itemsInsertar(), {}), 0); } },
+    // solo en «LaTeX avanzado»: reintentar convertirlo en elementos editables con el parser actual
+    ...(b.t === 'raw' ? ['-', { texto: 'Convertir en editable', icono: '↺', fn: () => reinterpretarRaw(id) }] : []),
     '-',
     { texto: 'Eliminar', icono: '🗑', peligro: true, fn: () => eliminarBloque(id) },
   ]);
