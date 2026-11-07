@@ -1,22 +1,22 @@
 // Vista del editor: une la cinta, la página, el código, el panel lateral y la colaboración.
 
-import { S, E } from './estado.js?v=2026.11.07-d';
-import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.07-d';
-import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.07-d';
-import { rotulos } from './numerar.js?v=2026.11.07-d';
+import { S, E } from './estado.js?v=2026.11.07-e';
+import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.07-e';
+import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.07-e';
+import { rotulos } from './numerar.js?v=2026.11.07-e';
 import {
   bus, limpiarEstado, recibirBloques, guardarPendientes, haySinGuardar, deshacer, rehacer, refrescarDerivados, reconciliar, aplicarCambios, insertarBloque,
-} from './ops.js?v=2026.11.07-d';
-import { instalarEventos } from './eventos.js?v=2026.11.07-d';
+} from './ops.js?v=2026.11.07-e';
+import { instalarEventos } from './eventos.js?v=2026.11.07-e';
 import {
   seguirSeleccion, restaurarRango, formato, estadoFormato, alinear, alternarLista, sangria, accionMate, accionNota, accionCita, accionRef,
   accionEnlace, accionSimbolo, accionSaltoLinea, accionTabla, accionFig, accionImagen, menuInsertar, alElegirEstilo, edDe, celdaActual, accionTikz,
-} from './acciones.js?v=2026.11.07-d';
-import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.07-d';
-import { registrarPreambulo, comprobarPreambulo } from './mathjax.js?v=2026.11.07-d';
-import { definicionesMathJax, usarFuentePreambulo } from './macros.js?v=2026.11.07-d';
-import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.07-d';
-import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON, revisarExportacion } from './exportar.js?v=2026.11.07-d';
+} from './acciones.js?v=2026.11.07-e';
+import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.07-e';
+import { registrarPreambulo, comprobarPreambulo } from './mathjax.js?v=2026.11.07-e';
+import { definicionesMathJax, usarFuentePreambulo } from './macros.js?v=2026.11.07-e';
+import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.07-e';
+import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON, revisarExportacion } from './exportar.js?v=2026.11.07-e';
 
 let unsubs = [];
 let listo = false;

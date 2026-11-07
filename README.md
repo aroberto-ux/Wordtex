@@ -68,6 +68,7 @@ La página **no compila LaTeX dentro del navegador**. Opciones:
 | `bloques-dom.js`, `inline-dom.js`, `numerar.js` | Dibujo de bloques, texto en línea y numeración |
 | `matematica.js`, `dialogos.js`, `paneles.js`, `codigo.js` | Editor de ecuaciones, ventanas, panel lateral, vista de código |
 | `resaltar.js` | Coloreado de sintaxis LaTeX de la vista de código (función pura, con pruebas) |
+| `autocompletar.js` | Sugerencias de comandos y entornos LaTeX en la vista de código |
 | `exportar.js`, `plantillas.js` | Exportaciones y plantillas |
 | `vista-latex.js` | Vistas previas del LaTeX avanzado (bloques y fragmentos en línea) |
 | `tikz.js`, `tikz-libs.js` | Intérprete de TikZ a SVG para la vista previa; librerías que necesita cada dibujo |
@@ -123,6 +124,10 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 - **No aparece la lista de documentos de otra persona**: en modo local cada navegador tiene los suyos; hace falta Firebase para compartir.
 
 ## Cambios
+
+**2026.11.07-e**
+- **Sugerencias de código LaTeX** en la vista de código: al escribir `\` seguido de letras aparece un menú con comandos frecuentes (`\section`, `\textbf`, `\frac`, `\includegraphics`, griegas, referencias…) y, dentro de `\begin{…}`, con entornos (`itemize`, `figure`, `table`, `align`, `pmatrix`…). Se navega con ↑/↓, se acepta con Enter o Tab, se cierra con Esc, y las plantillas dejan el cursor en el hueco. `Ctrl+Espacio` lo abre a demanda.
+- **Barras de desplazamiento más finas** y discretas en toda la aplicación.
 
 **2026.11.07-d**
 - **Sincronización código → documento** (SyncTeX directo, como en Overleaf): al mover el cursor en la vista de código, el bloque correspondiente se resalta en la vista del documento y se desplaza hasta él. Junto con el «doble clic → código» ya existente, la navegación entre vistas es bidireccional.

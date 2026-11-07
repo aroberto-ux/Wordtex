@@ -4,8 +4,8 @@
 //
 // La parte de análisis (analizarRaw, columnas, filasDe) no toca el DOM y se prueba con Node.
 
-import { renderMate } from './inline-dom.js?v=2026.11.07-d';
-import { grupo, sinComentarios } from './macros.js?v=2026.11.07-d';
+import { renderMate } from './inline-dom.js?v=2026.11.07-e';
+import { grupo, sinComentarios } from './macros.js?v=2026.11.07-e';
 
 // ── Análisis (puro) ─────────────────────────────────────────────────────
 

@@ -4,8 +4,8 @@
 //   · El .tex generado compila con pdfLaTeX en una distribución estándar (TeX Live / MiKTeX / Overleaf).
 //   · Lo que genera esta función lo vuelve a leer latex-parse.js sin perder nada (ida y vuelta estable).
 
-import { TEOREMAS, NIVELES, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.07-d';
-import { libreriasNecesarias } from './tikz-libs.js?v=2026.11.07-d';
+import { TEOREMAS, NIVELES, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.07-e';
+import { libreriasNecesarias } from './tikz-libs.js?v=2026.11.07-e';
 
 const ESC = { '\\': '\\textbackslash{}', '&': '\\&', '%': '\\%', '$': '\\$', '#': '\\#', '_': '\\_', '{': '\\{', '}': '\\}', '~': '\\textasciitilde{}', '^': '\\textasciicircum{}', '\u00a0': '~' };
 // Símbolos Unicode que pdfLaTeX no entiende por sí solo: se escriben como comandos de LaTeX.
