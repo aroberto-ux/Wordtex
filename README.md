@@ -125,6 +125,9 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.07-k**
+- **Ajuste de línea en el editor de código**: un botón «Ajustar línea» en la cabecera de la vista de código envuelve las líneas largas al ancho del panel, para editar sin scroll horizontal. Se recuerda la preferencia. (Con el ajuste activo se oculta la numeración de líneas, porque una línea lógica ocupa varias visuales.)
+
 **2026.11.07-j**
 - **`\textbf` (y `\textit`, `\emph`…) sin llaves**: al importar un `.tex` donde se escribió `\textbf Para el desarrollo…` (sin `\textbf{…}`), el texto ahora se ve **en negrita** en vez de mostrar el comando `\textbf` como código y el texto sin formato. El formato se aplica al resto del grupo (como `{\bfseries …}`) y al exportar sale con llaves, que es la forma correcta.
 

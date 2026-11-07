@@ -2,7 +2,7 @@
 // Se muestra un menú al escribir «\» seguido de letras (o dentro de \begin{…}); al elegir, se inserta
 // la plantilla con el cursor donde indica «‸». No modifica el modelo: solo escribe en el textarea.
 
-import { h } from './ui.js?v=2026.11.07-j';
+import { h } from './ui.js?v=2026.11.07-k';
 
 // [comando-para-mostrar, plantilla-a-insertar (con ‸ = cursor), descripción]
 // La plantilla incluye la contrabarra; se reemplaza desde el «\» que escribió la persona.

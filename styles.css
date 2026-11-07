@@ -215,6 +215,11 @@ body.arrastrando-divisor { cursor: col-resize; user-select: none; -webkit-user-s
 .codigo-gutter, .codigo-ta { margin: 0; padding: 10px 0; font: 13px/1.55 var(--mono); }
 .codigo-gutter { flex: none; min-width: 44px; padding: 10px 8px 10px 6px; text-align: right; color: var(--suave); background: var(--sup2); border-right: 1px solid var(--borde); overflow: hidden; user-select: none; }
 .codigo-ta { flex: 1; min-width: 0; padding: 10px 12px; border: 0; border-radius: 0; resize: none; background: transparent; tab-size: 2; white-space: pre; overflow: auto; min-height: 0; outline: none; }
+/* Ajuste de línea: las líneas largas se envuelven al ancho del panel (no hay scroll horizontal). Con
+   ajuste, una línea lógica ocupa varias visuales, así que se oculta el gutter de números. */
+.zona-codigo.ajuste .codigo-gutter { display: none; }
+.zona-codigo.ajuste .codigo-ta, .zona-codigo.ajuste .codigo-resalte { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+.zona-codigo.ajuste .codigo-ta { overflow-x: hidden; }
 /* Coloreado de sintaxis (resaltar.js): el <pre> pinta los colores y el textarea, transparente, pone el cursor y la selección */
 .resalte { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; }
 .resalte .codigo-ta { position: relative; z-index: 1; color: transparent; caret-color: var(--txt); }
@@ -621,7 +626,7 @@ table.rv-tab.con-lineas { border-top: 2px solid #111; border-bottom: 2px solid #
 .autocompletar-item.sel, .autocompletar-item:hover { background: rgba(47, 109, 246, .14); }
 .autocompletar-item.sel .ac-cmd { color: var(--ac, #2f6df6); }
 
-/* ── Pulido visual (2026.11.07-j) ─────────────────────────────────────── */
+/* ── Pulido visual (2026.11.07-k) ─────────────────────────────────────── */
 
 /* La zona de trabajo: un degradado suave para que la hoja «flote» como papel */
 #zona-visual {
