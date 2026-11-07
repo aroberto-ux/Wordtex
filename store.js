@@ -8,8 +8,8 @@
 //                                                    listas dentro de listas, y las tablas las tienen)
 //   documentos/{did}/presencia/{uid} { nombre, color, bloque, ts }
 
-import { firebaseConfig, opciones } from './firebase-config.js?v=2026.11.07-i';
-import { cfgPorDefecto, sanearCfg, sanearBiblio, sanearBloque, nuevoId } from './modelo.js?v=2026.11.07-i';
+import { firebaseConfig, opciones } from './firebase-config.js?v=2026.11.07-j';
+import { cfgPorDefecto, sanearCfg, sanearBiblio, sanearBloque, nuevoId } from './modelo.js?v=2026.11.07-j';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const COLORES = [210, 150, 28, 280, 340, 190, 100, 250, 12, 170];

@@ -5,9 +5,9 @@
 
 import {
   cfgPorDefecto, CLASES, IDIOMAS, ALIAS_TEOREMA, compactar, sanearBloque, sanearCfg, sanearBiblio, nuevoId, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas,
-} from './modelo.js?v=2026.11.07-i';
-import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO, PAQUETES_TARDIOS } from './latex-gen.js?v=2026.11.07-i';
-import { tablaMacros } from './macros.js?v=2026.11.07-i';
+} from './modelo.js?v=2026.11.07-j';
+import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO, PAQUETES_TARDIOS } from './latex-gen.js?v=2026.11.07-j';
+import { tablaMacros } from './macros.js?v=2026.11.07-j';
 
 // \ensuremath{\alpha} → α (lo contrario de lo que hace latex-gen.js con los símbolos Unicode)
 const SIMBOLO_DE = new Map(Object.entries(SIMBOLOS).map(([u, cmd]) => [cmd, u]));
@@ -168,6 +168,15 @@ export function parsearInline(src, marcas = {}) {
             vaciar();
             const m2 = MARCA_CMD[nombre] ? { ...marcas, [MARCA_CMD[nombre]]: 1 } : marcas;
             nodos.push(...parsearInline(a, m2)); i = j; continue;
+          }
+          // \textbf sin llaves (p. ej. «\textbf Para el desarrollo…»): en la práctica el usuario quiere
+          // el formato en el resto del grupo, igual que {\bfseries …}. Se aplica al resto del texto.
+          if (MARCA_CMD[nombre]) {
+            vaciar();
+            const resto = s.slice(saltarEsp(s, j));
+            const m2 = { ...marcas, [MARCA_CMD[nombre]]: 1 };
+            nodos.push(...parsearInline(resto, m2));
+            i = s.length; continue;
           }
         }
         if (nombre === 'ensuremath') {

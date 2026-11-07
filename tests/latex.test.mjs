@@ -156,6 +156,22 @@ test('diffBloques: reordenar bloques del mismo tipo conserva su identidad', () =
   assert.equal(d.final.find((b) => b.t === 'p').id, 'P');
 });
 
+test('\\textbf sin llaves aplica la negrita al resto del texto (error común del usuario)', () => {
+  const m = parsearTex('\\begin{document}\n\\textbf Para el desarrollo de los cálculos.\n\\end{document}');
+  assert.deepEqual(m.bloques[0].c, [{ s: 'Para el desarrollo de los cálculos.', b: 1 }]);
+  // al regenerar sale con llaves (la forma correcta) y el round-trip es estable
+  const t1 = generarTex(m, m.bloques).tex;
+  assert.match(t1, /\\textbf\{Para el desarrollo de los cálculos\.\}/);
+  const m2 = parsearTex(t1);
+  assert.equal(generarTex(m2, m2.bloques).tex, t1);
+  // con llaves sigue funcionando como antes
+  const con = parsearTex('\\begin{document}\n\\textbf{Hola} mundo\n\\end{document}');
+  assert.deepEqual(con.bloques[0].c, [{ s: 'Hola', b: 1 }, { s: ' mundo' }]);
+  // \textit sin llaves → cursiva
+  const it = parsearTex('\\begin{document}\n\\textit en cursiva\n\\end{document}');
+  assert.deepEqual(it.bloques[0].c, [{ s: 'en cursiva', i: 1 }]);
+});
+
 test('numeración igual que en LaTeX: figuras y tablas solo con pie; align sin \\nonumber', () => {
   const bl = [
     { id: '1', t: 'fig', pie: [] }, { id: '2', t: 'fig', pie: [{ s: 'p' }] },
