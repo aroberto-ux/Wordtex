@@ -1,13 +1,13 @@
 // Pestaña «Código»: el documento como LaTeX, editable. Lo que se escribe aquí se interpreta y
 // pasa a la vista visual (y al revés). Lo que no se entiende se conserva como «LaTeX avanzado».
 
-import { S, E } from './estado.js?v=2026.11.07-h';
-import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-h';
-import { parsearTex } from './latex-parse.js?v=2026.11.07-h';
-import { diffBloques } from './sync.js?v=2026.11.07-h';
-import { aplicarCambios, guardarPendientes, bus, mapa as mapaBloques } from './ops.js?v=2026.11.07-h';
-import { resaltarTex } from './resaltar.js?v=2026.11.07-h';
-import { conectarAutocompletado } from './autocompletar.js?v=2026.11.07-h';
+import { S, E } from './estado.js?v=2026.11.07-i';
+import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-i';
+import { parsearTex } from './latex-parse.js?v=2026.11.07-i';
+import { diffBloques } from './sync.js?v=2026.11.07-i';
+import { aplicarCambios, guardarPendientes, bus, mapa as mapaBloques, enfocar } from './ops.js?v=2026.11.07-i';
+import { resaltarTex } from './resaltar.js?v=2026.11.07-i';
+import { conectarAutocompletado } from './autocompletar.js?v=2026.11.07-i';
 
 let tPeg = null, tGen = null;
 let aplicando = false;
@@ -156,6 +156,27 @@ function bloqueEnPosicion(offset) {
   return elegido;
 }
 
+/**
+ * Lleva la vista del documento al bloque que corresponde a la posición `offset` del código (doble clic
+ * en el editor de LaTeX, como el SyncTeX directo de Overleaf). Si está en vista «código» pura pasa a
+ * «dividida» para que el documento sea visible, resalta el bloque y lo centra.
+ */
+export function irADocumento(offset) {
+  if (!S.doc) return false;
+  const id = bloqueEnPosicion(offset);
+  if (!id) return false;
+  if (S.vista === 'codigo') bus.dispatchEvent(new CustomEvent('ir-vista', { detail: 'dividida' }));
+  const bq = mapaBloques.get(id);
+  if (!bq) return false;
+  // resaltar como el eco del cursor y centrar; enfocar coloca el cursor en el bloque
+  ultimoEco = id;
+  for (const x of E.bloques.querySelectorAll('.bq-eco')) x.classList.remove('bq-eco');
+  bq.classList.add('bq-eco');
+  bq.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  enfocar(id, 'inicio');
+  return true;
+}
+
 // ── Documento → código: marcar en el código el bloque que se edita en la vista visual ──────────
 let bloqueMarcado = null;   // id del bloque cuya banda está pintada
 let rangoMarcado = null;    // { ini, fin } offsets en el .tex, para recolocar la banda al hacer scroll
@@ -237,6 +258,8 @@ export function iniciarCodigo() {
   E.codigoTa.addEventListener('keyup', programarReflejo);
   E.codigoTa.addEventListener('click', programarReflejo);
   E.codigoTa.addEventListener('select', programarReflejo);
+  // doble clic en el código: lleva la vista del documento a ese bloque (como el doble clic al revés)
+  E.codigoTa.addEventListener('dblclick', () => irADocumento(E.codigoTa.selectionStart));
   E.codigoTa.addEventListener('blur', () => { clearTimeout(tPeg); aplicarTexto(); setTimeout(() => actualizarCodigo(true), 0); });
   E.codigoTa.addEventListener('keydown', (e) => {
     if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '  '); }
