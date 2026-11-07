@@ -8,8 +8,8 @@
 //                                                    listas dentro de listas, y las tablas las tienen)
 //   documentos/{did}/presencia/{uid} { nombre, color, bloque, ts }
 
-import { firebaseConfig, opciones } from './firebase-config.js?v=2026.11.07-o';
-import { cfgPorDefecto, sanearCfg, sanearBiblio, sanearBloque, nuevoId } from './modelo.js?v=2026.11.07-o';
+import { firebaseConfig, opciones } from './firebase-config.js?v=2026.11.07-p';
+import { cfgPorDefecto, sanearCfg, sanearBiblio, sanearBloque, nuevoId } from './modelo.js?v=2026.11.07-p';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const COLORES = [210, 150, 28, 280, 340, 190, 100, 250, 12, 170];
@@ -44,12 +44,15 @@ function aplicarParche(obj, parche, BORRAR) {
 
 /** Documento tal como llega de fuera (Firebase, JSON importado): se valida todo. */
 function docLimpio(id, d) {
-  return {
+  const limpio = {
     id, titulo: String(d.titulo || 'Sin título').slice(0, 160),
     cfg: sanearCfg({ ...cfgPorDefecto(), ...(d.cfg || {}) }),
     biblio: sanearBiblio(d.biblio), extra: String(d.extra || '').slice(0, 20000),
     creadoPor: d.creadoPor || '', creado: d.creado || 0, actualizado: d.actualizado || 0,
   };
+  // Código Typst editado a mano (fuente de verdad en documentos Typst). Solo se conserva si existe.
+  if (d.codigoTypst != null) limpio.codigoTypst = String(d.codigoTypst).slice(0, 500000);
+  return limpio;
 }
 
 function bloqueDe(id, orden, j) {
@@ -124,11 +127,12 @@ function crearStoreLocal() {
     suscribirDocumento(did, cb) { return suscribir(() => { const d = datos.documentos[did]; cb(d ? docLimpio(did, d) : null); }); },
     suscribirBloques(did, cb) { return suscribir(() => cb(listaBloques(did))); },
 
-    async crearDocumento({ titulo, cfg, biblio, extra }, bloques) {
+    async crearDocumento({ titulo, cfg, biblio, extra, codigoTypst }, bloques) {
       leer();
       const id = idLocal('d');
       const ahora = Date.now();
       datos.documentos[id] = { id, titulo, cfg: copia(cfg), biblio: copia(biblio || []), extra: extra || '', creadoPor: uid, creado: ahora, actualizado: ahora };
+      if (codigoTypst != null) datos.documentos[id].codigoTypst = String(codigoTypst);
       datos.bloques[id] = {};
       bloques.forEach((b, i) => { datos.bloques[id][idLocal('b')] = { orden: (i + 1) * 1000, j: JSON.stringify(sinId(b)) }; });
       cambio();
@@ -157,12 +161,14 @@ function crearStoreLocal() {
     async exportar(did) {
       const d = datos.documentos[did]; if (!d) throw new Error('No existe el documento');
       const l = docLimpio(did, d);
-      return { formato: 'latex-visual-v1', titulo: l.titulo, cfg: l.cfg, biblio: l.biblio, extra: l.extra, bloques: listaBloques(did).map(sinId) };
+      const out = { formato: 'latex-visual-v1', titulo: l.titulo, cfg: l.cfg, biblio: l.biblio, extra: l.extra, bloques: listaBloques(did).map(sinId) };
+      if (l.codigoTypst != null) out.codigoTypst = l.codigoTypst;
+      return out;
     },
     async importar(obj) {
       const l = docLimpio('', obj);
       const bl = (obj.bloques || []).map((b) => sanearBloque(b)).filter(Boolean);
-      return this.crearDocumento({ titulo: l.titulo, cfg: l.cfg, biblio: l.biblio, extra: l.extra }, bl);
+      return this.crearDocumento({ titulo: l.titulo, cfg: l.cfg, biblio: l.biblio, extra: l.extra, codigoTypst: l.codigoTypst }, bl);
     },
 
     suscribirPresencia(did, cb) { queueMicrotask(() => cb([])); return () => {}; },
@@ -260,11 +266,13 @@ async function crearStoreFirebase() {
       return F.onSnapshot(q, (s) => cb(s.docs.map((d) => bloqueDe(d.id, d.data().orden, d.data().j)).filter(Boolean)), alError);
     },
 
-    async crearDocumento({ titulo, cfg, biblio, extra }, bloques) {
+    async crearDocumento({ titulo, cfg, biblio, extra, codigoTypst }, bloques) {
       const ref = F.doc(F.collection(db, 'documentos'));
       const ahora = Date.now();
       const lote = F.writeBatch(db);
-      lote.set(ref, { titulo, cfg, biblio: biblio || [], extra: extra || '', creadoPor: usuario.uid, creado: ahora, actualizado: ahora });
+      const datos = { titulo, cfg, biblio: biblio || [], extra: extra || '', creadoPor: usuario.uid, creado: ahora, actualizado: ahora };
+      if (codigoTypst != null) datos.codigoTypst = String(codigoTypst);
+      lote.set(ref, datos);
       bloques.forEach((b, i) => { lote.set(F.doc(colBloques(ref.id)), { orden: (i + 1) * 1000, j: JSON.stringify(sinId(b)) }); });
       const ok = await rastrear(lote.commit());
       if (!ok) throw estado.error || new Error('No se pudo crear el documento');
@@ -303,15 +311,17 @@ async function crearStoreFirebase() {
       const [p, s] = await Promise.all([F.getDoc(refDoc(did)), F.getDocs(F.query(colBloques(did), F.orderBy('orden')))]);
       if (!p.exists()) throw new Error('No existe el documento');
       const l = docLimpio(did, p.data());
-      return {
+      const out = {
         formato: 'latex-visual-v1', titulo: l.titulo, cfg: l.cfg, biblio: l.biblio, extra: l.extra,
         bloques: s.docs.map((d) => bloqueDe(d.id, d.data().orden, d.data().j)).filter(Boolean).map(sinId),
       };
+      if (l.codigoTypst != null) out.codigoTypst = l.codigoTypst;
+      return out;
     },
     async importar(obj) {
       const l = docLimpio('', obj);
       const bl = (obj.bloques || []).map((b) => sanearBloque(b)).filter(Boolean);
-      return this.crearDocumento({ titulo: l.titulo, cfg: l.cfg, biblio: l.biblio, extra: l.extra }, bl);
+      return this.crearDocumento({ titulo: l.titulo, cfg: l.cfg, biblio: l.biblio, extra: l.extra, codigoTypst: l.codigoTypst }, bl);
     },
 
     suscribirPresencia(did, cb) {

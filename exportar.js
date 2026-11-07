@@ -1,16 +1,17 @@
 // Descargas: .tex, .zip (con imágenes), PDF por impresión, Overleaf y copia JSON.
 
-import { S } from './estado.js?v=2026.11.07-o';
-import { descargar, nombreArchivo, aviso, modal, h } from './ui.js?v=2026.11.07-o';
-import { generarTex } from './latex-gen.js?v=2026.11.07-o';
-import { generarCodigo, formatoDe, extensionDe, nombreFormato } from './generar.js?v=2026.11.07-o';
-import { compilarTypstAPdf } from './typst-compilar.js?v=2026.11.07-o';
-import { guardarPendientes } from './ops.js?v=2026.11.07-o';
+import { S } from './estado.js?v=2026.11.07-p';
+import { descargar, nombreArchivo, aviso, modal, h } from './ui.js?v=2026.11.07-p';
+import { generarTex } from './latex-gen.js?v=2026.11.07-p';
+import { generarCodigo, codigoDe, formatoDe, extensionDe, nombreFormato } from './generar.js?v=2026.11.07-p';
+import { compilarTypstAPdf } from './typst-compilar.js?v=2026.11.07-p';
+import { guardarPendientes } from './ops.js?v=2026.11.07-p';
 
-/** Código del documento en su formato (LaTeX o Typst). Devuelve { tex, imagenes }. */
+/** Código del documento en su formato (LaTeX o Typst). En Typst usa el código editado si existe.
+ *  Devuelve { tex, imagenes }. */
 export function textoLatex() {
   guardarPendientes(true);
-  return generarCodigo({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques);
+  return codigoDe({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra, codigoTypst: S.doc.codigoTypst }, S.bloques);
 }
 
 /** Quita comentarios y regiones literales antes de buscar comandos activos. */
@@ -193,6 +194,7 @@ export function descargarZip() {
 export function descargarJSON() {
   guardarPendientes(true);
   const obj = { formato: 'latex-visual-v1', titulo: S.doc.titulo, cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra, bloques: S.bloques.map(({ id, orden, ...r }) => r) };
+  if (typeof S.doc.codigoTypst === 'string') obj.codigoTypst = S.doc.codigoTypst;   // código Typst editado
   descargar(`${base()}.json`, JSON.stringify(obj, null, 2), 'application/json');
 }
 

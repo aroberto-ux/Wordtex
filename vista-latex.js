@@ -3,11 +3,11 @@
 //
 // Las funciones puras (texParaMate, tipoVistaRaw) también se usan en Node (pruebas, aviso al importar).
 
-import { parsearBloques, parsearInline } from './latex-parse.js?v=2026.11.07-o';
-import { colorCss, tikzSvg } from './tikz.js?v=2026.11.07-o';
-import { renderMate, mathjaxListo, mateDisponible } from './mathjax.js?v=2026.11.07-o';
-import { expandirMacros, usaMacrosPropias } from './macros.js?v=2026.11.07-o';
-import { nodoDeTex } from './macros-vista.js?v=2026.11.07-o';
+import { parsearBloques, parsearInline } from './latex-parse.js?v=2026.11.07-p';
+import { colorCss, tikzSvg } from './tikz.js?v=2026.11.07-p';
+import { renderMate, mathjaxListo, mateDisponible } from './mathjax.js?v=2026.11.07-p';
+import { expandirMacros, usaMacrosPropias } from './macros.js?v=2026.11.07-p';
+import { nodoDeTex } from './macros-vista.js?v=2026.11.07-p';
 
 // ── Puras ──────────────────────────────────────────────────────────────
 

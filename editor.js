@@ -1,23 +1,23 @@
 // Vista del editor: une la cinta, la página, el código, el panel lateral y la colaboración.
 
-import { S, E } from './estado.js?v=2026.11.07-o';
-import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.07-o';
-import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.07-o';
-import { rotulos } from './numerar.js?v=2026.11.07-o';
+import { S, E } from './estado.js?v=2026.11.07-p';
+import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.07-p';
+import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.07-p';
+import { rotulos } from './numerar.js?v=2026.11.07-p';
 import {
   bus, limpiarEstado, recibirBloques, guardarPendientes, haySinGuardar, deshacer, rehacer, refrescarDerivados, reconciliar, aplicarCambios, insertarBloque,
-} from './ops.js?v=2026.11.07-o';
-import { instalarEventos } from './eventos.js?v=2026.11.07-o';
+} from './ops.js?v=2026.11.07-p';
+import { instalarEventos } from './eventos.js?v=2026.11.07-p';
 import {
   seguirSeleccion, restaurarRango, formato, estadoFormato, alinear, alternarLista, sangria, accionMate, accionNota, accionCita, accionRef,
   accionEnlace, accionSimbolo, accionSaltoLinea, accionTabla, accionFig, accionImagen, menuInsertar, alElegirEstilo, edDe, celdaActual, accionTikz,
-} from './acciones.js?v=2026.11.07-o';
-import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.07-o';
-import { registrarPreambulo, comprobarPreambulo } from './mathjax.js?v=2026.11.07-o';
-import { definicionesMathJax, usarFuentePreambulo } from './macros.js?v=2026.11.07-o';
-import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.07-o';
-import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON, revisarExportacion, compilarPDF } from './exportar.js?v=2026.11.07-o';
-import { formatoDe, nombreFormato, extensionDe } from './generar.js?v=2026.11.07-o';
+} from './acciones.js?v=2026.11.07-p';
+import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.07-p';
+import { registrarPreambulo, comprobarPreambulo } from './mathjax.js?v=2026.11.07-p';
+import { definicionesMathJax, usarFuentePreambulo } from './macros.js?v=2026.11.07-p';
+import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.07-p';
+import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON, revisarExportacion, compilarPDF } from './exportar.js?v=2026.11.07-p';
+import { formatoDe, nombreFormato, extensionDe } from './generar.js?v=2026.11.07-p';
 
 let unsubs = [];
 let listo = false;
@@ -43,11 +43,30 @@ export function aplicarEstiloHoja() {
   E.hoja.lang = LANG[c.idioma] || 'es';
   E.hoja.classList.toggle('doc-capitulos', c.clase !== 'article');
   E.hoja.classList.toggle('dos-col', c.columnas === 2);
+  // Documento Typst: la vista visual no es editable (el código es la fuente de verdad). Se marca el
+  // cuerpo para que el CSS atenúe la hoja y se muestra un aviso con acceso a «Compilar PDF».
+  aplicarModoTypst(formatoDe(S.doc) === 'typst');
   const sel = E.selEstilo.querySelector('option[value="h0"]');
   if (sel) sel.hidden = c.clase === 'article';
   ajustarZoom();
   pintarPortada();
   if (listo) refrescarDerivados();
+}
+
+let avisoTypst = null;
+/** En documentos Typst, cubre la vista visual con un aviso (la edición es por código). */
+function aplicarModoTypst(on) {
+  E.cuerpo.classList.toggle('doc-typst', on);
+  if (on && !avisoTypst) {
+    avisoTypst = h('div', { class: 'typst-aviso', contenteditable: 'false' },
+      h('div', { class: 'typst-aviso-caja' },
+        h('h3', {}, 'Documento Typst'),
+        h('p', {}, 'Este documento se edita por código, en el panel de la derecha. Escribe Typst y pulsa «Compilar PDF» para ver el resultado.'),
+        h('button', { class: 'btn primario', onclick: () => compilarPDF() }, 'Compilar PDF'),
+        h('button', { class: 'btn', onclick: () => fijarVista('codigo') }, 'Ir al código')));
+    E.zonaVisual.append(avisoTypst);
+  }
+  if (avisoTypst) avisoTypst.hidden = !on;
 }
 
 function ajustarZoom() {
@@ -305,6 +324,10 @@ export function entrarEditor(did) {
     document.title = (d.titulo || 'Documento') + ' · LaTeX visual';
     if (document.activeElement !== E.titulo) E.titulo.value = d.titulo;
     docRecibido = true;
+    // Un documento Typst se edita por código: al abrirlo por primera vez se muestra el código, no la
+    // vista visual (que solo enseña el aviso). No se fuerza en recepciones posteriores para respetar
+    // la vista que el usuario elija.
+    if (primera && formatoDe(S.doc) === 'typst' && S.vista === 'visual') fijarVista('codigo');
     aplicarEstiloHoja();
     pintarPanel();
     bus.dispatchEvent(new CustomEvent('doc'));

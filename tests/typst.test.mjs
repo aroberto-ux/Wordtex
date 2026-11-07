@@ -3,8 +3,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generarTypst } from '../typst-gen.js';
-import { generarCodigo, formatoDe, extensionDe, nombreFormato } from '../generar.js';
+import { generarCodigo, codigoDe, formatoDe, extensionDe, nombreFormato } from '../generar.js';
 import { cfgPorDefecto } from '../modelo.js';
+import { crearDesdePlantilla, PLANTILLAS_TYPST } from '../plantillas.js';
 
 const gen = (bloques, cfgExtra = {}, biblio = []) => generarTypst({ cfg: { ...cfgPorDefecto(), formato: 'typst', titulo: 'Doc', autor: 'Yo', ...cfgExtra }, biblio, extra: '' }, bloques).tex;
 
@@ -133,4 +134,42 @@ test('raw y tikz se omiten/avisan pero no rompen', () => {
   assert.doesNotMatch(out, /usepackage/);     // el raw de LaTeX no aparece
   assert.match(out, /TikZ/);                    // aviso de dibujo no disponible
   assert.match(out, /sigue/);
+});
+
+test('crearDesdePlantilla(typst) genera el código Typst como fuente de verdad', () => {
+  for (const p of PLANTILLAS_TYPST) {
+    const d = crearDesdePlantilla(p.id, 'Mi doc', 'typst');
+    assert.equal(d.cfg.formato, 'typst');
+    assert.equal(typeof d.codigoTypst, 'string');
+    assert.ok(d.codigoTypst.length > 0, `la plantilla ${p.id} debe traer código Typst`);
+    // el código generado coincide con lo que produce el generador para esos bloques
+    const esperado = generarTypst({ cfg: d.cfg, biblio: d.biblio, extra: d.extra }, d.bloques).tex;
+    assert.equal(d.codigoTypst, esperado);
+    assert.match(d.codigoTypst, /#set page\(/);
+  }
+});
+
+test('crearDesdePlantilla(latex) no genera codigoTypst', () => {
+  const d = crearDesdePlantilla('blanco', 'Doc', 'latex');
+  assert.equal(d.cfg.formato, 'latex');
+  assert.equal(d.codigoTypst, undefined);
+});
+
+test('codigoDe usa el código Typst editado como fuente de verdad', () => {
+  const bloques = [{ t: 'p', c: [{ s: 'generado desde bloques' }], al: 'j' }];
+  const base = { cfg: { ...cfgPorDefecto(), formato: 'typst' }, biblio: [], extra: '' };
+  // con codigoTypst: se devuelve tal cual (no se regenera)
+  const r1 = codigoDe({ ...base, codigoTypst: '= Escrito a mano' }, bloques);
+  assert.equal(r1.tex, '= Escrito a mano');
+  // string vacío se respeta (no se regenera): mismo criterio que el store (!= null)
+  const r2 = codigoDe({ ...base, codigoTypst: '' }, bloques);
+  assert.equal(r2.tex, '');
+  // sin codigoTypst (documento anterior a la fase 2): se genera desde los bloques
+  const r3 = codigoDe(base, bloques);
+  assert.match(r3.tex, /#set page\(/);
+  assert.match(r3.tex, /generado desde bloques/);
+  // LaTeX ignora codigoTypst por completo y genera LaTeX
+  const r4 = codigoDe({ cfg: { ...cfgPorDefecto(), formato: 'latex' }, biblio: [], extra: '', codigoTypst: 'NO USAR' }, bloques);
+  assert.match(r4.tex, /\\documentclass/);
+  assert.doesNotMatch(r4.tex, /NO USAR/);
 });

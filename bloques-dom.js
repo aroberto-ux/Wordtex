@@ -1,10 +1,10 @@
 // Cada bloque del modelo ⇄ su representación editable en la página.
 
-import { h } from './ui.js?v=2026.11.07-o';
-import { TEOREMAS, LENGUAJES_COD, textoPlano } from './modelo.js?v=2026.11.07-o';
-import { rellenar, leerInline, renderMate, pintarInline } from './inline-dom.js?v=2026.11.07-o';
-import { rotulos } from './numerar.js?v=2026.11.07-o';
-import { texParaMate, vistaBloqueRaw, tipoVistaRaw, dibujarTikz } from './vista-latex.js?v=2026.11.07-o';
+import { h } from './ui.js?v=2026.11.07-p';
+import { TEOREMAS, LENGUAJES_COD, textoPlano } from './modelo.js?v=2026.11.07-p';
+import { rellenar, leerInline, renderMate, pintarInline } from './inline-dom.js?v=2026.11.07-p';
+import { rotulos } from './numerar.js?v=2026.11.07-p';
+import { texParaMate, vistaBloqueRaw, tipoVistaRaw, dibujarTikz } from './vista-latex.js?v=2026.11.07-p';
 
 const PH = {
   p: 'Escribe aquí… (pulsa «/» para insertar algo)', h: 'Título', teo: 'Enunciado…', cita: 'Texto de la cita…', resumen: 'Escribe el resumen…',
