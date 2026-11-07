@@ -462,8 +462,11 @@ export function mapearBloques(doc, bloques, tex) {
   for (const b of bloques) {
     const frag = bloqueATex(b, ctx);
     if (frag === '') continue;
-    // La primera línea del fragmento basta para situarlo y es estable frente a reajustes de espacios.
-    const ancla = frag.split('\n', 1)[0];
+    // La primera línea NO vacía del fragmento sirve de ancla: es estable frente a reajustes de
+    // espacios y evita que un fragmento que empieza con un salto de línea ancle en la cadena vacía
+    // (indexOf('') devolvería `desde` y mapearía al bloque anterior).
+    const ancla = frag.split('\n').find((l) => l.trim() !== '');
+    if (!ancla) continue;
     const pos = tex.indexOf(ancla, desde);
     if (pos < 0) continue;
     mapa.set(b.id, pos);

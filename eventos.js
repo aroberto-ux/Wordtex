@@ -273,13 +273,24 @@ function alClic(e) {
   else if (a === 'tikz') accionTikz(id);
 }
 
-/** Doble clic en la vista del documento → el editor de código salta a ese bloque (como Overleaf). */
+/**
+ * Doble clic en la vista del documento → el editor de código salta a ese bloque (como Overleaf).
+ * No se activa si se está editando ese mismo bloque: ahí el doble clic debe seleccionar la palabra,
+ * como en cualquier editor. Para saltar al código basta un doble clic en un bloque que no tenga el
+ * cursor (o mantener Alt, por si se quiere saltar sin salir del que se edita).
+ */
 function alDobleClic(e) {
   const t = e.target;
   // los elementos con editor propio (fórmulas, chips, términos, imágenes) ya responden al clic
   if (t.closest('.i-mate,.i-nota,.i-cita,.i-ref,.i-raw,.li-et,[data-accion="eq"],[data-accion="tikz"],[data-accion="img"]')) return;
+  // no robar el foco mientras se edita o selecciona dentro de un campo de texto
+  if (t.closest('textarea, input')) return;
   const bq = t.closest('.bq');
   if (!bq) return;
+  const editandoEste = document.activeElement && bq.contains(document.activeElement) && document.activeElement.isContentEditable;
+  const sel = getSelection();
+  const seleccionandoTexto = sel && !sel.isCollapsed && bq.contains(sel.anchorNode);
+  if (!e.altKey && (editandoEste || seleccionandoTexto)) return; // dejar la selección de palabra normal
   irABloque(bq.dataset.id);
 }
 

@@ -264,6 +264,21 @@ test('mapearBloques: cada bloque apunta a su fragmento en el .tex (para «doble 
   assert.notEqual(pos[1], pos[3]); // los dos párrafos idénticos mapean a offsets distintos
 });
 
+test('mapearBloques: raw que empieza con salto de línea, figura con pie y bloque sin fragmento', () => {
+  const d = { cfg: cfgPorDefecto(), biblio: [], extra: '' };
+  const bloques = [
+    { id: 'r', orden: 1, t: 'raw', tex: '\n\\vspace{1cm}' },                       // ancla no debe ser la cadena vacía
+    { id: 'f', orden: 2, t: 'fig', src: '', nombre: 'x.png', ancho: 50, pie: [{ s: 'Un pie' }], label: 'fig:x', env: 'figure' }, // fragmento multilínea
+    { id: 'p', orden: 3, t: 'p', c: [{ s: 'Texto final' }], al: 'j' },
+  ];
+  const t = generarTex(d, bloques).tex;
+  const m = mapearBloques(d, bloques, t);
+  assert.ok(t.startsWith('\\vspace{1cm}', m.get('r')), 'el raw ancla en su primera línea no vacía');
+  assert.ok(t.startsWith('\\begin{figure}', m.get('f')), 'la figura ancla en \\begin{figure}');
+  assert.ok(t.startsWith('Texto final', m.get('p')));
+  assert.ok(m.get('r') < m.get('f') && m.get('f') < m.get('p'), 'posiciones crecientes');
+});
+
 test('itemize: \\item seguido solo de [texto] es el contenido, no una viñeta propia', () => {
   const m = parsearTex(docTex('\\begin{itemize}\n\\item [Ensayo 1: verificar.]\n\\item [Ensayo 2: medir.]\n\\end{itemize}'));
   assert.equal(m.bloques[0].t, 'lista');
