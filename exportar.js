@@ -1,21 +1,100 @@
 // Descargas: .tex, .zip (con imágenes), PDF por impresión, Overleaf y copia JSON.
 
-import { S } from './estado.js?v=2026.11.06-d';
-import { descargar, nombreArchivo, aviso, modal, h } from './ui.js?v=2026.11.06-d';
-import { generarTex } from './latex-gen.js?v=2026.11.06-d';
-import { guardarPendientes } from './ops.js?v=2026.11.06-d';
+import { S } from './estado.js?v=2026.11.07-a';
+import { descargar, nombreArchivo, aviso, modal, h } from './ui.js?v=2026.11.07-a';
+import { generarTex } from './latex-gen.js?v=2026.11.07-a';
+import { guardarPendientes } from './ops.js?v=2026.11.07-a';
 
 export function textoLatex() {
   guardarPendientes(true);
   return generarTex({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques);
 }
 
+/** Quita comentarios y regiones literales antes de buscar comandos activos. */
+function latexActivo(src) {
+  // Primero se neutraliza \verb/\lstinline y después se quitan comentarios. Así un marcador de
+  // entorno escrito dentro de un comentario nunca puede ocultar comandos activos posteriores.
+  const sinComentarios = String(src || '').split('\n').map((linea) => {
+    let visible = linea.replace(/\\(?:verb\*?|lstinline(?:\[[^\]]*\])?)([^a-zA-Z\s*{]).*?\1/g, '');
+    for (let i = 0; i < visible.length; i++) {
+      if (visible[i] !== '%') continue;
+      let barras = 0; for (let j = i - 1; j >= 0 && visible[j] === '\\'; j--) barras++;
+      if (barras % 2 === 0) return visible.slice(0, i);
+    }
+    return visible;
+  }).join('\n');
+  return sinComentarios.replace(/\\begin\{(verbatim\*?|Verbatim|lstlisting|minted|comment)\}[\s\S]*?\\end\{\1\}/g, '');
+}
+
+/** Revisión estática del proyecto. No sustituye una compilación TeX real. */
+export function analizarExportacion(generado = textoLatex()) {
+  const { tex, imagenes } = generado;
+  const activo = latexActivo(tex);
+  const hallazgos = [];
+  const agregar = (nivel, titulo, detalle = '') => hallazgos.push({ nivel, titulo, detalle });
+  const conocidos = new Set(imagenes.map((x) => `imagenes/${x.nombre}`));
+  const rutasImagen = new Set();
+  for (const m of activo.matchAll(/\\includegraphics(?:\[[^\]]*\])?\s*\{([^}]+)\}/g)) rutasImagen.add(m[1].trim());
+  for (const ruta of rutasImagen) if (!conocidos.has(ruta)) agregar('error', `Falta la imagen «${ruta}»`, 'El .zip no puede incluirla porque solo se importó su ruta. Añádela en Overleaf o reemplázala desde la vista visual.');
+
+  const deps = new Set();
+  for (const m of activo.matchAll(/\\(?:input|include|includepdf|bibliography|addbibresource)(?:\[[^\]]*\])?\s*\{([^}]+)\}/g)) {
+    for (const ruta of m[1].split(',').map((x) => x.trim()).filter(Boolean)) deps.add(ruta);
+  }
+  for (const ruta of deps) agregar('error', `Falta el archivo externo «${ruta}»`, 'Wordtex conserva la referencia, pero el archivo no forma parte del proyecto exportado.');
+
+  const etiquetas = new Map();
+  for (const m of activo.matchAll(/\\label\{([^}]+)\}/g)) etiquetas.set(m[1], (etiquetas.get(m[1]) || 0) + 1);
+  for (const [et, n] of etiquetas) if (n > 1) agregar('aviso', `Etiqueta repetida: «${et}»`, `Aparece ${n} veces; las referencias pueden apuntar al elemento equivocado.`);
+  const refs = new Set();
+  for (const m of activo.matchAll(/\\(?:ref|eqref|autoref|cref|Cref|pageref)\{([^}]+)\}/g)) for (const x of m[1].split(',').map((v) => v.trim()).filter(Boolean)) refs.add(x);
+  for (const ref of refs) if (!etiquetas.has(ref)) agregar('error', `Referencia sin destino: «${ref}»`, 'Crea una etiqueta con ese nombre o corrige la referencia.');
+
+  const claves = new Set((S.doc.biblio || []).map((x) => x.key));
+  for (const m of activo.matchAll(/\\(?:cite|citep|citet|parencite|textcite)\*?(?:\s*\[[^\]]*\])*\s*\{([^}]+)\}/g)) {
+    for (const key of m[1].split(',').map((x) => x.trim()).filter(Boolean)) if (!claves.has(key) && !new RegExp(`\\\\bibitem(?:\\[[^\\]]*\\])?\\{${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`).test(activo)) agregar('error', `Cita sin bibliografía: «${key}»`, 'Añade la referencia desde el panel Referencias o incluye el archivo bibliográfico en Overleaf.');
+  }
+
+  const raw = S.bloques.filter((b) => b.t === 'raw').length;
+  if (raw) agregar('info', `${raw} bloque${raw === 1 ? '' : 's'} de LaTeX avanzado`, 'Se conservan al exportar, pero su vista en Wordtex es aproximada.');
+  if (/\\usepackage(?:\[[^\]]*\])?\{[^}]*fontspec|\\setmainfont\b|\\usepackage(?:\[[^\]]*\])?\{[^}]*polyglossia/.test(activo)) agregar('aviso', 'El documento parece requerir XeLaTeX o LuaLaTeX', 'La opción «Abrir en Overleaf» usa pdfLaTeX por defecto; cambia el compilador dentro de Overleaf.');
+  return { generado, hallazgos, errores: hallazgos.filter((x) => x.nivel === 'error').length, avisos: hallazgos.filter((x) => x.nivel === 'aviso').length };
+}
+
+function cuerpoRevision(r) {
+  const estado = r.errores ? `${r.errores} problema${r.errores === 1 ? '' : 's'} que requieren atención` : r.avisos ? `${r.avisos} aviso${r.avisos === 1 ? '' : 's'}` : 'No se detectaron problemas';
+  return h('div', { class: 'revision-exportacion' },
+    h('p', { class: `revision-resumen ${r.errores ? 'error' : r.avisos ? 'aviso' : 'ok'}` }, estado),
+    h('p', { class: 'vacio-panel' }, 'Esta comprobación revisa archivos y referencias. La confirmación definitiva se obtiene compilando en Overleaf o con una distribución LaTeX.'),
+    r.hallazgos.length ? h('ul', {}, r.hallazgos.map((x) => h('li', { class: `revision-${x.nivel}` }, h('strong', {}, x.titulo), x.detalle ? h('span', {}, x.detalle) : null))) : null,
+  );
+}
+
+/** Abre el informe completo sin iniciar una descarga. */
+export function revisarExportacion() {
+  const r = analizarExportacion();
+  modal({ titulo: 'Revisión antes de exportar', ancho: 620, cuerpo: cuerpoRevision(r), acciones: [{ texto: 'Cerrar', primario: true, fn: (c) => c(true) }] });
+}
+
+function trasRevision(nombreAccion, accion) {
+  const r = analizarExportacion();
+  if (!r.errores && !r.avisos) { accion(r.generado); return; }
+  modal({
+    titulo: 'Revisar antes de continuar', ancho: 620, cuerpo: cuerpoRevision(r),
+    acciones: [
+      { texto: 'Cancelar', fn: (c) => c(null) },
+      { texto: nombreAccion, primario: !r.errores, peligro: !!r.errores, fn: (c) => { accion(r.generado); c(true); } },
+    ],
+  });
+}
+
 const base = () => nombreArchivo(S.doc.titulo || S.doc.cfg.titulo || 'documento');
 
 export function descargarTex() {
-  const { tex, imagenes } = textoLatex();
-  descargar(`${base()}.tex`, tex, 'application/x-tex;charset=utf-8');
-  if (imagenes.length) aviso('El documento tiene imágenes: para compilarlo necesitas también la carpeta «imagenes». Mejor descarga el .zip.', 'info', 6000);
+  trasRevision('Descargar de todos modos', ({ tex, imagenes }) => {
+    descargar(`${base()}.tex`, tex, 'application/x-tex;charset=utf-8');
+    if (imagenes.length) aviso('El documento tiene imágenes: para compilarlo necesitas también la carpeta «imagenes». Mejor descarga el .zip.', 'info', 6000);
+  });
 }
 
 // ── ZIP sin compresión ──────────────────────────────────────────────────
@@ -69,8 +148,7 @@ export function bytesDeDataUrl(u) {
   return new TextEncoder().encode(decodeURIComponent(m[3]));
 }
 
-export async function descargarZip() {
-  const { tex, imagenes } = textoLatex();
+async function descargarZipDirecto({ tex, imagenes }) {
   const enc = new TextEncoder();
   const archivos = [{ nombre: 'main.tex', datos: enc.encode(tex) }];
   const faltan = [];
@@ -85,6 +163,10 @@ export async function descargarZip() {
   });
   descargar(`${base()}.zip`, crearZip(archivos), 'application/zip');
   if (faltan.length) aviso(`No se pudieron incluir estas imágenes: ${faltan.join(', ')}`, 'error', 6000);
+}
+
+export function descargarZip() {
+  trasRevision('Descargar .zip de todos modos', (generado) => { descargarZipDirecto(generado); });
 }
 
 export function descargarJSON() {
@@ -111,8 +193,7 @@ export function imprimirPDF() {
 
 // ── Overleaf ────────────────────────────────────────────────────────────
 
-export function abrirOverleaf() {
-  const { tex, imagenes } = textoLatex();
+function abrirOverleafDirecto({ tex, imagenes }) {
   const enviar = () => {
     const f = h('form', { action: 'https://www.overleaf.com/docs', method: 'post', target: '_blank', style: { display: 'none' } },
       h('input', { type: 'hidden', name: 'snip', value: tex }),
@@ -128,7 +209,11 @@ export function abrirOverleaf() {
     acciones: [
       { texto: 'Cancelar', fn: (c) => c(null) },
       { texto: 'Abrir solo el texto', fn: (c) => { enviar(); c(true); } },
-      { texto: 'Descargar .zip', primario: true, fn: (c) => { descargarZip(); c(true); } },
+      { texto: 'Descargar .zip', primario: true, fn: (c) => { descargarZipDirecto({ tex, imagenes }); c(true); } },
     ],
   });
+}
+
+export function abrirOverleaf() {
+  trasRevision('Continuar hacia Overleaf', (generado) => abrirOverleafDirecto(generado));
 }

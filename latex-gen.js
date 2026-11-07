@@ -4,8 +4,8 @@
 //   · El .tex generado compila con pdfLaTeX en una distribución estándar (TeX Live / MiKTeX / Overleaf).
 //   · Lo que genera esta función lo vuelve a leer latex-parse.js sin perder nada (ida y vuelta estable).
 
-import { TEOREMAS, NIVELES, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.06-d';
-import { libreriasNecesarias } from './tikz-libs.js?v=2026.11.06-d';
+import { TEOREMAS, NIVELES, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.07-a';
+import { libreriasNecesarias } from './tikz-libs.js?v=2026.11.07-a';
 
 const ESC = { '\\': '\\textbackslash{}', '&': '\\&', '%': '\\%', '$': '\\$', '#': '\\#', '_': '\\_', '{': '\\{', '}': '\\}', '~': '\\textasciitilde{}', '^': '\\textasciicircum{}', '\u00a0': '~' };
 // Símbolos Unicode que pdfLaTeX no entiende por sí solo: se escriben como comandos de LaTeX.
@@ -80,6 +80,7 @@ const USOS_RAW = [
   [/\\multirow\b/, 'multirow'],
   [/\\(newcolumntype|arraybackslash|extrarowheight)\b|>\{\\/, 'array'],
   [/\\begin\{tabularx\}/, 'tabularx'],
+  [/\\begin\{tabulary\}/, 'tabulary'],
   [/\\begin\{longtable\}/, 'longtable'],
   [/\\(makecell|thead|makegapedcells)\b/, 'makecell'],
   // flotantes, columnas y pies
@@ -139,7 +140,7 @@ function detectarUsos(tex, ctx) {
 }
 
 /** Paquetes que se añaden solos, en este orden, justo antes del preámbulo propio. */
-export const PAQUETES_AUTO = ['xcolor', 'colortbl', 'array', 'tabularx', 'longtable', 'makecell', 'multirow', 'float', 'multicol', 'wrapfig', 'caption', 'subcaption', 'enumitem', 'enumerate', 'siunitx', 'bm', 'cancel', 'mathtools', 'mathrsfs', 'bbm', 'mhchem',
+export const PAQUETES_AUTO = ['xcolor', 'colortbl', 'array', 'tabularx', 'tabulary', 'longtable', 'makecell', 'multirow', 'float', 'multicol', 'wrapfig', 'caption', 'subcaption', 'enumitem', 'enumerate', 'siunitx', 'bm', 'cancel', 'mathtools', 'mathrsfs', 'bbm', 'mhchem',
   // símbolos y utilidades matemáticas sin configuración ni orden crítico
   'esint', 'stmaryrd', 'upgreek', 'dsfont', 'extarrows', 'centernot', 'nicefrac', 'tensor',
   // texto/tipografía sin orden crítico
@@ -175,34 +176,61 @@ function listaATex(items, ord, ctx, desc = false, envPropio = '', opt = '') {
   return o.trimEnd();
 }
 
-/** Celda con saltos de línea: una tabla anidada (sin paquetes extra), entre llaves para no partir la fila. */
-function celdaATex(c, al, ctx) {
-  const n = recortarBr(c);
-  const s = inlineATex(n, ctx);
-  if (!n.some((x) => x.br)) return s;
-  return `{\\begin{tabular}[t]{@{}${al}@{}}${s}\\end{tabular}}`;
+/** Contenido inline de una celda normal o fusionada. */
+const contenidoCelda = (c) => Array.isArray(c) ? c : (c && Array.isArray(c.c) ? c.c : []);
+const cubierta = (c) => !!(c && !Array.isArray(c) && c.cover);
+
+/** Celda con saltos de línea y, si corresponde, envoltorios multirow/multicolumn. */
+function celdaATex(c, al, ctx, negrita = false) {
+  const meta = Array.isArray(c) ? {} : (c || {});
+  const n = recortarBr(contenidoCelda(c));
+  let s = inlineATex(n, ctx);
+  if (n.some((x) => x.br)) s = `{\\begin{tabular}[t]{@{}${al}@{}}${s}\\end{tabular}}`;
+  if (negrita && s) s = `\\textbf{${s}}`;
+  if (meta.rowspan > 1) {
+    ctx.usos.add('multirow');
+    s = `\\multirow{${meta.rowspan}}{${meta.anchoFila || '*'}}{${s}}`;
+  }
+  if (meta.colspan > 1) s = `\\multicolumn{${meta.colspan}}{${meta.spec || meta.al || al}}{${s}}`;
+  return s;
 }
 
 function tablaATex(b, ctx) {
   const cols = b.al.length;
   const barra = b.borde === 'completo' ? '|' : '';
-  const spec = barra + b.al.join(barra) + barra;
+  const specSimple = barra + b.al.join(barra) + barra;
+  const spec = b.spec || specSimple;
+  const env = ['tabularx', 'tabulary'].includes(b.env) && b.spec ? b.env : 'tabular';
+  if (env === 'tabularx') ctx.usos.add('tabularx');
+  if (env === 'tabulary') ctx.usos.add('tabulary');
+  if (/[pmb]\{|[><@!]\{/.test(spec)) ctx.usos.add('array');
   const hor = b.borde === 'horizontal';
   if (hor) ctx.usos.add('booktabs');
   const lin = (tipo) => (b.borde === 'completo' ? '\\hline\n' : hor ? { top: '\\toprule\n', mid: '\\midrule\n', bot: '\\bottomrule\n' }[tipo] : '');
-  let t = `\\begin{tabular}{${spec}}\n` + lin('top');
+  const apertura = env === 'tabular' ? `\\begin{tabular}{${spec}}` : `\\begin{${env}}{${b.anchoTab || '\\linewidth'}}{${spec}}`;
+  let t = apertura + '\n' + lin('top');
   b.filas.forEach((f, i) => {
-    const cel = f.map((c, j) => {
-      const s = celdaATex(c, b.al[j] || 'l', ctx);
-      return b.enc && i === 0 && s ? `\\textbf{${s}}` : s;
-    });
-    while (cel.length < cols) cel.push('');
+    const cel = [];
+    for (let j = 0; j < cols; j++) {
+      const c = f[j];
+      if (cubierta(c)) {
+        // Un colspan ya consume sus columnas en esta misma fila. Un rowspan que viene de una fila
+        // anterior necesita, en cambio, un campo vacío para conservar la posición de los &.
+        if (c.cover[0] < i) cel.push('');
+        continue;
+      }
+      const al = !Array.isArray(c) && c && c.al || b.al[j] || 'l';
+      cel.push(celdaATex(c, al, ctx, b.enc && i === 0));
+    }
     t += cel.join(' & ') + ' \\\\\n';
-    if (i === 0 && b.enc && b.filas.length > 1) t += lin('mid');
-    else if (b.borde === 'completo') t += '\\hline\n';
+    const sigueRowspan = i + 1 < b.filas.length && b.filas[i + 1].some((c) => cubierta(c) && c.cover[0] <= i);
+    if (!sigueRowspan) {
+      if (i === 0 && b.enc && b.filas.length > 1) t += lin('mid');
+      else if (b.borde === 'completo') t += '\\hline\n';
+    }
   });
   if (hor) t += lin('bot');
-  t += '\\end{tabular}';
+  t += `\\end{${env}}`;
   if (b.pie && b.pie.length) {
     // en las tablas el pie va arriba (convención tipográfica habitual)
     return `\\begin{table}[htbp]\n\\centering\n\\caption{${inlineATex(recortarBr(b.pie), ctx)}}\n${b.label ? `\\label{${b.label}}\n` : ''}${t}\n\\end{table}`;

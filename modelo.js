@@ -147,6 +147,14 @@ export const TIPOS_BLOQUE = ['p', 'h', 'lista', 'eq', 'tabla', 'fig', 'cod', 'te
 
 const cadena = (v, max) => String(v == null ? '' : v).slice(0, max);
 const entre = (v, a, b, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(b, Math.max(a, n)) : d; };
+const enteroEntre = (v, a, b, d) => { const n = Number(v); return Number.isInteger(n) ? Math.min(b, Math.max(a, n)) : d; };
+const texCorto = (v, max) => {
+  const s = cadena(v, max);
+  if (!s || /[\r\n]/.test(s)) return '';
+  let nivel = 0;
+  for (let i = 0; i < s.length; i++) { if (s[i] === '\\') { i++; continue; } if (s[i] === '{') nivel++; else if (s[i] === '}' && --nivel < 0) return ''; }
+  return nivel === 0 ? s : '';
+};
 const etiqueta = (v) => cadena(v, 60).replace(/[^\w:.-]/g, '');
 
 /** Solo direcciones web, correo o relativas: un «javascript:» de un .tex importado no debe poder abrirse. */
@@ -203,11 +211,54 @@ export function sanearBloque(b) {
       return { t, env, tex: cadena(b.tex, 8000), num: !!b.num && !EQ_SIN_NUMERO.has(env), label: etiqueta(b.label) };
     }
     case 'tabla': {
-      const filas = (Array.isArray(b.filas) ? b.filas : []).slice(0, 100).map((f) => (Array.isArray(f) ? f : []).slice(0, 20).map((c) => sanearInline(c)));
-      const cols = Math.max(1, ...filas.map((f) => f.length));
-      filas.forEach((f) => { while (f.length < cols) f.push([]); });
+      // Compatibilidad: una celda normal sigue siendo un array inline. Las fusionadas son
+      // { c:[…], colspan?, rowspan?, al?, spec?, anchoFila? }; las cubiertas, { cover:[fila,col] }.
+      const crudas = (Array.isArray(b.filas) ? b.filas : []).slice(0, 100).map((f) => (Array.isArray(f) ? f : []).slice(0, 20).map((c) => {
+        if (Array.isArray(c)) return sanearInline(c);
+        if (!c || typeof c !== 'object') return [];
+        if (Array.isArray(c.cover)) return null; // se reconstruye desde la celda ancla
+        const o = { c: sanearInline(c.c) };
+        const colspan = enteroEntre(c.colspan, 1, 20, 1), rowspan = enteroEntre(c.rowspan, 1, 100, 1);
+        if (colspan > 1) o.colspan = colspan;
+        if (rowspan > 1) o.rowspan = rowspan;
+        if (['l', 'c', 'r'].includes(c.al)) o.al = c.al;
+        const specCelda = texCorto(c.spec, 200), anchoFila = texCorto(c.anchoFila, 80);
+        if (specCelda) o.spec = specCelda;
+        if (anchoFila) o.anchoFila = anchoFila;
+        return o;
+      }));
+      const filas = crudas.length ? crudas : [[[]]];
+      let cols = Math.max(1, Number(b.al && b.al.length) || 0, ...filas.map((f) => Math.max(f.length, ...f.map((c, j) => j + (c && !Array.isArray(c) && !c.cover ? (c.colspan || 1) : 1)))));
+      cols = Math.min(20, cols);
+      filas.forEach((f) => { while (f.length < cols) f.push([]); if (f.length > cols) f.length = cols; });
+      // Rehacer la cuadrícula de coberturas. Si una fusión malformada solapa contenido, se deshace
+      // esa fusión antes que borrar texto importado.
+      for (let i = 0; i < filas.length; i++) for (let j = 0; j < cols; j++) {
+        const c = filas[i][j];
+        if (c === null) filas[i][j] = [];
+      }
+      for (let i = 0; i < filas.length; i++) for (let j = 0; j < cols; j++) {
+        const c = filas[i][j];
+        if (!c || Array.isArray(c)) continue;
+        let cs = Math.min(c.colspan || 1, cols - j), rs = Math.min(c.rowspan || 1, filas.length - i);
+        let solapa = false;
+        for (let y = i; y < i + rs && !solapa; y++) for (let x = j; x < j + cs; x++) {
+          if (y === i && x === j) continue;
+          const v = filas[y][x];
+          if (v && (Array.isArray(v) ? v.length : !v.cover)) { solapa = true; break; }
+        }
+        if (solapa) { delete c.colspan; delete c.rowspan; continue; }
+        if (cs > 1) c.colspan = cs; else delete c.colspan;
+        if (rs > 1) c.rowspan = rs; else delete c.rowspan;
+        for (let y = i; y < i + rs; y++) for (let x = j; x < j + cs; x++) if (y !== i || x !== j) filas[y][x] = { cover: [i, j] };
+      }
       const al = Array.from({ length: cols }, (_, i) => (['l', 'c', 'r'].includes(b.al && b.al[i]) ? b.al[i] : 'l'));
-      return { t, filas: filas.length ? filas : [[[]]], enc: !!b.enc, al, borde: ['completo', 'horizontal', 'ninguno'].includes(b.borde) ? b.borde : 'completo', pie: sanearInline(b.pie), label: etiqueta(b.label) };
+      const o = { t, filas, enc: !!b.enc, al, borde: ['completo', 'horizontal', 'ninguno'].includes(b.borde) ? b.borde : 'completo', pie: sanearInline(b.pie), label: etiqueta(b.label) };
+      if (['tabular', 'tabularx', 'tabulary'].includes(b.env)) o.env = b.env;
+      const specTabla = texCorto(b.spec, 1000), anchoTab = texCorto(b.anchoTab, 100);
+      if (specTabla) o.spec = specTabla;
+      if (anchoTab) o.anchoTab = anchoTab;
+      return o;
     }
     case 'fig': return {
       t, src: /^data:image\/(png|jpe?g|gif|webp);base64,[a-z0-9+/=]+$/i.test(b.src || '') || /^https:\/\/[^\s"'<>]+$/i.test(b.src || '') ? b.src : '',

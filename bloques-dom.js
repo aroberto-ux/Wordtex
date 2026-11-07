@@ -1,10 +1,10 @@
 // Cada bloque del modelo ⇄ su representación editable en la página.
 
-import { h } from './ui.js?v=2026.11.06-d';
-import { TEOREMAS, LENGUAJES_COD, textoPlano } from './modelo.js?v=2026.11.06-d';
-import { rellenar, leerInline, renderMate, pintarInline } from './inline-dom.js?v=2026.11.06-d';
-import { rotulos } from './numerar.js?v=2026.11.06-d';
-import { texParaMate, vistaBloqueRaw, tipoVistaRaw, dibujarTikz } from './vista-latex.js?v=2026.11.06-d';
+import { h } from './ui.js?v=2026.11.07-a';
+import { TEOREMAS, LENGUAJES_COD, textoPlano } from './modelo.js?v=2026.11.07-a';
+import { rellenar, leerInline, renderMate, pintarInline } from './inline-dom.js?v=2026.11.07-a';
+import { rotulos } from './numerar.js?v=2026.11.07-a';
+import { texParaMate, vistaBloqueRaw, tipoVistaRaw, dibujarTikz } from './vista-latex.js?v=2026.11.07-a';
 
 const PH = {
   p: 'Escribe aquí… (pulsa «/» para insertar algo)', h: 'Título', teo: 'Enunciado…', cita: 'Texto de la cita…', resumen: 'Escribe el resumen…',
@@ -52,10 +52,19 @@ function pintarTabla(b) {
   const cuerpo = h('tbody');
   b.filas.forEach((fila, i) => {
     const tr = h('tr', { class: b.enc && i === 0 ? 'enc' : '' });
-    fila.forEach((c, j) => {
-      const td = ed(c, 'celda', '', { 'data-fila': i, 'data-col': j });
-      td.style.textAlign = { l: 'left', c: 'center', r: 'right' }[b.al[j]] || 'left';
-      tr.append(h('td', {}, td));
+    fila.forEach((celda, j) => {
+      if (celda && !Array.isArray(celda) && celda.cover) return;
+      const meta = Array.isArray(celda) ? {} : (celda || {});
+      const c = Array.isArray(celda) ? celda : (meta.c || []);
+      const editable = ed(c, 'celda', '', { 'data-fila': i, 'data-col': j });
+      editable.style.textAlign = { l: 'left', c: 'center', r: 'right' }[meta.al || b.al[j]] || 'left';
+      const td = h('td', {
+        ...(meta.colspan > 1 ? { colspan: meta.colspan } : {}),
+        ...(meta.rowspan > 1 ? { rowspan: meta.rowspan } : {}),
+        class: meta.colspan > 1 || meta.rowspan > 1 ? 'fusionada' : '',
+      }, editable);
+      if (meta.colspan > 1 || meta.rowspan > 1) td.title = `Celda fusionada (${meta.rowspan || 1} fila(s) × ${meta.colspan || 1} columna(s))`;
+      tr.append(td);
     });
     cuerpo.append(tr);
   });
@@ -168,7 +177,15 @@ export function leerBloque(bq, orig) {
       }),
     };
     case 'tabla': {
-      const filas = Array.from(bq.querySelectorAll('tbody tr')).map((tr) => Array.from(tr.querySelectorAll('.celda')).map((c) => leerInline(c)));
+      // Partir del modelo original conserva spans y celdas cubiertas; el DOM solo contiene las anclas visibles.
+      const filas = JSON.parse(JSON.stringify(base.filas || []));
+      for (const c of bq.querySelectorAll('.celda')) {
+        const i = +c.dataset.fila, j = +c.dataset.col;
+        if (!filas[i] || !filas[i][j]) continue;
+        const texto = leerInline(c);
+        if (Array.isArray(filas[i][j])) filas[i][j] = texto;
+        else filas[i][j] = { ...filas[i][j], c: texto };
+      }
       return { ...base, filas, pie: leerInline(q('.pie')) };
     }
     case 'fig': case 'tikz': return { ...base, pie: leerInline(q('.pie')) };

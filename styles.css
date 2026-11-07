@@ -318,6 +318,8 @@ table.tabx.tabx-horizontal { border-top: 2px solid #111; border-bottom: 2px soli
 table.tabx.tabx-horizontal tr.enc td { border-bottom: 1px solid #111; }
 table.tabx tr.enc td .ed { font-weight: 700; }
 table.tabx .ed.celda { min-height: 1.3em; white-space: pre-wrap; }
+table.tabx td.fusionada { background: rgba(47, 109, 246, .035); }
+table.tabx td.fusionada:focus-within { background: rgba(47, 109, 246, .08); box-shadow: inset 0 0 0 1px rgba(47, 109, 246, .35); }
 .tabla .pie, .fig .pie { margin-top: .4em; text-align: center; font-size: .95em; }
 .tabla .pie::before, .fig .pie::before { content: attr(data-pref); font-weight: 700; }
 .tabla .pie:empty::before, .fig .pie:empty::before { content: attr(data-pref) attr(data-ph); font-weight: 400; }
@@ -577,3 +579,17 @@ table.rv-tab.con-lineas { border-top: 2px solid #111; border-bottom: 2px solid #
 
 /* El espacio vertical (\vspace) es invisible como en el PDF; solo se marca al pasar el ratón */
 .raw:hover .rv-espacio { border-color: #d4cbe8; color: #9a8cbc; }
+
+/* Revisión previa a exportar: problemas explicados para quien no conoce LaTeX */
+.revision-resumen { font-weight: 700; padding: .65em .8em; border-radius: 6px; margin: 0 0 .7em; }
+.revision-resumen.ok { color: #176b38; background: #e9f7ef; }
+.revision-resumen.aviso { color: #7a5200; background: #fff5d9; }
+.revision-resumen.error { color: #9c2525; background: #fdecec; }
+.revision-exportacion ul { list-style: none; padding: 0; margin: 1em 0 0; display: grid; gap: .55em; max-height: 48vh; overflow: auto; }
+.revision-exportacion li { padding: .55em .7em .55em 2em; border: 1px solid var(--borde); border-radius: 6px; position: relative; }
+.revision-exportacion li::before { position: absolute; left: .65em; top: .55em; }
+.revision-exportacion li.revision-error::before { content: '✕'; color: #b52d2d; }
+.revision-exportacion li.revision-aviso::before { content: '⚠'; color: #9a6800; }
+.revision-exportacion li.revision-info::before { content: 'i'; color: var(--sel); font-weight: 700; }
+.revision-exportacion li strong, .revision-exportacion li span { display: block; }
+.revision-exportacion li span { color: var(--suave); font-size: .9em; margin-top: .2em; }
