@@ -2,9 +2,10 @@
 // El «‸» de cada plantilla marca dónde queda el cursor (no se usa «|» porque es un símbolo real: |x|, ‖x‖).
 const CURSOR = '‸';
 
-import { h, modal } from './ui.js?v=2026.11.07-k';
-import { pintorEnVivo } from './mathjax.js?v=2026.11.07-k';
-import { texParaMate } from './vista-latex.js?v=2026.11.07-k';
+import { h, modal } from './ui.js?v=2026.11.07-l';
+import { pintorEnVivo } from './mathjax.js?v=2026.11.07-l';
+import { texParaMate } from './vista-latex.js?v=2026.11.07-l';
+import { resaltarTex } from './resaltar.js?v=2026.11.07-l';
 
 const G = (...l) => l.map((x) => [x[0], x[1] || x[0]]);
 const griegas = [
@@ -70,6 +71,12 @@ export function editarMate({ tex = '', titulo = 'Fórmula', bloque = false, opc 
   return new Promise((res) => {
     const ta = h('textarea', { class: 'mate-ta', rows: bloque ? 5 : 3, spellcheck: 'false', 'aria-label': 'Código de la fórmula', placeholder: 'Escribe la fórmula o usa los botones de arriba…' });
     ta.value = tex;
+    // Coloreado de sintaxis del código de la fórmula: un <pre> detrás del textarea transparente.
+    const preMate = h('pre', { class: 'mate-resalte', 'aria-hidden': 'true' });
+    const cajaMate = h('div', { class: 'mate-editor' }, preMate, ta);
+    const colorear = () => { preMate.innerHTML = resaltarTex(ta.value) + '\n'; preMate.scrollTop = ta.scrollTop; };
+    ta.addEventListener('input', colorear);
+    ta.addEventListener('scroll', () => { preMate.scrollTop = ta.scrollTop; preMate.scrollLeft = ta.scrollLeft; });
     const vista = h('div', { class: 'mate-vista', 'aria-live': 'polite' });
     const aviso = h('div', { class: 'mate-aviso' });
     const env = h('select', { 'aria-label': 'Tipo de ecuación' },
@@ -110,7 +117,7 @@ export function editarMate({ tex = '', titulo = 'Fórmula', bloque = false, opc 
 
     const ejemplos = h('select', { 'aria-label': 'Insertar un ejemplo', onchange: (e) => {
       const i = +e.target.value; e.target.value = '';
-      if (i >= 0 && EJEMPLOS[i]) { ta.value = EJEMPLOS[i][1]; if (bloque && EJEMPLOS[i][1].includes('&')) env.value = 'align'; pintar(true); ta.focus(); }
+      if (i >= 0 && EJEMPLOS[i]) { ta.value = EJEMPLOS[i][1]; if (bloque && EJEMPLOS[i][1].includes('&')) env.value = 'align'; pintar(true); colorear(); ta.focus(); }
     } }, h('option', { value: '' }, 'Ejemplos…'), EJEMPLOS.map(([n], i) => h('option', { value: i }, n)));
 
     const opcBloque = bloque ? h('div', { class: 'mate-opc' },
@@ -118,9 +125,10 @@ export function editarMate({ tex = '', titulo = 'Fórmula', bloque = false, opc 
       h('label', { class: 'fila' }, num, ' Numerar'),
       h('label', {}, 'Etiqueta ', label)) : null;
 
-    const cuerpoModal = h('div', { class: 'mate' }, pestanas, cuerpo, h('div', { class: 'mate-fila' }, ejemplos), ta, aviso,
+    const cuerpoModal = h('div', { class: 'mate' }, pestanas, cuerpo, h('div', { class: 'mate-fila' }, ejemplos), cajaMate, aviso,
       h('div', { class: 'mate-vista-et' }, 'Vista previa'), vista, opcBloque);
     pintar(true);
+    colorear();
     modal({
       titulo, ancho: 640, clase: 'modal-mate', cuerpo: cuerpoModal,
       acciones: [
