@@ -1,18 +1,18 @@
 // Teclado, pegado, clics y arrastre dentro de la página de edición.
 
-import { S, E } from './estado.js?v=2026.11.06-d';
-import { abrirMenu, aviso } from './ui.js?v=2026.11.06-d';
-import { nuevoId, bloqueNuevo, urlSegura } from './modelo.js?v=2026.11.06-d';
-import { leerInline } from './inline-dom.js?v=2026.11.06-d';
-import { autoAlto, marcarLista, actualizarVistaRaw } from './bloques-dom.js?v=2026.11.06-d';
+import { S, E } from './estado.js?v=2026.11.07-a';
+import { abrirMenu, aviso } from './ui.js?v=2026.11.07-a';
+import { nuevoId, bloqueNuevo, urlSegura } from './modelo.js?v=2026.11.07-a';
+import { leerInline } from './inline-dom.js?v=2026.11.07-a';
+import { autoAlto, marcarLista, actualizarVistaRaw } from './bloques-dom.js?v=2026.11.07-a';
 import {
   mapa, bloqueDe, indiceDe, editablesDe, colocarCursor, marcarSucio, guardarPendientes, editarLista, modificar, reconciliar, enfocar,
   dividirBloque, fusionarConAnterior, eliminarBloque, moverBloqueA, deshacer, rehacer, insertarBloque, convertirBloque,
-} from './ops.js?v=2026.11.06-d';
+} from './ops.js?v=2026.11.07-a';
 import {
   edDe, menuBloque, accionEq, accionImagen, editarExistente, celdaVecina, accionTabla, itemsInsertar, cambiarNivelItem, crearFiguraDesde,
   accionEnlace, formato, accionTikz, editarTermino,
-} from './acciones.js?v=2026.11.06-d';
+} from './acciones.js?v=2026.11.07-a';
 
 const FILA_DE = (ed) => ed.closest('.bq');
 
@@ -84,9 +84,16 @@ function alTeclado(e) {
     if (e.isComposing) return;
     if (t.classList.contains('celda')) {
       e.preventDefault();
-      const todas = Array.from(bq.querySelectorAll('.celda'));
-      const cols = bq.querySelectorAll('tbody tr:first-child .celda').length;
-      const sig = todas[todas.indexOf(t) + cols];
+      const fila = +t.dataset.fila, col = +t.dataset.col;
+      const celdas = [...bq.querySelectorAll('.celda')];
+      const posteriores = celdas.filter((x) => +x.dataset.fila > fila);
+      const proxFila = posteriores.length ? Math.min(...posteriores.map((x) => +x.dataset.fila)) : -1;
+      const enFila = posteriores.filter((x) => +x.dataset.fila === proxFila);
+      // Preferir la celda cuyo intervalo (columna inicial + colspan) cubre la columna actual.
+      const sig = enFila.find((x) => {
+        const ini = +x.dataset.col, fin = ini + ((x.closest('td') && x.closest('td').colSpan) || 1) - 1;
+        return ini <= col && fin >= col;
+      }) || enFila.find((x) => +x.dataset.col >= col) || enFila[0];
       if (sig) colocarCursor(sig, 'fin');
       return;
     }

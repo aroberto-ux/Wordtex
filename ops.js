@@ -1,12 +1,12 @@
 // Núcleo del editor: mantiene la lista de bloques, la dibuja en la página, la guarda en el almacén
 // y aplica cambios de estructura (insertar, dividir, mover, borrar…) con deshacer/rehacer.
 
-import { S, E } from './estado.js?v=2026.11.06-d';
-import { nuevoId, bloqueNuevo } from './modelo.js?v=2026.11.06-d';
-import { diffPorId, firma, necesitaReindexar } from './sync.js?v=2026.11.06-d';
-import { pintarBloque, leerBloque, decorar } from './bloques-dom.js?v=2026.11.06-d';
-import { numerar } from './numerar.js?v=2026.11.06-d';
-import { numerarInline } from './inline-dom.js?v=2026.11.06-d';
+import { S, E } from './estado.js?v=2026.11.07-a';
+import { nuevoId, bloqueNuevo } from './modelo.js?v=2026.11.07-a';
+import { diffPorId, firma, necesitaReindexar } from './sync.js?v=2026.11.07-a';
+import { pintarBloque, leerBloque, decorar } from './bloques-dom.js?v=2026.11.07-a';
+import { numerar } from './numerar.js?v=2026.11.07-a';
+import { numerarInline } from './inline-dom.js?v=2026.11.07-a';
 
 export const bus = new EventTarget();
 const avisar = (tipo, detalle) => bus.dispatchEvent(new CustomEvent(tipo, { detail: detalle }));
@@ -237,8 +237,19 @@ export function enfocar(id, donde = 'fin') {
   if (!bq) return;
   const eds = editablesDe(bq);
   let e, pos = donde;
-  if (donde && typeof donde === 'object') { e = eds[donde.idx]; pos = donde.pos || 'inicio'; }
-  else e = donde === 'fin' ? eds[eds.length - 1] : eds[0];
+  if (donde && typeof donde === 'object') {
+    if (Number.isInteger(donde.fila) && Number.isInteger(donde.col)) {
+      e = bq.querySelector(`.celda[data-fila="${donde.fila}"][data-col="${donde.col}"]`);
+      // La coordenada puede estar cubierta por una fusión: usa una celda visible cuyo intervalo
+      // cubra la columna solicitada, o la más cercana en una fila posterior.
+      if (!e) {
+        const celdas = [...bq.querySelectorAll('.celda')];
+        e = celdas.find((x) => +x.dataset.fila === donde.fila && +x.dataset.col <= donde.col && +x.dataset.col + ((x.closest('td') && x.closest('td').colSpan) || 1) > donde.col)
+          || celdas.find((x) => +x.dataset.fila >= donde.fila && +x.dataset.col >= donde.col) || eds[eds.length - 1];
+      }
+    } else e = eds[donde.idx];
+    pos = donde.pos || 'inicio';
+  } else e = donde === 'fin' ? eds[eds.length - 1] : eds[0];
   if (e) colocarCursor(e, pos);
   else { bq.scrollIntoView({ block: 'nearest' }); }
   S.sel = id;

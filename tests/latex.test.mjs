@@ -190,19 +190,28 @@ test('tabularx se importa como tabla editable (argumento de ancho antes del spec
   assert.deepEqual(m.bloques[0].al, ['l', 'l']); // X → l
 });
 
-test('\\multicolumn en una tabla se importa (contenido en la primera celda abarcada)', () => {
+test('\\multicolumn se importa como celda fusionada y conserva su semántica al exportar', () => {
   const m = parsearTex(docTex('\\begin{tabular}{c c c}\n\\toprule\na & b & c \\\\\n\\midrule\n\\multicolumn{2}{r}{Total} & 20 \\\\\n\\bottomrule\n\\end{tabular}'));
   assert.equal(m.bloques[0].t, 'tabla');
   const ult = m.bloques[0].filas[m.bloques[0].filas.length - 1];
-  assert.deepEqual(ult[0], [{ s: 'Total' }]); // contenido del multicolumn
-  assert.deepEqual(ult[1], []);               // celda abarcada, vacía
+  assert.deepEqual(ult[0], { c: [{ s: 'Total' }], colspan: 2, al: 'r', spec: 'r' });
+  assert.deepEqual(ult[1], { cover: [1, 0] });
   assert.deepEqual(ult[2], [{ s: '20' }]);
+  const t1 = generarTex(m, m.bloques).tex;
+  assert.match(t1, /\\multicolumn\{2\}\{r\}\{Total\}/);
+  const m2 = parsearTex(t1);
+  assert.equal(generarTex(m2, m2.bloques).tex, t1);
 });
 
-test('\\multirow mantiene la tabla como LaTeX avanzado (no representable aún)', () => {
+test('\\multirow se importa como celda fusionada y conserva su semántica al exportar', () => {
   const m = parsearTex(docTex('\\begin{tabular}{c c}\n\\multirow{2}{*}{G} & 1 \\\\\n & 2 \\\\\n\\end{tabular}'));
-  assert.equal(m.bloques[0].t, 'raw');
-  assert.ok(generarTex(m, m.bloques).tex.includes('\\multirow{2}{*}{G}'));
+  assert.equal(m.bloques[0].t, 'tabla');
+  assert.deepEqual(m.bloques[0].filas[0][0], { c: [{ s: 'G' }], rowspan: 2, anchoFila: '*' });
+  assert.deepEqual(m.bloques[0].filas[1][0], { cover: [0, 0] });
+  const t1 = generarTex(m, m.bloques).tex;
+  assert.match(t1, /\\multirow\{2\}\{\*\}\{G\}/);
+  const m2 = parsearTex(t1);
+  assert.equal(generarTex(m2, m2.bloques).tex, t1);
 });
 
 test('detección de paquetes nuevos: cleveref tras hyperref; csquotes/nicefrac/esint antes', () => {

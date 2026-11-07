@@ -17,7 +17,7 @@ Es una página estática (HTML + módulos JS, sin compilación) pensada para **G
 - **Dibujos TikZ**: bloque propio con vista previa en vivo, editor de código al lado, **herramienta de dibujo** (línea, flecha, rectángulo, círculo, texto, borrar; cuadrícula, ajuste, color y grosor) y plantillas (ejes cartesianos, diagrama de flujo, grafo, triángulo con ángulos, árbol). `\usepackage{tikz}` y las `\usetikzlibrary` necesarias se añaden solas.
 - **Plantillas**: en blanco, artículo, tarea, apuntes, informe y carta.
 - **Panel lateral**: esquema, ajustes del documento (clase, fuente, papel, márgenes, idioma, interlineado, columnas, portada), referencias, preámbulo avanzado y ayuda.
-- **Exportar**: `.tex`, `.zip` (con el `.tex` y la carpeta `imagenes/`, listo para compilar), PDF (imprimiendo la vista de página), **abrir en Overleaf** y copia de seguridad `.json`. También se puede **importar** un `.tex` o un `.json`.
+- **Exportar**: `.tex`, `.zip` (con el `.tex` y la carpeta `imagenes/`, listo para compilar), PDF (imprimiendo la vista de página), **abrir en Overleaf** y copia de seguridad `.json`. Antes de exportar hay una revisión en lenguaje sencillo de imágenes/archivos faltantes, referencias y citas rotas, etiquetas repetidas y requisitos de XeLaTeX/LuaLaTeX. También se puede **importar** un `.tex` o un `.json`.
 - **Colaboración** (con Firebase): cada bloque se guarda por separado, así que dos personas pueden escribir a la vez en bloques distintos sin pisarse; se ven los avatares de quienes están en el documento.
 
 ## Publicar en GitHub Pages
@@ -124,9 +124,14 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.07-a**
+- **Celdas fusionadas editables y sin pérdida**: `\multicolumn` y los casos comunes de `\multirow` se importan como celdas HTML fusionadas, se pueden editar visualmente y se vuelven a exportar conservando sus spans, alineación y ancho. La cinta permite unir a la derecha/abajo y separar. Para evitar corrupción, insertar o eliminar filas/columnas queda bloqueado hasta separar las celdas fusionadas.
+- Las tablas `tabularx`/`tabulary` conservan su entorno, ancho y especificación avanzada de columnas. Si una tabla usa reglas parciales (`\cline`, `\cmidrule`) o espaciado explícito por fila, permanece como LaTeX avanzado hasta que Wordtex pueda reproducirlo exactamente.
+- **Revisión antes de exportar**: detecta imágenes y archivos externos faltantes, referencias sin destino, citas sin bibliografía, etiquetas repetidas y documentos que parecen requerir XeLaTeX/LuaLaTeX. Se puede abrir desde Exportar y aparece antes de descargar `.tex`/`.zip` o enviar a Overleaf. Ignora comentarios, `verbatim`, `lstlisting`, `minted` y `\verb` para evitar falsos avisos.
+
 **2026.11.06-d**
 - **Muchos más paquetes de LaTeX se cargan solos** para que el `.tex` compile como en Overleaf sin tocar el preámbulo: `esint`, `stmaryrd`, `upgreek`, `dsfont`, `extarrows`, `centernot`, `nicefrac`, `tensor`, `csquotes`, `gensymb`, `textcomp`, `ragged2e`, `soul`, `cleveref` (se carga después de `hyperref`, como debe ser), `fancyhdr`, `titlesec`, `placeins`, `tcolorbox`, `mdframed`, `adjustbox`, `rotating`, `pdfpages`, `algorithm`/`algpseudocode`, `algorithm2e`, `tikz-cd` y `siunitx` ampliado. Al importar, estos paquetes sin opciones ya no se duplican.
-- **Tablas más parecidas a Overleaf**: las columnas con ancho fijo (`p{…}`, `m{…}`, `b{…}`), decoradores (`>{…}`, `<{…}`, `@{…}`, `!{…}`), `*{n}{…}`, la columna `X` de **tabularx**/**tabulary** y el **`\multicolumn`** ya se importan como tabla editable en vez de quedar como «LaTeX avanzado». (`\multirow` sigue conservándose como avanzado porque abarca varias filas.)
+- **Tablas más parecidas a Overleaf**: las columnas con ancho fijo (`p{…}`, `m{…}`, `b{…}`), decoradores (`>{…}`, `<{…}`, `@{…}`, `!{…}`), `*{n}{…}`, la columna `X` de **tabularx**/**tabulary** y el **`\multicolumn`** ya se importan como tabla editable en vez de quedar como «LaTeX avanzado». La versión siguiente añadió preservación semántica de spans y `\multirow`.
 - **Listas anidadas de hasta 5 niveles** (antes 3), con marcadores por nivel como en LaTeX (viñetas •/–/∗/·/‣; numeradas 1./(a)/i./A.). Las listas con opciones de `enumitem` (`[leftmargin=*, …]`) y `\begin{list}{}{…}` se importan y conservan sus opciones.
 - **Vista previa de fórmulas** más completa: MathJax carga `physics`, `mhchem` y `braket`, y hay macros‑puente para `\nicefrac`, `\oiint`, `\unit`, `\qty` y las griegas rectas (`\upmu`, `\uppi`…).
 

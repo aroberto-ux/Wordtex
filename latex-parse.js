@@ -5,9 +5,9 @@
 
 import {
   cfgPorDefecto, CLASES, IDIOMAS, ALIAS_TEOREMA, compactar, sanearBloque, sanearCfg, sanearBiblio, nuevoId, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas,
-} from './modelo.js?v=2026.11.06-d';
-import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO, PAQUETES_TARDIOS } from './latex-gen.js?v=2026.11.06-d';
-import { tablaMacros } from './macros.js?v=2026.11.06-d';
+} from './modelo.js?v=2026.11.07-a';
+import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO, PAQUETES_TARDIOS } from './latex-gen.js?v=2026.11.07-a';
+import { tablaMacros } from './macros.js?v=2026.11.07-a';
 
 // \ensuremath{\alpha} → α (lo contrario de lo que hace latex-gen.js con los símbolos Unicode)
 const SIMBOLO_DE = new Map(Object.entries(SIMBOLOS).map(([u, cmd]) => [cmd, u]));
@@ -362,58 +362,91 @@ function alineacionesSpec(spec) {
   return al.length ? al : null;
 }
 
-// \multicolumn{n}{spec}{contenido}: n columnas que abarca, su alineación y su contenido
-const MULTICOL = /^\\multicolumn\s*\{\s*(\d+)\s*\}\s*\{([^{}]*)\}\s*\{/;
-
-/** Celda con posible \multicolumn: devuelve { c, span, al } o null si es una celda normal. */
-function celdaMulticol(txt) {
-  const t = txt.trim();
-  const m = MULTICOL.exec(t);
+// Lee un comando que ocupa toda la celda y tiene tres argumentos obligatorios.
+function tresGruposCelda(src, nombre) {
+  const t = src.trim();
+  const m = new RegExp(`^\\\\${nombre}(?![a-zA-Z])`).exec(t);
   if (!m) return null;
-  const g = grupo(t, m.index + m[0].length - 1);
-  if (!g || g.fin !== t.length) return null; // debe ser toda la celda
-  const ali = alineacionesSpec(m[2]);
-  return { c: celdaLimpia(g.txt), span: Math.max(1, +m[1]), al: (ali && ali[0]) || 'l' };
+  let i = saltarEsp(t, m[0].length);
+  const a = grupo(t, i); if (!a) return null;
+  i = saltarEsp(t, a.fin); const b = grupo(t, i); if (!b) return null;
+  i = saltarEsp(t, b.fin); const c = grupo(t, i); if (!c || saltarEsp(t, c.fin) !== t.length) return null;
+  return [a.txt, b.txt, c.txt];
 }
 
-function parsearTabular(cuerpo, spec) {
+/** Celda con posible multicolumn/multirow, incluso anidados. */
+function celdaConSpan(txt) {
+  let contenido = txt.trim(), colspan = 1, rowspan = 1, al = '', spec = '', anchoFila = '';
+  for (let n = 0; n < 3; n++) {
+    const mc = tresGruposCelda(contenido, 'multicolumn');
+    if (mc) {
+      const k = Number(mc[0]); if (!Number.isInteger(k) || k < 1 || k > 20) return null;
+      colspan = k; spec = mc[1];
+      const ali = alineacionesSpec(spec); al = (ali && ali[0]) || 'l'; contenido = mc[2]; continue;
+    }
+    const mr = tresGruposCelda(contenido, 'multirow');
+    if (mr) {
+      const k = Number(mr[0]); if (!Number.isInteger(k) || k < 1 || k > 100) return null;
+      rowspan = k; anchoFila = mr[1]; contenido = mr[2]; continue;
+    }
+    break;
+  }
+  const c = celdaLimpia(contenido);
+  if (colspan === 1 && rowspan === 1) return c;
+  return { c, ...(colspan > 1 ? { colspan, spec, al } : {}), ...(rowspan > 1 ? { rowspan, anchoFila } : {}) };
+}
+
+function parsearTabular(cuerpo, spec, meta = {}) {
   const letras = alineacionesSpec(spec);
   if (!letras) return null;
-  if (/\\multirow\b/.test(cuerpo)) return null; // \multirow abarca filas: no representable aún
+  // Todavía no modelamos reglas parciales ni espacio extra por fila. Convertirlas borraría formato:
+  // se conserva toda la tabla como LaTeX avanzado hasta que el modelo pueda reproducirlas.
+  if (/\\(?:cline|cmidrule)(?:\([^)]*\))?\{/.test(cuerpo) || /\\\\\s*\[[^\]]+\]/.test(cuerpo)) return null;
   let borde = /[|]/.test(spec) ? 'completo' : 'ninguno';
   if (/\\toprule|\\midrule/.test(cuerpo)) borde = 'horizontal';
   else if (borde === 'ninguno' && /\\hline/.test(cuerpo)) borde = 'completo';
-  const limpio = cuerpo.replace(/\\(hline|toprule|midrule|bottomrule)\b/g, '').replace(/\\cline\{[^}]*\}/g, '');
-  const filasTxt = dividirNivel(limpio, '\\\\').map((r) => r.trim()).filter((r, idx, arr) => r !== '' || idx < arr.length - 1);
+  const limpio = cuerpo.replace(/\\(hline|toprule|midrule|bottomrule)\b/g, '');
+  const filasTxt = dividirNivel(limpio, '\\\\').map((r) => r.replace(/^\s*\[[^\]]*\]/, '').trim()).filter((r, idx, arr) => r !== '' || idx < arr.length - 1);
   while (filasTxt.length && filasTxt[filasTxt.length - 1] === '') filasTxt.pop();
   if (!filasTxt.length) return null;
-  // cada fila: expande \multicolumn poniendo el contenido en la primera celda y vacías en las abarcadas
-  let colAl = letras.slice();
-  const filas = filasTxt.map((f) => {
-    const celdas = [];
-    for (const raw of dividirNivel(f, '&')) {
-      const mc = celdaMulticol(raw);
-      if (mc) {
-        celdas.push(mc.c);
-        for (let k = 1; k < mc.span; k++) celdas.push([]);
-        // la alineación del multicolumn marca la columna donde empieza
-        if (celdas.length - mc.span < colAl.length) colAl[celdas.length - mc.span] = mc.al;
-      } else celdas.push(celdaLimpia(raw));
+  const cols = letras.length;
+  const filas = Array.from({ length: filasTxt.length }, () => Array(cols).fill(null));
+  for (let i = 0; i < filasTxt.length; i++) {
+    let col = 0;
+    for (const raw of dividirNivel(filasTxt[i], '&')) {
+      // En la fila cubierta por multirow suele aparecer un & vacío para esa posición: consumirlo.
+      if (!raw.trim() && filas[i][col] && filas[i][col].cover) { col++; continue; }
+      while (col < cols && filas[i][col] && filas[i][col].cover) col++;
+      if (col >= cols) return null;
+      const celda = celdaConSpan(raw);
+      if (celda == null) return null;
+      const cs = Array.isArray(celda) ? 1 : (celda.colspan || 1);
+      const rs = Array.isArray(celda) ? 1 : (celda.rowspan || 1);
+      if (col + cs > cols || i + rs > filas.length) return null;
+      for (let y = i; y < i + rs; y++) for (let x = col; x < col + cs; x++) {
+        if (filas[y][x]) return null; // solapamiento ambiguo: conservar la tabla como LaTeX avanzado
+      }
+      filas[i][col] = celda;
+      for (let y = i; y < i + rs; y++) for (let x = col; x < col + cs; x++) if (y !== i || x !== col) filas[y][x] = { cover: [i, col] };
+      col += cs;
     }
-    return celdas;
-  });
-  const cols = Math.max(colAl.length, ...filas.map((f) => f.length));
-  filas.forEach((f) => { while (f.length < cols) f.push([]); });
-  while (colAl.length < cols) colAl.push('l');
-  colAl = colAl.slice(0, cols);
+    while (col < cols) { if (!filas[i][col]) filas[i][col] = []; col++; }
+  }
+  for (const f of filas) for (let j = 0; j < cols; j++) if (!f[j]) f[j] = [];
   // encabezado: toda la primera fila en negrita
   let enc = false;
+  const contenido = (c) => Array.isArray(c) ? c : c && !c.cover ? c.c : [];
   const f0 = filas[0];
-  if (f0.every((c) => !c.length || c.every((n) => n.s == null || n.b)) && f0.some((c) => c.length)) {
+  if (f0.every((c) => c && c.cover || !contenido(c).length || contenido(c).every((n) => n.s == null || n.b)) && f0.some((c) => contenido(c).length)) {
     enc = true;
-    filas[0] = f0.map((c) => c.map((n) => { if (n.s != null && n.b) { const { b, ...r } = n; return r; } return n; }));
+    filas[0] = f0.map((celda) => {
+      if (celda && celda.cover) return celda;
+      const c = contenido(celda).map((n) => { if (n.s != null && n.b) { const { b, ...r } = n; return r; } return n; });
+      return Array.isArray(celda) ? c : { ...celda, c };
+    });
   }
-  return { t: 'tabla', filas, enc, al: colAl, borde, pie: [], label: '' };
+  const avanzada = meta.env && meta.env !== 'tabular' || /[pmbX>@<!*]/.test(spec);
+  return { t: 'tabla', filas, enc, al: letras, borde, pie: [], label: '', ...(avanzada ? { spec, ...meta } : {}) };
 }
 
 function ambosTabular(cuerpo) {
@@ -424,11 +457,11 @@ function ambosTabular(cuerpo) {
   const nombre = m[1];
   const e = entorno(cuerpo, i);
   if (!e) return null;
-  let k = saltarEsp(e.cuerpoCompleto, 0);
-  if (nombre !== 'tabular') { const ga = grupo(e.cuerpoCompleto, k); if (!ga) return null; k = saltarEsp(e.cuerpoCompleto, ga.fin); }
+  let k = saltarEsp(e.cuerpoCompleto, 0), anchoTab = '';
+  if (nombre !== 'tabular') { const ga = grupo(e.cuerpoCompleto, k); if (!ga) return null; anchoTab = ga.txt; k = saltarEsp(e.cuerpoCompleto, ga.fin); }
   const g = grupo(e.cuerpoCompleto, k);
   if (!g) return null;
-  return { tabla: parsearTabular(e.cuerpoCompleto.slice(g.fin), g.txt), ini: i, fin: e.fin };
+  return { tabla: parsearTabular(e.cuerpoCompleto.slice(g.fin), g.txt, { env: nombre, ...(anchoTab ? { anchoTab } : {}) }), ini: i, fin: e.fin };
 }
 
 const sinPosicion = (c) => c.replace(/^\s*\[[a-zA-Z!]*\]/, '');
@@ -589,11 +622,11 @@ function bloqueEntorno(e, ctx) {
     case 'tikzpicture': { const tk = leerTikz(e.raw); return tk ? [tk] : null; }
     case 'tabular': case 'tabularx': case 'tabulary': {
       // tabularx/tabulary llevan un argumento de ancho ({\textwidth}) antes del spec de columnas
-      let k = saltarEsp(cuerpo, 0);
-      if (nombre !== 'tabular') { const ga = grupo(cuerpo, k); if (!ga) return null; k = saltarEsp(cuerpo, ga.fin); }
+      let k = saltarEsp(cuerpo, 0), anchoTab = '';
+      if (nombre !== 'tabular') { const ga = grupo(cuerpo, k); if (!ga) return null; anchoTab = ga.txt; k = saltarEsp(cuerpo, ga.fin); }
       const g = grupo(cuerpo, k);
       if (!g) return null;
-      const t = parsearTabular(cuerpo.slice(g.fin), g.txt);
+      const t = parsearTabular(cuerpo.slice(g.fin), g.txt, { env: nombre, ...(anchoTab ? { anchoTab } : {}) });
       return t ? [t] : null;
     }
     case 'table': { if (estrella) return null; const t = parsearFloatTabla(cuerpo); return t ? [t] : null; }

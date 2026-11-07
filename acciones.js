@@ -1,20 +1,20 @@
 // Acciones de la cinta y de los bloques: formato, inserciones en el texto, tablas, figuras, menús.
 
-import { S, E } from './estado.js?v=2026.11.06-d';
-import { h, abrirMenu, aviso, pedir } from './ui.js?v=2026.11.06-d';
-import { nuevoId } from './modelo.js?v=2026.11.06-d';
-import { nodoInline, renderMate, leerInline, rellenar, chipRaw } from './inline-dom.js?v=2026.11.06-d';
-import { editarMate } from './matematica.js?v=2026.11.06-d';
-import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.06-d';
-import { etiquetaNueva } from './numerar.js?v=2026.11.06-d';
-import { procesarImagen, marcarLista, chipTermino, NIVELES_LISTA } from './bloques-dom.js?v=2026.11.06-d';
-import { editarTikz } from './tikz-editor.js?v=2026.11.06-d';
-import { textoPlano } from './modelo.js?v=2026.11.06-d';
-import { parsearInline } from './latex-parse.js?v=2026.11.06-d';
+import { S, E } from './estado.js?v=2026.11.07-a';
+import { h, abrirMenu, aviso, pedir } from './ui.js?v=2026.11.07-a';
+import { nuevoId } from './modelo.js?v=2026.11.07-a';
+import { nodoInline, renderMate, leerInline, rellenar, chipRaw } from './inline-dom.js?v=2026.11.07-a';
+import { editarMate } from './matematica.js?v=2026.11.07-a';
+import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.07-a';
+import { etiquetaNueva } from './numerar.js?v=2026.11.07-a';
+import { procesarImagen, marcarLista, chipTermino, NIVELES_LISTA } from './bloques-dom.js?v=2026.11.07-a';
+import { editarTikz } from './tikz-editor.js?v=2026.11.07-a';
+import { textoPlano } from './modelo.js?v=2026.11.07-a';
+import { parsearInline } from './latex-parse.js?v=2026.11.07-a';
 import {
   mapa, bloqueDe, modificar, insertarBloque, eliminarBloque, duplicarBloque, moverBloque, convertirBloque, editarLista,
   guardarPendientes, marcarSucio, numeracion, refrescarDerivados, enfocar, aplicarCambios,
-} from './ops.js?v=2026.11.06-d';
+} from './ops.js?v=2026.11.07-a';
 
 // ── Selección ───────────────────────────────────────────────────────────
 
@@ -302,26 +302,64 @@ export function celdaActual() {
   return e && e.classList && e.classList.contains('celda') ? e : null;
 }
 
+const celdaContenido = (c) => Array.isArray(c) ? c : (c && Array.isArray(c.c) ? c.c : []);
+const celdaCubierta = (c) => !!(c && !Array.isArray(c) && c.cover);
+const celdaFusionada = (c) => !!(c && !Array.isArray(c) && !c.cover && ((c.colspan || 1) > 1 || (c.rowspan || 1) > 1));
+const tablaFusionada = (t) => t.filas.some((r) => r.some((c) => celdaFusionada(c)));
+const contenidoVacio = (c) => !celdaContenido(c).some((n) => n.s == null || String(n.s).trim());
+const simplificarSpec = (t) => { delete t.spec; delete t.anchoTab; delete t.env; };
+
 export function accionTabla(op, valor) {
   const c = celdaActual();
   const id = S.sel; const b = bloqueDe(id);
   if (!b || b.t !== 'tabla') return;
   const f = c ? +c.dataset.fila : 0, k = c ? +c.dataset.col : 0;
   const cols = b.al.length;
-  let foco = { idx: f * cols + k, pos: 'inicio' };
+  const estructural = ['fila+', 'fila-', 'borrar-fila', 'col+', 'col-', 'borrar-col'].includes(op);
+  if (estructural && tablaFusionada(b)) {
+    aviso('Para insertar o eliminar filas/columnas, separa primero las celdas fusionadas. Así no se pierde la estructura LaTeX.', 'info', 6000);
+    return;
+  }
+  // objeto mutable: `modificar` recibe esta misma referencia antes de ejecutar la transformación
+  const foco = { fila: f, col: k, pos: 'inicio' };
+  let mensaje = '';
   modificar(id, (x) => {
-    const t = { ...x, filas: x.filas.map((r) => r.slice()), al: x.al.slice() };
-    if (op === 'fila+') { t.filas.splice(f + 1, 0, Array.from({ length: cols }, () => [])); foco = { idx: (f + 1) * cols + k, pos: 'inicio' }; }
-    else if (op === 'fila-') { t.filas.splice(f, 0, Array.from({ length: cols }, () => [])); foco = { idx: f * cols + k, pos: 'inicio' }; }
-    else if (op === 'borrar-fila') { if (t.filas.length > 1) { t.filas.splice(f, 1); foco = { idx: Math.min(f, t.filas.length - 1) * cols + k, pos: 'inicio' }; } }
-    else if (op === 'col+') { t.filas.forEach((r) => r.splice(k + 1, 0, [])); t.al.splice(k + 1, 0, t.al[k]); const nc = cols + 1; foco = { idx: f * nc + k + 1, pos: 'inicio' }; }
-    else if (op === 'col-') { t.filas.forEach((r) => r.splice(k, 0, [])); t.al.splice(k, 0, t.al[k]); const nc = cols + 1; foco = { idx: f * nc + k, pos: 'inicio' }; }
-    else if (op === 'borrar-col') { if (cols > 1) { t.filas.forEach((r) => r.splice(k, 1)); t.al.splice(k, 1); const nc = cols - 1; foco = { idx: f * nc + Math.min(k, nc - 1), pos: 'inicio' }; } }
-    else if (op === 'al') t.al[k] = valor;
-    else if (op === 'borde') t.borde = valor;
+    const t = { ...x, filas: JSON.parse(JSON.stringify(x.filas)), al: x.al.slice() };
+    if (op === 'fila+') { t.filas.splice(f + 1, 0, Array.from({ length: cols }, () => [])); foco.fila = f + 1; }
+    else if (op === 'fila-') { t.filas.splice(f, 0, Array.from({ length: cols }, () => [])); foco.fila = f; }
+    else if (op === 'borrar-fila') { if (t.filas.length > 1) { t.filas.splice(f, 1); foco.fila = Math.min(f, t.filas.length - 1); } }
+    else if (op === 'col+') { t.filas.forEach((r) => r.splice(k + 1, 0, [])); t.al.splice(k + 1, 0, t.al[k]); foco.col = k + 1; simplificarSpec(t); }
+    else if (op === 'col-') { t.filas.forEach((r) => r.splice(k, 0, [])); t.al.splice(k, 0, t.al[k]); foco.col = k; simplificarSpec(t); }
+    else if (op === 'borrar-col') { if (cols > 1) { t.filas.forEach((r) => r.splice(k, 1)); t.al.splice(k, 1); foco.col = Math.min(k, cols - 2); simplificarSpec(t); } }
+    else if (op === 'al') {
+      t.al[k] = valor;
+      const actual = t.filas[f] && t.filas[f][k];
+      if (actual && !Array.isArray(actual) && !actual.cover) { actual.al = valor; if (actual.colspan > 1) actual.spec = valor; }
+      simplificarSpec(t);
+    } else if (op === 'borde') { t.borde = valor; simplificarSpec(t); }
     else if (op === 'enc') t.enc = !t.enc;
+    else if (op === 'unir-derecha') {
+      const a = t.filas[f] && t.filas[f][k], d = t.filas[f] && t.filas[f][k + 1];
+      if (k + 1 >= cols || celdaCubierta(a) || celdaFusionada(a) || celdaCubierta(d) || celdaFusionada(d)) mensaje = 'Solo se pueden unir dos celdas simples contiguas.';
+      else if (!contenidoVacio(d)) mensaje = 'La celda de la derecha debe estar vacía para evitar perder texto.';
+      else { t.filas[f][k] = { c: celdaContenido(a), colspan: 2, al: t.al[k], spec: t.al[k] }; t.filas[f][k + 1] = { cover: [f, k] }; }
+    } else if (op === 'unir-abajo') {
+      const a = t.filas[f] && t.filas[f][k], d = t.filas[f + 1] && t.filas[f + 1][k];
+      if (f + 1 >= t.filas.length || celdaCubierta(a) || celdaFusionada(a) || celdaCubierta(d) || celdaFusionada(d)) mensaje = 'Solo se pueden unir dos celdas simples contiguas.';
+      else if (!contenidoVacio(d)) mensaje = 'La celda inferior debe estar vacía para evitar perder texto.';
+      else { t.filas[f][k] = { c: celdaContenido(a), rowspan: 2, anchoFila: '*' }; t.filas[f + 1][k] = { cover: [f, k] }; }
+    } else if (op === 'separar') {
+      const a = t.filas[f] && t.filas[f][k];
+      if (!celdaFusionada(a)) mensaje = 'La celda actual no está fusionada.';
+      else {
+        const rs = a.rowspan || 1, cs = a.colspan || 1;
+        for (let y = f; y < f + rs; y++) for (let z = k; z < k + cs; z++) t.filas[y][z] = [];
+        t.filas[f][k] = a.c || [];
+      }
+    }
     return t;
   }, { foco: { id, donde: foco } });
+  if (mensaje) aviso(mensaje, 'info', 5000);
 }
 
 export function accionFig(op, valor) {
