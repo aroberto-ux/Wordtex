@@ -125,6 +125,10 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.07-f**
+- **Tema claro / oscuro manual**: botón en la barra del editor que cambia entre *sistema*, *claro* y *oscuro*. Antes el modo oscuro solo seguía al sistema operativo; ahora se puede forzar y se recuerda. Se aplica antes de pintar, sin parpadeo.
+- **Aspecto más cuidado**: la página del documento «flota» como papel real (sombra más rica, esquinas apenas redondeadas) sobre una zona de trabajo con un degradado suave; microtransiciones en botones, cinta, tarjetas y resaltados para que todo se sienta fluido. Respeta `prefers-reduced-motion`.
+
 **2026.11.07-e**
 - **Sugerencias de código LaTeX** en la vista de código: al escribir `\` seguido de letras aparece un menú con comandos frecuentes (`\section`, `\textbf`, `\frac`, `\includegraphics`, griegas, referencias…) y, dentro de `\begin{…}`, con entornos (`itemize`, `figure`, `table`, `align`, `pmatrix`…). Se navega con ↑/↓, se acepta con Enter o Tab, se cierra con Esc, y las plantillas dejan el cursor en el hueco. `Ctrl+Espacio` lo abre a demanda.
 - **Barras de desplazamiento más finas** y discretas en toda la aplicación.

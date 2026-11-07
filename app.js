@@ -2,13 +2,13 @@
 //   #documentos          → lista
 //   #documentos/<id>     → editor
 
-import { S, E } from './estado.js?v=2026.11.07-e';
-import { iniciarStore } from './store.js?v=2026.11.07-e';
-import { opciones } from './firebase-config.js?v=2026.11.07-e';
-import { $, aviso, h } from './ui.js?v=2026.11.07-e';
-import { VERSION } from './version.js?v=2026.11.07-e';
-import { entrarLista, salirLista } from './lista.js?v=2026.11.07-e';
-import { entrarEditor, salirEditor } from './editor.js?v=2026.11.07-e';
+import { S, E } from './estado.js?v=2026.11.07-f';
+import { iniciarStore } from './store.js?v=2026.11.07-f';
+import { opciones } from './firebase-config.js?v=2026.11.07-f';
+import { $, aviso, h } from './ui.js?v=2026.11.07-f';
+import { VERSION } from './version.js?v=2026.11.07-f';
+import { entrarLista, salirLista } from './lista.js?v=2026.11.07-f';
+import { entrarEditor, salirEditor } from './editor.js?v=2026.11.07-f';
 
 function referencias() {
   Object.assign(E, {
@@ -60,8 +60,31 @@ function mostrarFallo(msg, detalle = '') {
 addEventListener('error', (ev) => mostrarFallo(ev.message || 'error desconocido', ev.error && ev.error.stack ? ev.error.stack : `${ev.filename}:${ev.lineno}`));
 addEventListener('unhandledrejection', (ev) => { const r = ev.reason; mostrarFallo(String((r && r.message) || r), r && r.stack ? r.stack : ''); });
 
+// ── Tema claro / oscuro ──────────────────────────────────────────────────
+// Tres estados: 'sistema' (sigue al SO), 'claro' y 'oscuro'. Se guarda la elección y, en el head,
+// un script la aplica antes de pintar para que no haya parpadeo.
+const TEMAS = ['sistema', 'claro', 'oscuro'];
+const ICONO_TEMA = { sistema: '🖥', claro: '☀', oscuro: '🌙' };
+function temaGuardado() {
+  try { const t = localStorage.getItem('lv.tema'); return TEMAS.includes(t) ? t : 'sistema'; } catch { return 'sistema'; }
+}
+function aplicarTema(t) {
+  if (t === 'sistema') delete document.documentElement.dataset.tema;
+  else document.documentElement.dataset.tema = t;
+  try { if (t === 'sistema') localStorage.removeItem('lv.tema'); else localStorage.setItem('lv.tema', t); } catch { /* ignorar */ }
+  const btn = document.getElementById('btn-tema');
+  if (btn) { btn.textContent = ICONO_TEMA[t]; btn.title = `Tema: ${t === 'sistema' ? 'del sistema' : t} (clic para cambiar)`; }
+}
+function iniciarTema() {
+  const btn = document.getElementById('btn-tema');
+  if (!btn) return;
+  aplicarTema(temaGuardado());
+  btn.addEventListener('click', () => { const i = TEMAS.indexOf(temaGuardado()); aplicarTema(TEMAS[(i + 1) % TEMAS.length]); });
+}
+
 async function arrancar() {
   referencias();
+  iniciarTema();
   const meta = document.querySelector('meta[name="app-version"]');
   if (meta && meta.content !== VERSION) mostrarFallo(`el navegador tiene archivos de dos versiones (${meta.content} y ${VERSION}). Recarga con Ctrl+Shift+R.`);
   document.getElementById('lista-titulo').textContent = opciones.titulo || 'Documentos LaTeX';

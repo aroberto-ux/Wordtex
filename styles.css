@@ -30,12 +30,19 @@
   --w-codigo: 46%;
   --w-panel: 320px;
 }
+/* Paleta oscura: tanto si el sistema la pide (y no se forzó «claro») como si se eligió «oscuro». */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-tema="claro"]) {
     --bg: #0b0e11; --sup: #181c20; --sup2: #1f242a; --borde: #2c333b; --txt: #e8ebee; --suave: #99a3ae;
     --ac: #3fb882; --ac-fg: #05241a; --ac-suave: #16352a; --sel: #6c97ff; --peligro: #ef6c5d; --sombra: 0 6px 24px rgba(0, 0, 0, .5);
   }
 }
+:root[data-tema="oscuro"] {
+  color-scheme: dark;
+  --bg: #0b0e11; --sup: #181c20; --sup2: #1f242a; --borde: #2c333b; --txt: #e8ebee; --suave: #99a3ae;
+  --ac: #3fb882; --ac-fg: #05241a; --ac-suave: #16352a; --sel: #6c97ff; --peligro: #ef6c5d; --sombra: 0 6px 24px rgba(0, 0, 0, .5);
+}
+:root[data-tema="claro"] { color-scheme: light; }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -611,3 +618,48 @@ table.rv-tab.con-lineas { border-top: 2px solid #111; border-bottom: 2px solid #
 .autocompletar-item .ac-desc { color: var(--suave, #888); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
 .autocompletar-item.sel, .autocompletar-item:hover { background: rgba(47, 109, 246, .14); }
 .autocompletar-item.sel .ac-cmd { color: var(--ac, #2f6df6); }
+
+/* ── Pulido visual (2026.11.07-f) ─────────────────────────────────────── */
+
+/* La zona de trabajo: un degradado suave para que la hoja «flote» como papel */
+#zona-visual {
+  background:
+    radial-gradient(1200px 400px at 50% -10%, color-mix(in srgb, var(--sel) 7%, transparent), transparent 70%),
+    var(--bg);
+}
+
+/* La hoja: sombra más rica, esquinas apenas redondeadas y una línea de realce arriba */
+.hoja {
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tinta) 6%, transparent),
+    0 1px 2px rgba(0, 0, 0, .14), 0 10px 30px rgba(0, 0, 0, .16), 0 24px 60px rgba(0, 0, 0, .10);
+  transition: box-shadow .2s ease;
+}
+
+/* Microinteracciones: todo lo interactivo responde con una transición breve */
+.btn, .btn-icono, .tb, .seg button, .plantilla, .tarjeta, .menu-item,
+.esq-f, .panel-tabs button, .asa-btn, .asa-mover, .autocompletar-item {
+  transition: background-color .13s ease, border-color .13s ease, color .13s ease,
+    box-shadow .13s ease, transform .08s ease;
+}
+.btn:active, .btn-icono:active, .tb:active { transform: translateY(1px); }
+.tarjeta { transition: box-shadow .16s ease, transform .16s ease; }
+.tarjeta:hover { transform: translateY(-2px); }
+
+/* La cinta contextual (tabla/figura) entra con un deslizamiento suave */
+.cinta-fila.ctx { animation: ctx-entra .16s ease; }
+@keyframes ctx-entra { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* Bloque recién seleccionado y eco del código: transición del realce */
+.bq { transition: box-shadow .15s ease, background-color .15s ease; }
+
+/* Avisos (toasts): entran deslizando desde abajo */
+.toast { transition: opacity .25s ease, transform .25s ease; }
+
+/* Al cambiar de vista (página/dividida/código) el contenido aparece suavemente */
+.ed-cuerpo > section, .ed-cuerpo > .zona-codigo { transition: opacity .15s ease; }
+
+/* Respeta a quien prefiere menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
