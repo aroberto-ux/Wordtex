@@ -1,8 +1,8 @@
 // Texto en línea del modelo ⇄ DOM editable (contenteditable).
 
-import { compactar } from './modelo.js?v=2026.11.07-a';
-import { vistaRawInline, usarPintorInline } from './vista-latex.js?v=2026.11.07-a';
-import { renderMate as componerMate } from './mathjax.js?v=2026.11.07-a';
+import { compactar } from './modelo.js?v=2026.11.07-b';
+import { vistaRawInline, usarPintorInline } from './vista-latex.js?v=2026.11.07-b';
+import { renderMate as componerMate } from './mathjax.js?v=2026.11.07-b';
 
 /**
  * Fórmula dentro de `el` con MathJax. Es asíncrona: deja un marcador y compone por lotes; devuelve una promesa
