@@ -1,14 +1,14 @@
 // Pestaña «Código»: el documento como LaTeX, editable. Lo que se escribe aquí se interpreta y
 // pasa a la vista visual (y al revés). Lo que no se entiende se conserva como «LaTeX avanzado».
 
-import { S, E } from './estado.js?v=2026.11.07-o';
-import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-o';
-import { generarCodigo, formatoDe } from './generar.js?v=2026.11.07-o';
-import { parsearTex } from './latex-parse.js?v=2026.11.07-o';
-import { diffBloques } from './sync.js?v=2026.11.07-o';
-import { aplicarCambios, guardarPendientes, bus, mapa as mapaBloques, enfocar } from './ops.js?v=2026.11.07-o';
-import { resaltarTex } from './resaltar.js?v=2026.11.07-o';
-import { conectarAutocompletado } from './autocompletar.js?v=2026.11.07-o';
+import { S, E } from './estado.js?v=2026.11.07-p';
+import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-p';
+import { codigoDe, formatoDe } from './generar.js?v=2026.11.07-p';
+import { parsearTex } from './latex-parse.js?v=2026.11.07-p';
+import { diffBloques } from './sync.js?v=2026.11.07-p';
+import { aplicarCambios, guardarPendientes, bus, mapa as mapaBloques, enfocar } from './ops.js?v=2026.11.07-p';
+import { resaltarTex } from './resaltar.js?v=2026.11.07-p';
+import { conectarAutocompletado } from './autocompletar.js?v=2026.11.07-p';
 
 // En Typst (Fase 1) la pestaña de código es de solo lectura: generamos Typst desde los bloques pero
 // todavía no interpretamos Typst de vuelta, así que no hay edición ni sincronización código→documento.
@@ -22,7 +22,10 @@ let aplicando = false;
 let ultimoAplicado = null;
 
 export function textoActual() {
-  return generarCodigo({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques).tex;
+  // En Typst el código editado a mano es la fuente de verdad (incluido el vacío, mismo criterio que el
+  // store: codigoTypst != null). Si aún no existe —documentos anteriores a la fase 2— se genera desde
+  // los bloques. En LaTeX siempre se genera. codigoDe centraliza esa decisión.
+  return codigoDe({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra, codigoTypst: S.doc.codigoTypst }, S.bloques).tex;
 }
 
 // Coloreado: un <pre> con el mismo texto (coloreado) va DEBAJO del textarea, que se vuelve transparente.
@@ -84,11 +87,10 @@ export function mostrarAvisos(lista, error) {
 /** Regenera el texto a partir del modelo (si no se está escribiendo ahí). */
 export function actualizarCodigo(forzar = false) {
   if (S.vista === 'visual' || !S.doc) return;
-  // En Typst el código es solo lectura (aún no se interpreta de vuelta).
-  const typ = esTypst();
-  E.codigoTa.readOnly = typ;
-  E.codigoTa.setAttribute('aria-readonly', String(typ));
-  E.codigoTa.title = typ ? 'Código Typst generado (solo lectura en esta versión)' : '';
+  // En Typst el código SÍ es editable (es la fuente de verdad); en LaTeX siempre lo ha sido.
+  E.codigoTa.readOnly = false;
+  E.codigoTa.removeAttribute('aria-readonly');
+  E.codigoTa.title = '';
   if (!forzar && document.activeElement === E.codigoTa) return;
   const t = textoActual();
   if (E.codigoTa.value !== t) { E.codigoTa.value = t; }
@@ -106,7 +108,16 @@ export function programarActualizacion() {
 }
 
 function aplicarTexto() {
-  if (esTypst()) return;   // Fase 1: el código Typst no se interpreta de vuelta
+  // En Typst el código es la fuente de verdad: se guarda tal cual (no se interpreta de vuelta, no hay
+  // parser Typst). No toca los bloques.
+  if (esTypst()) {
+    const texto = E.codigoTa.value;
+    if (texto === ultimoAplicado) return;
+    S.doc.codigoTypst = texto;
+    S.store.actualizarDocumento(S.did, { codigoTypst: texto });
+    ultimoAplicado = texto;
+    return;
+  }
   const texto = E.codigoTa.value;
   if (texto === ultimoAplicado) return;
   let m;

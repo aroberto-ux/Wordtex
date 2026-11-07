@@ -1,12 +1,12 @@
 // Núcleo del editor: mantiene la lista de bloques, la dibuja en la página, la guarda en el almacén
 // y aplica cambios de estructura (insertar, dividir, mover, borrar…) con deshacer/rehacer.
 
-import { S, E } from './estado.js?v=2026.11.07-o';
-import { nuevoId, bloqueNuevo } from './modelo.js?v=2026.11.07-o';
-import { diffPorId, firma, necesitaReindexar } from './sync.js?v=2026.11.07-o';
-import { pintarBloque, leerBloque, decorar } from './bloques-dom.js?v=2026.11.07-o';
-import { numerar } from './numerar.js?v=2026.11.07-o';
-import { numerarInline } from './inline-dom.js?v=2026.11.07-o';
+import { S, E } from './estado.js?v=2026.11.07-p';
+import { nuevoId, bloqueNuevo } from './modelo.js?v=2026.11.07-p';
+import { diffPorId, firma, necesitaReindexar } from './sync.js?v=2026.11.07-p';
+import { pintarBloque, leerBloque, decorar } from './bloques-dom.js?v=2026.11.07-p';
+import { numerar } from './numerar.js?v=2026.11.07-p';
+import { numerarInline } from './inline-dom.js?v=2026.11.07-p';
 
 export const bus = new EventTarget();
 const avisar = (tipo, detalle) => bus.dispatchEvent(new CustomEvent(tipo, { detail: detalle }));

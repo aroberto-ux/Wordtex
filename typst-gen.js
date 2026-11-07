@@ -7,7 +7,7 @@
 // la matemática, se delega en el paquete `mitex`, que renderiza LaTeX dentro de Typst: #mi(`…`) en línea
 // y #mitex(`…`) en bloque. typst.ts descarga el paquete solo si el documento usa matemáticas.
 
-import { recortarBr } from './latex-gen.js?v=2026.11.07-o';
+import { recortarBr } from './latex-gen.js?v=2026.11.07-p';
 
 // Nombres de archivo de imágenes (misma política que latex-gen: evita colisiones en el proyecto).
 const ARCHIVO_RE = /[^\w.-]/g;

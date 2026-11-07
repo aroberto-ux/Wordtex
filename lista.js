@@ -1,12 +1,12 @@
 // Lista de documentos: crear (con plantillas), importar .tex / .json, renombrar, duplicar, descargar, eliminar.
 
-import { S, E } from './estado.js?v=2026.11.07-o';
-import { h, aviso, pedir, confirmar, abrirMenu, hace, modal, descargar, nombreArchivo } from './ui.js?v=2026.11.07-o';
-import { PLANTILLAS, PLANTILLAS_TYPST, crearDesdePlantilla } from './plantillas.js?v=2026.11.07-o';
-import { parsearTex } from './latex-parse.js?v=2026.11.07-o';
-import { generarCodigo, extensionDe } from './generar.js?v=2026.11.07-o';
-import { sanearBloque, FORMATOS } from './modelo.js?v=2026.11.07-o';
-import { resumenImportacion } from './vista-latex.js?v=2026.11.07-o';
+import { S, E } from './estado.js?v=2026.11.07-p';
+import { h, aviso, pedir, confirmar, abrirMenu, hace, modal, descargar, nombreArchivo } from './ui.js?v=2026.11.07-p';
+import { PLANTILLAS, PLANTILLAS_TYPST, crearDesdePlantilla } from './plantillas.js?v=2026.11.07-p';
+import { parsearTex } from './latex-parse.js?v=2026.11.07-p';
+import { generarCodigo, codigoDe, extensionDe } from './generar.js?v=2026.11.07-p';
+import { sanearBloque, FORMATOS } from './modelo.js?v=2026.11.07-p';
+import { resumenImportacion } from './vista-latex.js?v=2026.11.07-p';
 
 let unsub = null;
 let cableado = false;
@@ -105,8 +105,12 @@ async function nueva() {
     const nombre = titulo.value.trim() || 'Documento sin título';
     const d = crearDesdePlantilla(elegida, nombre, formato);
     // en el documento en blanco el título de la portada es el nombre que se escribió
-    if (/blanco/.test(elegida) && nombre !== 'Documento sin título') d.cfg.titulo = nombre;
-    const id = await S.store.crearDocumento({ titulo: nombre, cfg: d.cfg, biblio: d.biblio, extra: d.extra }, d.bloques);
+    if (/blanco/.test(elegida) && nombre !== 'Documento sin título') {
+      d.cfg.titulo = nombre;
+      // el código Typst se genera con el título de la plantilla: hay que regenerarlo con el nuevo
+      if (d.codigoTypst != null) d.codigoTypst = generarCodigo({ cfg: d.cfg, biblio: d.biblio, extra: d.extra }, d.bloques).tex;
+    }
+    const id = await S.store.crearDocumento({ titulo: nombre, cfg: d.cfg, biblio: d.biblio, extra: d.extra, codigoTypst: d.codigoTypst }, d.bloques);
     location.hash = `#documentos/${id}`;
   } catch (e) {
     console.error(e);
@@ -132,7 +136,7 @@ async function descargarTexDe(d) {
   try {
     const o = await S.store.exportar(d.id);
     const bloques = o.bloques.map((b) => ({ ...sanearBloque(b), id: '' }));
-    const { tex, imagenes } = generarCodigo({ cfg: o.cfg, biblio: o.biblio, extra: o.extra }, bloques);
+    const { tex, imagenes } = codigoDe({ cfg: o.cfg, biblio: o.biblio, extra: o.extra, codigoTypst: o.codigoTypst }, bloques);
     const ext = extensionDe({ cfg: o.cfg });
     descargar(`${nombreArchivo(d.titulo)}.${ext}`, tex, ext === 'typ' ? 'text/plain;charset=utf-8' : 'application/x-tex;charset=utf-8');
     if (imagenes.length) aviso('Tiene imágenes: abre el documento y descarga el .zip para incluirlas.', 'info', 6000);

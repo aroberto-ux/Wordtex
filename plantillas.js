@@ -1,7 +1,8 @@
 // Plantillas de documentos. Están escritas en LaTeX y se interpretan con el mismo lector que
 // usa la pestaña «Código», así que lo que se ve aquí es exactamente lo que se podrá editar.
 
-import { parsearTex } from './latex-parse.js?v=2026.11.07-o';
+import { parsearTex } from './latex-parse.js?v=2026.11.07-p';
+import { generarTypst } from './typst-gen.js?v=2026.11.07-p';
 
 const CABECERA = String.raw`\documentclass[11pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
@@ -247,7 +248,10 @@ export function crearDesdePlantilla(id, titulo, formato = 'latex') {
     if (!cfg.titulo && titulo) cfg.titulo = titulo;
     const bloques = JSON.parse(JSON.stringify(p.bloques));
     if (!bloques.length) bloques.push({ t: 'p', c: [], al: 'j' });
-    return { titulo: titulo || p.nombre, cfg, biblio: [], extra: '', bloques };
+    // El código Typst es la fuente de verdad: se genera una vez desde los bloques de la plantilla y a
+    // partir de ahí el usuario lo edita a mano.
+    const codigoTypst = generarTypst({ cfg, biblio: [], extra: '' }, bloques).tex;
+    return { titulo: titulo || p.nombre, cfg, biblio: [], extra: '', bloques, codigoTypst };
   }
   const p = PLANTILLAS.find((x) => x.id === id) || PLANTILLAS[0];
   const m = parsearTex(p.tex);

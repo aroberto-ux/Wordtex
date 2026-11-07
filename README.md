@@ -125,6 +125,9 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.07-p**
+- **Editar el código Typst**: en un documento Typst, la pestaña «Código» ahora es **editable** y el código es la **fuente de verdad** (se guarda tal cual, no se regenera desde los bloques). Escribes Typst, se persiste, y al pulsar «Compilar PDF» se compila exactamente lo que escribiste. Como todavía no hay lector de Typst, la vista «documento» muestra un aviso (la edición es por código) y arranca directamente en la vista de código. Los documentos LaTeX siguen igual (bloques como fuente de verdad, código bidireccional).
+
 **2026.11.07-o**
 - **Soporte de Typst (fase 1)**: al crear un documento nuevo ahora puedes elegir **LaTeX** o **Typst**. Un documento Typst se edita con la misma vista visual de siempre (párrafos, secciones, listas, tablas, fórmulas…), la pestaña «Código» muestra el **código Typst** generado, y el botón **«Compilar PDF»** lo compila en el navegador con typst.ts (WebAssembly, sin servidor; descarga el motor la primera vez). Las fórmulas se reutilizan tal cual vía el paquete `mitex`. Puedes descargar el `.typ`. Limitaciones de esta fase: el código Typst es de solo lectura (todavía no se importa ni se edita a mano), y TikZ y «LaTeX avanzado» no tienen equivalente en Typst (se avisan).
 
