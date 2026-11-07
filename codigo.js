@@ -1,12 +1,12 @@
 // Pestaña «Código»: el documento como LaTeX, editable. Lo que se escribe aquí se interpreta y
 // pasa a la vista visual (y al revés). Lo que no se entiende se conserva como «LaTeX avanzado».
 
-import { S, E } from './estado.js?v=2026.11.07-b';
-import { generarTex } from './latex-gen.js?v=2026.11.07-b';
-import { parsearTex } from './latex-parse.js?v=2026.11.07-b';
-import { diffBloques } from './sync.js?v=2026.11.07-b';
-import { aplicarCambios, guardarPendientes, bus } from './ops.js?v=2026.11.07-b';
-import { resaltarTex } from './resaltar.js?v=2026.11.07-b';
+import { S, E } from './estado.js?v=2026.11.07-c';
+import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-c';
+import { parsearTex } from './latex-parse.js?v=2026.11.07-c';
+import { diffBloques } from './sync.js?v=2026.11.07-c';
+import { aplicarCambios, guardarPendientes, bus } from './ops.js?v=2026.11.07-c';
+import { resaltarTex } from './resaltar.js?v=2026.11.07-c';
 
 let tPeg = null, tGen = null;
 let aplicando = false;
@@ -109,6 +109,33 @@ function aplicarTexto() {
     mostrarAvisos(m.avisos);
     ultimoAplicado = texto;
   } finally { aplicando = false; }
+}
+
+/**
+ * Lleva el cursor del editor de código al bloque `id` (doble clic en la vista del documento, como el
+ * SyncTeX inverso de Overleaf). Si el documento está en vista «visual» pasa a «dividida» para que el
+ * código sea visible.
+ */
+export function irABloque(id) {
+  if (!S.doc) return false;
+  if (S.vista === 'visual') bus.dispatchEvent(new CustomEvent('ir-vista', { detail: 'dividida' }));
+  // asegurar que el textarea tiene el .tex al día (si veníamos de la vista visual estaba en pausa)
+  actualizarCodigo(true);
+  const tex = E.codigoTa.value;
+  const pos = mapearBloques({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques, tex).get(id);
+  if (pos == null) return false;
+  const ta = E.codigoTa;
+  // seleccionar la primera línea del bloque ayuda a verlo; el cursor queda al inicio
+  const finLinea = tex.indexOf('\n', pos);
+  ta.focus({ preventScroll: true });
+  ta.setSelectionRange(pos, finLinea < 0 ? tex.length : finLinea);
+  // desplazar para dejar la línea cerca de un tercio superior del área visible
+  const antes = tex.slice(0, pos);
+  const linea = (antes.match(/\n/g) || []).length;
+  const alturaLinea = ta.scrollHeight / ((tex.match(/\n/g) || []).length + 1);
+  ta.scrollTop = Math.max(0, (linea - 3) * alturaLinea);
+  gutter();
+  return true;
 }
 
 export function iniciarCodigo() {

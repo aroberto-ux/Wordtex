@@ -12,7 +12,7 @@ Es una página estática (HTML + módulos JS, sin compilación) pensada para **G
 - **Notas al pie, referencias cruzadas, citas y bibliografía**, enlaces.
 - **Numeración como en LaTeX** (secciones, ecuaciones, figuras, tablas, teoremas) y **vista de página** con aspecto de documento compilado.
 - **Menú `/`** para insertar bloques escribiendo, atajos de teclado, deshacer/rehacer, arrastrar bloques.
-- **Vista de código**: el `.tex` completo, editable. Lo que no se entiende se conserva tal cual (como bloque «LaTeX avanzado»), nada se pierde.
+- **Vista de código**: el `.tex` completo, editable. Lo que no se entiende se conserva tal cual (como bloque «LaTeX avanzado»), nada se pierde. **Doble clic** en el documento lleva el cursor del código a esa parte (como en Overleaf).
 - **LaTeX avanzado con vista previa**: lo que no tiene editor propio se ve renderizado encima de su código (ecuaciones con MathJax, tablas con `\multicolumn`/`\multirow`, `minipage` y entornos propios, `\hrule`, `\vspace`, `\input`, `\bibliography`…). El código está en «Ver/editar código» y la vista previa lo sigue mientras se escribe. En el texto, `\textcolor`, `\textsc`, `\verb`, `\lstinline`, `\today`, `\LaTeX` o `{\small …}` se ven con su formato y se editan con un clic.
 - **Dibujos TikZ**: bloque propio con vista previa en vivo, editor de código al lado, **herramienta de dibujo** (línea, flecha, rectángulo, círculo, texto, borrar; cuadrícula, ajuste, color y grosor) y plantillas (ejes cartesianos, diagrama de flujo, grafo, triángulo con ángulos, árbol). `\usepackage{tikz}` y las `\usetikzlibrary` necesarias se añaden solas.
 - **Plantillas**: en blanco, artículo, tarea, apuntes, informe y carta.
@@ -123,6 +123,9 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 - **No aparece la lista de documentos de otra persona**: en modo local cada navegador tiene los suyos; hace falta Firebase para compartir.
 
 ## Cambios
+
+**2026.11.07-c**
+- **Doble clic → código** (como el SyncTeX inverso de Overleaf): al hacer doble clic en cualquier parte del documento, el editor de código LaTeX salta a la línea de ese bloque y la resalta. Si estabas en la vista «Visual», se abre la vista «Dividida» para que el código sea visible.
 
 **2026.11.07-b**
 - Listas: un `\item` seguido solo de `[texto]` (p. ej. `\item [Ensayo 1: …]`) en `itemize`/`enumerate` ahora se lee como el **contenido** del elemento, no como una viñeta propia que dejaba el elemento vacío. Las etiquetas de verdad (`\item[a)] texto`) y las listas de descripción no cambian.

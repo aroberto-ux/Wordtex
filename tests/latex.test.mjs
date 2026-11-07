@@ -3,7 +3,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generarTex } from '../latex-gen.js';
+import { generarTex, mapearBloques } from '../latex-gen.js';
 import { parsearTex } from '../latex-parse.js';
 import { cfgPorDefecto, bloqueNuevo, sanearCfg, urlSegura } from '../modelo.js';
 import { PLANTILLAS, crearDesdePlantilla } from '../plantillas.js';
@@ -244,6 +244,24 @@ test('listas anidadas de hasta 5 niveles se importan sin degradarse a LaTeX avan
   const t1 = generarTex(m, m.bloques).tex;
   const m2 = parsearTex(t1);
   assert.equal(generarTex(m2, m2.bloques).tex, t1);
+});
+
+test('mapearBloques: cada bloque apunta a su fragmento en el .tex (para «doble clic → código»)', () => {
+  const d = { cfg: cfgPorDefecto(), biblio: [], extra: '' };
+  const bloques = [
+    { id: 'a', orden: 1, t: 'h', n: 1, c: [{ s: 'Intro' }], num: true, label: '' },
+    { id: 'b', orden: 2, t: 'p', c: [{ s: 'Hola mundo' }], al: 'j' },
+    { id: 'c', orden: 3, t: 'eq', env: 'equation', num: false, tex: 'E = mc^2', label: '' },
+    { id: 'e', orden: 4, t: 'p', c: [{ s: 'Hola mundo' }], al: 'j' }, // idéntico a «b»: no debe mapear al mismo sitio
+  ];
+  const t = generarTex(d, bloques).tex;
+  const m = mapearBloques(d, bloques, t);
+  const pos = bloques.map((b) => m.get(b.id));
+  assert.ok(pos.every((p) => p != null), 'todos los bloques se localizan');
+  assert.ok(pos.every((p, i) => i === 0 || p > pos[i - 1]), 'las posiciones son crecientes');
+  assert.ok(t.startsWith('\\section{Intro}', pos[0]));
+  assert.ok(t.startsWith('\\begin{equation*}', pos[2]));
+  assert.notEqual(pos[1], pos[3]); // los dos párrafos idénticos mapean a offsets distintos
 });
 
 test('itemize: \\item seguido solo de [texto] es el contenido, no una viñeta propia', () => {

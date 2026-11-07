@@ -4,8 +4,8 @@
 //   · El .tex generado compila con pdfLaTeX en una distribución estándar (TeX Live / MiKTeX / Overleaf).
 //   · Lo que genera esta función lo vuelve a leer latex-parse.js sin perder nada (ida y vuelta estable).
 
-import { TEOREMAS, NIVELES, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.07-b';
-import { libreriasNecesarias } from './tikz-libs.js?v=2026.11.07-b';
+import { TEOREMAS, NIVELES, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.07-c';
+import { libreriasNecesarias } from './tikz-libs.js?v=2026.11.07-c';
 
 const ESC = { '\\': '\\textbackslash{}', '&': '\\&', '%': '\\%', '$': '\\$', '#': '\\#', '_': '\\_', '{': '\\{', '}': '\\}', '~': '\\textasciitilde{}', '^': '\\textasciicircum{}', '\u00a0': '~' };
 // Símbolos Unicode que pdfLaTeX no entiende por sí solo: se escriben como comandos de LaTeX.
@@ -447,3 +447,27 @@ export function generarTex(doc, bloques) {
 }
 
 const textoAInline = (s) => [{ s: String(s) }];
+
+/**
+ * Para «doble clic → código»: dado el .tex ya generado, devuelve el índice de carácter donde empieza
+ * el fragmento de cada bloque del cuerpo. Reaprovecha bloqueATex (misma salida que generarTex) y busca
+ * cada fragmento consecutivamente a partir de \begin{document}, así el colapso de líneas en blanco del
+ * final no afecta. Devuelve Map(id → offset); los bloques sin fragmento propio se omiten.
+ */
+export function mapearBloques(doc, bloques, tex) {
+  const mapa = new Map();
+  const ctx = { cfg: doc.cfg, usos: new Set(), teoremas: new Set(), imagenes: [], libs: new Set() };
+  let desde = tex.indexOf('\\begin{document}');
+  desde = desde < 0 ? 0 : desde + '\\begin{document}'.length;
+  for (const b of bloques) {
+    const frag = bloqueATex(b, ctx);
+    if (frag === '') continue;
+    // La primera línea del fragmento basta para situarlo y es estable frente a reajustes de espacios.
+    const ancla = frag.split('\n', 1)[0];
+    const pos = tex.indexOf(ancla, desde);
+    if (pos < 0) continue;
+    mapa.set(b.id, pos);
+    desde = pos + ancla.length;
+  }
+  return mapa;
+}
