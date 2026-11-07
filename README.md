@@ -125,6 +125,9 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.07-j**
+- **`\textbf` (y `\textit`, `\emph`…) sin llaves**: al importar un `.tex` donde se escribió `\textbf Para el desarrollo…` (sin `\textbf{…}`), el texto ahora se ve **en negrita** en vez de mostrar el comando `\textbf` como código y el texto sin formato. El formato se aplica al resto del grupo (como `{\bfseries …}`) y al exportar sale con llaves, que es la forma correcta.
+
 **2026.11.07-i**
 - **Doble clic en el código → documento**: al hacer doble clic en el editor de LaTeX, la vista del documento se desplaza y resalta el bloque correspondiente (el simétrico del doble clic en el documento, que ya llevaba al código). Si estabas en vista «código» pura, pasa a «dividida» para que el documento sea visible.
 

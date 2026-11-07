@@ -621,7 +621,7 @@ table.rv-tab.con-lineas { border-top: 2px solid #111; border-bottom: 2px solid #
 .autocompletar-item.sel, .autocompletar-item:hover { background: rgba(47, 109, 246, .14); }
 .autocompletar-item.sel .ac-cmd { color: var(--ac, #2f6df6); }
 
-/* ── Pulido visual (2026.11.07-i) ─────────────────────────────────────── */
+/* ── Pulido visual (2026.11.07-j) ─────────────────────────────────────── */
 
 /* La zona de trabajo: un degradado suave para que la hoja «flote» como papel */
 #zona-visual {
