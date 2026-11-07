@@ -114,28 +114,48 @@ const MAX = 9;
  * `alInsertar` (opcional) se llama tras insertar, p. ej. para refrescar resaltado/gutter.
  */
 export function conectarAutocompletado(ta, alInsertar = () => {}) {
-  let caja = null, items = [], sel = 0, ancla = 0;
+  let caja = null, items = [], sel = 0, ctxActual = null;
 
-  const cerrar = () => { if (caja) { caja.remove(); caja = null; items = []; } };
+  const cerrar = () => { if (caja) { caja.remove(); caja = null; items = []; ctxActual = null; } };
+
+  // \begin/\end de verbatim/código sin cerrar antes del cursor: ahí los comandos son literales.
+  function enVerbatim(antes) {
+    const re = /\\(begin|end)\{(verbatim\*?|lstlisting|minted|Verbatim)\}/g;
+    let m, abierto = false;
+    while ((m = re.exec(antes))) abierto = m[1] === 'begin';
+    if (abierto) return true;
+    // \verb|…| o \lstinline|…| sin cerrar en la línea actual
+    const linea = antes.slice(antes.lastIndexOf('\n') + 1);
+    const v = /\\(?:verb\*?|lstinline(?:\[[^\]]*\])?)([^a-zA-Z\s*{])/.exec(linea);
+    if (v) { const resto = linea.slice(v.index + v[0].length); if (!resto.includes(v[1])) return true; }
+    return false;
+  }
 
   function contexto() {
     const pos = ta.selectionStart;
     if (pos !== ta.selectionEnd) return null; // con selección activa, no sugerir
     const antes = ta.value.slice(0, pos);
+    if (enVerbatim(antes)) return null; // dentro de verbatim/\verb los comandos son texto literal
     // dentro de \begin{…} o \end{…}: sugerir entornos
     const mEnv = /\\(begin|end)\{([a-zA-Z*]*)$/.exec(antes);
     if (mEnv) {
-      const q = mEnv[2];
+      const clave = mEnv[1], q = mEnv[2];
       const lista = ENTORNOS.filter((e) => e[0].startsWith(q)).slice(0, MAX);
-      return { tipo: 'entorno', q, desde: pos - q.length, lista };
+      // desde = inicio del «\begin{» / «\end{» (q.length + longitud de «\begin{»)
+      const desde = pos - q.length - (clave.length + 2); // «\» + clave + «{»
+      // en \begin{…} se inserta toda la plantilla; en \end{…} solo «\end{nombre}»
+      const texto = (e) => clave === 'begin' ? e[1] : `\\end{${e[0]}}`;
+      return { tipo: 'entorno', desde, lista, texto };
     }
-    // comando: \ seguido de letras (sin llegar a una llave/espacio)
+    // comando: \ seguido de letras. Se descarta si la «\» está escapada (parte de un «\\»).
     const mCmd = /\\([a-zA-Z]*)$/.exec(antes);
     if (mCmd) {
       const q = mCmd[1];
       if (!q) return null; // solo «\» aún: no abrir hasta que escriba una letra
+      const iBarra = pos - q.length - 1;
+      if (ta.value[iBarra - 1] === '\\') return null; // «\\…»: salto de línea, no un comando
       const lista = COMANDOS.filter((c) => c[0].slice(1).toLowerCase().startsWith(q.toLowerCase())).slice(0, MAX);
-      return { tipo: 'comando', q, desde: pos - q.length - 1, lista }; // -1 para incluir la «\»
+      return { tipo: 'comando', desde: iBarra, lista, texto: (c) => c[1] };
     }
     return null;
   }
@@ -143,21 +163,21 @@ export function conectarAutocompletado(ta, alInsertar = () => {}) {
   function pintar(ctx) {
     cerrar();
     if (!ctx || !ctx.lista.length) return;
-    items = ctx.lista; sel = 0; ancla = ctx.desde;
+    items = ctx.lista; sel = 0; ctxActual = ctx;
     caja = h('div', { class: 'autocompletar', role: 'listbox' },
       items.map((it, i) => h('div', {
         class: 'autocompletar-item' + (i === sel ? ' sel' : ''), role: 'option', 'data-i': i,
-        onmousedown: (e) => { e.preventDefault(); elegir(i, ctx); },
-      }, h('span', { class: 'ac-cmd' }, ctx.tipo === 'entorno' ? it[0] : it[0]), h('span', { class: 'ac-desc' }, it[2]))));
+        onmousedown: (e) => { e.preventDefault(); elegir(i); },
+      }, h('span', { class: 'ac-cmd' }, it[0]), h('span', { class: 'ac-desc' }, it[2]))));
     document.body.append(caja);
     situar();
   }
 
   // Posiciona la caja bajo el cursor usando un espejo del textarea para medir dónde está el caret.
   function situar() {
-    if (!caja) return;
+    if (!caja || !ctxActual) return;
     const r = ta.getBoundingClientRect();
-    const { top, left } = posicionCaret(ta, ancla);
+    const { top, left } = posicionCaret(ta, ctxActual.desde);
     let x = r.left + left - ta.scrollLeft;
     let y = r.top + top - ta.scrollTop + 20;
     x = Math.min(x, innerWidth - caja.offsetWidth - 8);
@@ -166,18 +186,17 @@ export function conectarAutocompletado(ta, alInsertar = () => {}) {
     caja.style.top = Math.max(8, y) + 'px';
   }
 
-  function elegir(i, ctx) {
-    const it = ctx.lista[i];
+  function elegir(i) {
+    const ctx = ctxActual;
+    const it = ctx && ctx.lista[i];
     if (!it) return;
-    let plantilla = ctx.tipo === 'entorno'
-      ? it[1] // ya trae \begin{…}…\end{…}
-      : it[1];
+    const plantilla = ctx.texto(it); // la plantilla correcta según sea comando, \begin o \end
     // posición del cursor dentro de la plantilla (‸) y texto final
     const cursorRel = plantilla.indexOf('‸');
     const texto = plantilla.replace('‸', '');
     const fin = ta.selectionStart;
-    ta.setRangeText(texto, ancla, fin, 'end');
-    const nuevaPos = ancla + (cursorRel >= 0 ? cursorRel : texto.length);
+    ta.setRangeText(texto, ctx.desde, fin, 'end');
+    const nuevaPos = ctx.desde + (cursorRel >= 0 ? cursorRel : texto.length);
     ta.setSelectionRange(nuevaPos, nuevaPos);
     cerrar();
     ta.focus();
@@ -204,7 +223,7 @@ export function conectarAutocompletado(ta, alInsertar = () => {}) {
     // propio textarea (p. ej. el Tab que inserta espacios) no las reciba.
     if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); mover(1); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); mover(-1); }
-    else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); elegir(sel, contexto() || { lista: items, tipo: 'comando', desde: ancla }); }
+    else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); elegir(sel); }
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cerrar(); }
   };
 
@@ -219,9 +238,10 @@ export function conectarAutocompletado(ta, alInsertar = () => {}) {
 function posicionCaret(ta, indice) {
   const esp = document.createElement('div');
   const cs = getComputedStyle(ta);
-  for (const p of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'whiteSpace', 'padding', 'border', 'boxSizing', 'tabSize', 'wordWrap']) esp.style[p] = cs[p];
-  esp.style.position = 'absolute'; esp.style.visibility = 'hidden'; esp.style.whiteSpace = 'pre-wrap'; esp.style.wordWrap = 'break-word';
-  esp.style.width = ta.clientWidth + 'px';
+  for (const p of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'padding', 'border', 'boxSizing', 'tabSize']) esp.style[p] = cs[p];
+  esp.style.position = 'absolute'; esp.style.top = '-9999px'; esp.style.visibility = 'hidden';
+  // el editor de código no envuelve líneas (white-space: pre); el espejo debe comportarse igual
+  esp.style.whiteSpace = 'pre';
   const antes = ta.value.slice(0, indice);
   esp.textContent = antes;
   const marca = document.createElement('span');
