@@ -125,6 +125,9 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.07-g**
+- **Tablas con espacio extra entre filas**: una tabla con `\\[2ex]` (u otra dimensión por fila) ya no se degrada a «LaTeX avanzado»; se importa como tabla editable y conserva ese espaciado al exportar. Es un patrón muy común en informes y antes convertía la tabla entera en código.
+
 **2026.11.07-f**
 - **Tema claro / oscuro manual**: botón en la barra del editor que cambia entre *sistema*, *claro* y *oscuro*. Antes el modo oscuro solo seguía al sistema operativo; ahora se puede forzar y se recuerda. Se aplica antes de pintar, sin parpadeo.
 - **Aspecto más cuidado**: la página del documento «flota» como papel real (sombra más rica, esquinas apenas redondeadas) sobre una zona de trabajo con un degradado suave; microtransiciones en botones, cinta, tarjetas y resaltados para que todo se sienta fluido. Respeta `prefers-reduced-motion`.

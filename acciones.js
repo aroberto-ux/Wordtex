@@ -1,21 +1,21 @@
 // Acciones de la cinta y de los bloques: formato, inserciones en el texto, tablas, figuras, menús.
 
-import { S, E } from './estado.js?v=2026.11.07-f';
-import { h, abrirMenu, aviso, pedir } from './ui.js?v=2026.11.07-f';
-import { nuevoId } from './modelo.js?v=2026.11.07-f';
-import { nodoInline, renderMate, leerInline, rellenar, chipRaw } from './inline-dom.js?v=2026.11.07-f';
-import { editarMate } from './matematica.js?v=2026.11.07-f';
-import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.07-f';
-import { etiquetaNueva } from './numerar.js?v=2026.11.07-f';
-import { procesarImagen, marcarLista, chipTermino, NIVELES_LISTA } from './bloques-dom.js?v=2026.11.07-f';
-import { editarTikz } from './tikz-editor.js?v=2026.11.07-f';
-import { textoPlano } from './modelo.js?v=2026.11.07-f';
-import { parsearInline, parsearTex } from './latex-parse.js?v=2026.11.07-f';
-import { generarTex } from './latex-gen.js?v=2026.11.07-f';
+import { S, E } from './estado.js?v=2026.11.07-g';
+import { h, abrirMenu, aviso, pedir } from './ui.js?v=2026.11.07-g';
+import { nuevoId } from './modelo.js?v=2026.11.07-g';
+import { nodoInline, renderMate, leerInline, rellenar, chipRaw } from './inline-dom.js?v=2026.11.07-g';
+import { editarMate } from './matematica.js?v=2026.11.07-g';
+import { dlgNota, dlgEnlace, dlgCita, dlgRef, dlgRaw, dlgSimbolo } from './dialogos.js?v=2026.11.07-g';
+import { etiquetaNueva } from './numerar.js?v=2026.11.07-g';
+import { procesarImagen, marcarLista, chipTermino, NIVELES_LISTA } from './bloques-dom.js?v=2026.11.07-g';
+import { editarTikz } from './tikz-editor.js?v=2026.11.07-g';
+import { textoPlano } from './modelo.js?v=2026.11.07-g';
+import { parsearInline, parsearTex } from './latex-parse.js?v=2026.11.07-g';
+import { generarTex } from './latex-gen.js?v=2026.11.07-g';
 import {
   mapa, bloqueDe, modificar, insertarBloque, eliminarBloque, duplicarBloque, moverBloque, convertirBloque, editarLista,
   guardarPendientes, marcarSucio, numeracion, refrescarDerivados, enfocar, aplicarCambios,
-} from './ops.js?v=2026.11.07-f';
+} from './ops.js?v=2026.11.07-g';
 
 // ── Selección ───────────────────────────────────────────────────────────
 

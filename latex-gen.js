@@ -4,8 +4,8 @@
 //   · El .tex generado compila con pdfLaTeX en una distribución estándar (TeX Live / MiKTeX / Overleaf).
 //   · Lo que genera esta función lo vuelve a leer latex-parse.js sin perder nada (ida y vuelta estable).
 
-import { TEOREMAS, NIVELES, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.07-f';
-import { libreriasNecesarias } from './tikz-libs.js?v=2026.11.07-f';
+import { TEOREMAS, NIVELES, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas } from './modelo.js?v=2026.11.07-g';
+import { libreriasNecesarias } from './tikz-libs.js?v=2026.11.07-g';
 
 const ESC = { '\\': '\\textbackslash{}', '&': '\\&', '%': '\\%', '$': '\\$', '#': '\\#', '_': '\\_', '{': '\\{', '}': '\\}', '~': '\\textasciitilde{}', '^': '\\textasciicircum{}', '\u00a0': '~' };
 // Símbolos Unicode que pdfLaTeX no entiende por sí solo: se escriben como comandos de LaTeX.
@@ -222,7 +222,8 @@ function tablaATex(b, ctx) {
       const al = !Array.isArray(c) && c && c.al || b.al[j] || 'l';
       cel.push(celdaATex(c, al, ctx, b.enc && i === 0));
     }
-    t += cel.join(' & ') + ' \\\\\n';
+    const esp = b.esp && b.esp[i] ? `[${b.esp[i]}]` : '';
+    t += cel.join(' & ') + ` \\\\${esp}\n`;
     const sigueRowspan = i + 1 < b.filas.length && b.filas[i + 1].some((c) => cubierta(c) && c.cover[0] <= i);
     if (!sigueRowspan) {
       if (i === 0 && b.enc && b.filas.length > 1) t += lin('mid');
