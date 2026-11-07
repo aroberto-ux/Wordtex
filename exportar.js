@@ -1,9 +1,9 @@
 // Descargas: .tex, .zip (con imágenes), PDF por impresión, Overleaf y copia JSON.
 
-import { S } from './estado.js?v=2026.11.07-m';
-import { descargar, nombreArchivo, aviso, modal, h } from './ui.js?v=2026.11.07-m';
-import { generarTex } from './latex-gen.js?v=2026.11.07-m';
-import { guardarPendientes } from './ops.js?v=2026.11.07-m';
+import { S } from './estado.js?v=2026.11.07-n';
+import { descargar, nombreArchivo, aviso, modal, h } from './ui.js?v=2026.11.07-n';
+import { generarTex } from './latex-gen.js?v=2026.11.07-n';
+import { guardarPendientes } from './ops.js?v=2026.11.07-n';
 
 export function textoLatex() {
   guardarPendientes(true);
@@ -216,4 +216,128 @@ function abrirOverleafDirecto({ tex, imagenes }) {
 
 export function abrirOverleaf() {
   trasRevision('Continuar hacia Overleaf', (generado) => abrirOverleafDirecto(generado));
+}
+
+// ── Compilar PDF (servicio TeXLive.net) ─────────────────────────────────
+// Wordtex es un sitio estático sin servidor, así que la compilación real la hace un servicio externo
+// gratuito y comunitario (texlive.net, el mismo que usan learnlatex.org y los foros de TeX). Primero se
+// intenta por fetch para enseñar el PDF dentro de Wordtex; si el navegador bloquea la respuesta por CORS
+// (o el servicio no responde), se cae a un envío por formulario que abre el PDF en una pestaña nueva.
+
+const TEXLIVE = 'https://texlive.net/cgi-bin/latexcgi';
+
+/** Motor de LaTeX según el preámbulo: fontspec/polyglossia → XeLaTeX; luacode/luatextra/luaotfload → LuaLaTeX. */
+export function motorLatex(tex) {
+  if (/\\usepackage(?:\[[^\]]*\])?\{[^}]*\b(luacode|luatextra|luaotfload|luamplib)\b|\\directlua\b/.test(tex)) return 'lualatex';
+  if (/\\usepackage(?:\[[^\]]*\])?\{[^}]*\bfontspec\b|\\setmainfont\b|\\usepackage(?:\[[^\]]*\])?\{[^}]*\bpolyglossia\b/.test(tex)) return 'xelatex';
+  return 'pdflatex';
+}
+
+// texlive.net solo recibe archivos de texto (.tex): escribe cada filecontents[] como texto plano, sin
+// decodificar binarios. Por eso las imágenes del documento no viajan a este compilador; para un PDF con
+// imágenes el camino es el .zip → Overleaf. Aquí solo informamos cuántas quedan fuera.
+// Se mira solo el LaTeX «activo» (sin comentarios ni verbatim), igual que analizarExportacion, para no
+// avisar por un \includegraphics comentado o de ejemplo.
+export function imagenesExternas(tex) {
+  const refs = new Set();
+  for (const m of latexActivo(tex).matchAll(/\\includegraphics(?:\[[^\]]*\])?\s*\{([^}]+)\}/g)) refs.add(m[1].trim());
+  return [...refs];
+}
+
+/** Envío por formulario: no sufre CORS porque es una navegación normal; abre el PDF en otra pestaña. */
+function enviarFormularioTexlive({ tex }, engine) {
+  const ta = h('textarea', { name: 'filecontents[]' }); ta.value = tex; ta.style.display = 'none';
+  const f = h('form', { action: TEXLIVE, method: 'post', target: '_blank', enctype: 'multipart/form-data', style: { display: 'none' } },
+    h('input', { type: 'hidden', name: 'engine', value: engine }),
+    h('input', { type: 'hidden', name: 'return', value: 'pdf' }),   // mismo resultado que el camino fetch: PDF directo
+    h('input', { type: 'hidden', name: 'filename[]', value: 'document.tex' }),
+    ta);
+  document.body.append(f); f.submit(); f.remove();
+  aviso('Compilando en texlive.net: el PDF se abrirá en una pestaña nueva.', 'info', 6000);
+}
+
+/** Muestra el PDF compilado en un modal con visor y botón de descarga. */
+function mostrarPDF(blob) {
+  const url = URL.createObjectURL(blob);
+  const visor = h('iframe', { class: 'pdf-visor', src: url, title: 'PDF compilado' });
+  const { cerrar } = modal({
+    titulo: 'PDF compilado', ancho: 900, clase: 'modal-pdf', cuerpo: h('div', { class: 'pdf-caja' }, visor),
+    acciones: [
+      { texto: 'Descargar PDF', primario: true, fn: () => { descargar(`${base()}.pdf`, blob, 'application/pdf'); } },
+      { texto: 'Cerrar', fn: (c) => c(true) },
+    ],
+    alCerrar: () => setTimeout(() => URL.revokeObjectURL(url), 2000),
+  });
+  return cerrar;
+}
+
+/** Muestra el log de compilación cuando el servicio devuelve errores en vez de un PDF. */
+function mostrarLog(texto, generado, engine) {
+  const log = String(texto || '').slice(-8000);
+  modal({
+    titulo: 'La compilación falló', ancho: 720, clase: 'modal-log',
+    cuerpo: h('div', {},
+      h('p', {}, 'El servicio de LaTeX no pudo generar el PDF. Suele deberse a un error en el código o a un paquete que no está en el servidor. Abajo está el registro (las últimas líneas son las más útiles):'),
+      h('pre', { class: 'log-tex' }, log || 'Sin registro disponible.')),
+    acciones: [
+      { texto: 'Reintentar en pestaña nueva', fn: (c) => { enviarFormularioTexlive(generado, engine); c(true); } },
+      { texto: 'Cerrar', primario: true, fn: (c) => c(true) },
+    ],
+  });
+}
+
+async function compilarConTexlive(generado) {
+  const { tex } = generado;
+  const engine = motorLatex(tex);
+
+  const fd = new FormData();
+  fd.append('engine', engine);
+  fd.append('return', 'pdf');            // pide el PDF crudo (no la página visor de PDF.js)
+  fd.append('filename[]', 'document.tex');
+  fd.append('filecontents[]', tex);
+
+  const cerrarEspera = aviso('Compilando el PDF en texlive.net… (se envía el texto del documento a ese servicio)', 'info', 120000);
+  let resp;
+  try {
+    resp = await fetch(TEXLIVE, { method: 'POST', body: fd });
+  } catch {
+    // CORS o red: el navegador bloqueó la respuesta. Se cae al envío por formulario (pestaña nueva).
+    cerrarEspera();
+    enviarFormularioTexlive(generado, engine);
+    return;
+  }
+  cerrarEspera();
+  const tipo = resp.headers.get('content-type') || '';
+  if (resp.ok && /pdf/.test(tipo)) {
+    const blob = await resp.blob();
+    if (blob.size) mostrarPDF(blob);
+    else mostrarLog('El servicio devolvió un PDF vacío. Reintenta; si persiste, abre el .tex en Overleaf.', generado, engine);
+  } else {
+    // El servicio devolvió un log de error (texto) o algo inesperado.
+    let texto = '';
+    try { texto = await resp.text(); } catch { /* sin cuerpo */ }
+    mostrarLog(texto, generado, engine);
+  }
+}
+
+export function compilarPDF() {
+  if (!S.bloques.length) { aviso('El documento está vacío: no hay nada que compilar.', 'info'); return; }
+  trasRevision('Compilar de todos modos', (generado) => {
+    const imgs = imagenesExternas(generado.tex);
+    if (imgs.length) {
+      // El compilador en línea no recibe imágenes: se avisa y se ofrece el .zip (que sí las lleva a Overleaf).
+      modal({
+        titulo: 'El documento tiene imágenes', ancho: 480,
+        cuerpo: h('div', {},
+          h('p', {}, `El compilador en línea solo recibe el texto, así que las ${imgs.length === 1 ? 'imagen' : `${imgs.length} imágenes`} aparecerán como un recuadro de error en el PDF.`),
+          h('p', { class: 'vacio-panel' }, 'Para un PDF con las imágenes, descarga el .zip y súbelo a Overleaf (Nuevo proyecto → Subir proyecto).')),
+        acciones: [
+          { texto: 'Descargar .zip', fn: (c) => { descargarZipDirecto(generado); c(true); } },
+          { texto: 'Compilar solo el texto', primario: true, fn: (c) => { compilarConTexlive(generado); c(true); } },
+        ],
+      });
+      return;
+    }
+    compilarConTexlive(generado);
+  });
 }

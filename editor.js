@@ -1,22 +1,22 @@
 // Vista del editor: une la cinta, la página, el código, el panel lateral y la colaboración.
 
-import { S, E } from './estado.js?v=2026.11.07-m';
-import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.07-m';
-import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.07-m';
-import { rotulos } from './numerar.js?v=2026.11.07-m';
+import { S, E } from './estado.js?v=2026.11.07-n';
+import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.07-n';
+import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.07-n';
+import { rotulos } from './numerar.js?v=2026.11.07-n';
 import {
   bus, limpiarEstado, recibirBloques, guardarPendientes, haySinGuardar, deshacer, rehacer, refrescarDerivados, reconciliar, aplicarCambios, insertarBloque,
-} from './ops.js?v=2026.11.07-m';
-import { instalarEventos } from './eventos.js?v=2026.11.07-m';
+} from './ops.js?v=2026.11.07-n';
+import { instalarEventos } from './eventos.js?v=2026.11.07-n';
 import {
   seguirSeleccion, restaurarRango, formato, estadoFormato, alinear, alternarLista, sangria, accionMate, accionNota, accionCita, accionRef,
   accionEnlace, accionSimbolo, accionSaltoLinea, accionTabla, accionFig, accionImagen, menuInsertar, alElegirEstilo, edDe, celdaActual, accionTikz,
-} from './acciones.js?v=2026.11.07-m';
-import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.07-m';
-import { registrarPreambulo, comprobarPreambulo } from './mathjax.js?v=2026.11.07-m';
-import { definicionesMathJax, usarFuentePreambulo } from './macros.js?v=2026.11.07-m';
-import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.07-m';
-import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON, revisarExportacion } from './exportar.js?v=2026.11.07-m';
+} from './acciones.js?v=2026.11.07-n';
+import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.07-n';
+import { registrarPreambulo, comprobarPreambulo } from './mathjax.js?v=2026.11.07-n';
+import { definicionesMathJax, usarFuentePreambulo } from './macros.js?v=2026.11.07-n';
+import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.07-n';
+import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON, revisarExportacion, compilarPDF } from './exportar.js?v=2026.11.07-n';
 
 let unsubs = [];
 let listo = false;
@@ -165,6 +165,8 @@ function menuExportar(ancla) {
   abrirMenu(ancla, [
     { texto: 'Revisar compatibilidad…', icono: '✓', fn: () => revisarExportacion() },
     '-',
+    { texto: 'Compilar a PDF (en línea)', icono: '⚙', fn: () => compilarPDF() },
+    '-',
     { texto: 'Descargar .zip (proyecto completo)', icono: '⇩', fn: () => descargarZip() },
     { texto: 'Descargar solo el .tex', icono: '⇩', fn: () => descargarTex() },
     { texto: 'Guardar como PDF (imprimir)…', icono: '🖨', fn: () => imprimirPDF() },
@@ -253,6 +255,7 @@ function cablear() {
   bus.addEventListener('doc', comprobarPreambulo); // si cambia el preámbulo propio, las fórmulas se recomponen
   document.getElementById('btn-volver').addEventListener('click', () => { guardarPendientes(); location.hash = '#documentos'; });
   E.btnExportar.addEventListener('click', (e) => menuExportar(e.currentTarget));
+  document.getElementById('btn-compilar').addEventListener('click', () => compilarPDF());
   document.getElementById('btn-compartir').addEventListener('click', compartir);
   document.getElementById('btn-panel').addEventListener('click', () => {
     E.panel.hidden = !E.panel.hidden; E.cuerpo.classList.toggle('sin-panel', E.panel.hidden); requestAnimationFrame(ajustarZoom);

@@ -4,15 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LaTeX visual</title>
-  <meta name="app-version" content="2026.11.07-m">
+  <meta name="app-version" content="2026.11.07-n">
   <meta name="description" content="Edita documentos LaTeX como en un procesador de texto, sin saber LaTeX.">
   <!-- Tema (claro/oscuro) elegido por la persona; se aplica antes de pintar para no parpadear -->
   <script>try { var t = localStorage.getItem('lv.tema'); if (t === 'claro' || t === 'oscuro') document.documentElement.dataset.tema = t; } catch (e) { /* ignorar */ }</script>
-  <link rel="stylesheet" href="styles.css?v=2026.11.07-m">
+  <link rel="stylesheet" href="styles.css?v=2026.11.07-n">
   <!-- MathJax 3 (tex-chtml): primero la configuración, después la librería (versión fija). Si el CDN no responde, las fórmulas se quedan como código. -->
-  <script src="mathjax-config.js?v=2026.11.07-m"></script>
+  <script src="mathjax-config.js?v=2026.11.07-n"></script>
   <script async id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js" crossorigin="anonymous" onerror="window.mathjaxFallo && window.mathjaxFallo()"></script>
-  <script type="module" src="app.js?v=2026.11.07-m"></script>
+  <script type="module" src="app.js?v=2026.11.07-n"></script>
 </head>
 <body>
 
@@ -77,6 +77,7 @@
     <button class="btn-icono" id="btn-tema" aria-label="Cambiar entre tema claro y oscuro" title="Tema claro / oscuro"></button>
     <button class="btn-icono" id="btn-panel" aria-label="Panel lateral" aria-pressed="true" title="Mostrar u ocultar el panel lateral">☰</button>
     <button class="btn" id="btn-compartir">Compartir</button>
+    <button class="btn" id="btn-compilar" title="Compilar el documento a PDF con un servicio LaTeX en línea">Compilar PDF</button>
     <button class="btn primario" id="btn-exportar">Exportar ▾</button>
   </header>
 

@@ -2,13 +2,13 @@
 //   #documentos          → lista
 //   #documentos/<id>     → editor
 
-import { S, E } from './estado.js?v=2026.11.07-m';
-import { iniciarStore } from './store.js?v=2026.11.07-m';
-import { opciones } from './firebase-config.js?v=2026.11.07-m';
-import { $, aviso, h } from './ui.js?v=2026.11.07-m';
-import { VERSION } from './version.js?v=2026.11.07-m';
-import { entrarLista, salirLista } from './lista.js?v=2026.11.07-m';
-import { entrarEditor, salirEditor } from './editor.js?v=2026.11.07-m';
+import { S, E } from './estado.js?v=2026.11.07-n';
+import { iniciarStore } from './store.js?v=2026.11.07-n';
+import { opciones } from './firebase-config.js?v=2026.11.07-n';
+import { $, aviso, h } from './ui.js?v=2026.11.07-n';
+import { VERSION } from './version.js?v=2026.11.07-n';
+import { entrarLista, salirLista } from './lista.js?v=2026.11.07-n';
+import { entrarEditor, salirEditor } from './editor.js?v=2026.11.07-n';
 
 function referencias() {
   Object.assign(E, {

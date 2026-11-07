@@ -125,6 +125,9 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.07-n**
+- **Botón «Compilar PDF»**: compila el documento a PDF de verdad usando un servicio de LaTeX en línea gratuito (texlive.net), sin salir de Wordtex. Como el sitio no tiene servidor propio, primero intenta mostrar el PDF dentro de la app; si el navegador lo impide (CORS), abre el PDF en una pestaña nueva automáticamente. A diferencia de la vista previa, aquí se compila LaTeX real (TikZ, tcolorbox, fancyhdr, etc.). Si la compilación falla, se muestra el registro de errores. Las imágenes del documento no viajan a este compilador: para un PDF con imágenes se ofrece descargar el .zip para Overleaf.
+
 **2026.11.07-m**
 - **Listas con etiquetas o ajustes personalizados editables**: una `enumerate`/`itemize` que empieza con comandos de formato antes del primer `\item` (p. ej. `\renewcommand{\labelenumi}{\alph{enumi})}` para numerar `a)`, `b)`…, o `\setcounter`, `\setlength`) ahora se importa como **lista editable** en vez de quedar como un bloque de código. El ajuste se conserva al exportar. Esto recupera, por ejemplo, soluciones numeradas con incisos que antes se veían como LaTeX crudo.
 - **Cajas destacadas tipo `tcolorbox`**: las cajas de color (`tcolorbox`, `tcbox`…) se muestran en la vista como una **caja con marco y cabecera** usando su `title=…`, en lugar de la etiqueta genérica «Entorno». Su contenido (texto, fórmulas, dibujos TikZ) se sigue viendo dentro.

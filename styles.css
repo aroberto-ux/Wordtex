@@ -528,6 +528,11 @@ table.rv-tab.con-lineas { border-top: 2px solid #111; border-bottom: 2px solid #
 .modal-cuerpo { display: flex; flex-direction: column; gap: 12px; }
 .modal-cuerpo p { margin: 0; }
 .modal-acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+/* Visor del PDF compilado y registro de errores */
+.modal-pdf { width: 100%; }
+.pdf-caja { height: min(72vh, 820px); border: 1px solid var(--borde); border-radius: 8px; overflow: hidden; background: #525659; }
+.pdf-visor { width: 100%; height: 100%; border: 0; display: block; }
+.log-tex { max-height: 56vh; overflow: auto; margin: 0; padding: 12px; background: var(--sup2); border: 1px solid var(--borde); border-radius: 8px; font: 12px/1.45 var(--mono); white-space: pre-wrap; word-break: break-word; color: var(--txt); }
 .lista-check, .lista-radio { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow: auto; }
 .item-check { display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
 .item-check:hover { background: var(--sup2); }
@@ -638,7 +643,7 @@ table.rv-tab.con-lineas { border-top: 2px solid #111; border-bottom: 2px solid #
 .autocompletar-item.sel, .autocompletar-item:hover { background: rgba(47, 109, 246, .14); }
 .autocompletar-item.sel .ac-cmd { color: var(--ac, #2f6df6); }
 
-/* ── Pulido visual (2026.11.07-m) ─────────────────────────────────────── */
+/* ── Pulido visual (2026.11.07-n) ─────────────────────────────────────── */
 
 /* La zona de trabajo: un degradado suave para que la hoja «flote» como papel */
 #zona-visual {
