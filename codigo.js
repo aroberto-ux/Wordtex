@@ -1,13 +1,13 @@
 // Pestaña «Código»: el documento como LaTeX, editable. Lo que se escribe aquí se interpreta y
 // pasa a la vista visual (y al revés). Lo que no se entiende se conserva como «LaTeX avanzado».
 
-import { S, E } from './estado.js?v=2026.11.07-j';
-import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-j';
-import { parsearTex } from './latex-parse.js?v=2026.11.07-j';
-import { diffBloques } from './sync.js?v=2026.11.07-j';
-import { aplicarCambios, guardarPendientes, bus, mapa as mapaBloques, enfocar } from './ops.js?v=2026.11.07-j';
-import { resaltarTex } from './resaltar.js?v=2026.11.07-j';
-import { conectarAutocompletado } from './autocompletar.js?v=2026.11.07-j';
+import { S, E } from './estado.js?v=2026.11.07-k';
+import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-k';
+import { parsearTex } from './latex-parse.js?v=2026.11.07-k';
+import { diffBloques } from './sync.js?v=2026.11.07-k';
+import { aplicarCambios, guardarPendientes, bus, mapa as mapaBloques, enfocar } from './ops.js?v=2026.11.07-k';
+import { resaltarTex } from './resaltar.js?v=2026.11.07-k';
+import { conectarAutocompletado } from './autocompletar.js?v=2026.11.07-k';
 
 let tPeg = null, tGen = null;
 let aplicando = false;
@@ -185,7 +185,9 @@ let rangoMarcado = null;    // { ini, fin } offsets en el .tex, para recolocar l
 function situarBanda() {
   if (!bandaBloque) return;
   const ta = E.codigoTa;
-  if (!rangoMarcado || S.vista === 'codigo') { bandaBloque.hidden = true; return; }
+  // Con ajuste de línea una línea lógica ocupa varias visuales: el cálculo por nº de línea no sirve,
+  // así que no se dibuja la banda (el resaltado del bloque en el documento sigue funcionando).
+  if (!rangoMarcado || S.vista === 'codigo' || E.zonaCodigo.classList.contains('ajuste')) { bandaBloque.hidden = true; return; }
   const tex = ta.value;
   // altura de línea real (no scrollHeight/nLíneas, que se infla si el textarea tiene espacio sobrante)
   const cs = getComputedStyle(ta);
@@ -233,8 +235,27 @@ function programarReflejo() {
   eand = requestAnimationFrame(reflejarEnDocumento);
 }
 
+/** Activa o desactiva el ajuste de línea (envolver las líneas largas) y lo recuerda. */
+function aplicarAjuste(on) {
+  E.zonaCodigo.classList.toggle('ajuste', on);
+  E.codigoTa.setAttribute('wrap', on ? 'soft' : 'off');
+  const btn = document.getElementById('codigo-ajuste');
+  if (btn) btn.setAttribute('aria-pressed', String(on));
+  try { localStorage.setItem('lv.ajusteCodigo', on ? '1' : '0'); } catch { /* ignorar */ }
+  requestAnimationFrame(() => { sincronizarResalte(); situarBanda(); });
+}
+
+function iniciarAjuste() {
+  const btn = document.getElementById('codigo-ajuste');
+  let on = false;
+  try { on = localStorage.getItem('lv.ajusteCodigo') === '1'; } catch { /* ignorar */ }
+  aplicarAjuste(on);
+  if (btn) btn.addEventListener('click', () => aplicarAjuste(!E.zonaCodigo.classList.contains('ajuste')));
+}
+
 export function iniciarCodigo() {
   montarResalte();
+  iniciarAjuste();
   // sugerencias de comandos y entornos LaTeX mientras se escribe
   conectarAutocompletado(E.codigoTa, () => { gutter(); programarActualizacion(); });
   E.codigoTa.addEventListener('input', () => {
