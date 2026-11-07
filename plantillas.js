@@ -1,7 +1,7 @@
 // Plantillas de documentos. Están escritas en LaTeX y se interpretan con el mismo lector que
 // usa la pestaña «Código», así que lo que se ve aquí es exactamente lo que se podrá editar.
 
-import { parsearTex } from './latex-parse.js?v=2026.11.07-g';
+import { parsearTex } from './latex-parse.js?v=2026.11.07-h';
 
 const CABECERA = String.raw`\documentclass[11pt,a4paper]{article}
 \usepackage[utf8]{inputenc}

@@ -1,13 +1,13 @@
 // Pestaña «Código»: el documento como LaTeX, editable. Lo que se escribe aquí se interpreta y
 // pasa a la vista visual (y al revés). Lo que no se entiende se conserva como «LaTeX avanzado».
 
-import { S, E } from './estado.js?v=2026.11.07-g';
-import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-g';
-import { parsearTex } from './latex-parse.js?v=2026.11.07-g';
-import { diffBloques } from './sync.js?v=2026.11.07-g';
-import { aplicarCambios, guardarPendientes, bus, mapa as mapaBloques } from './ops.js?v=2026.11.07-g';
-import { resaltarTex } from './resaltar.js?v=2026.11.07-g';
-import { conectarAutocompletado } from './autocompletar.js?v=2026.11.07-g';
+import { S, E } from './estado.js?v=2026.11.07-h';
+import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-h';
+import { parsearTex } from './latex-parse.js?v=2026.11.07-h';
+import { diffBloques } from './sync.js?v=2026.11.07-h';
+import { aplicarCambios, guardarPendientes, bus, mapa as mapaBloques } from './ops.js?v=2026.11.07-h';
+import { resaltarTex } from './resaltar.js?v=2026.11.07-h';
+import { conectarAutocompletado } from './autocompletar.js?v=2026.11.07-h';
 
 let tPeg = null, tGen = null;
 let aplicando = false;
@@ -21,6 +21,8 @@ export function textoActual() {
 
 // Coloreado: un <pre> con el mismo texto (coloreado) va DEBAJO del textarea, que se vuelve transparente.
 let preResalte = null, textoResaltado = null, rafResalte = 0;
+// Banda que marca, en el código, el bloque que se edita en la vista del documento (SyncTeX inverso).
+let bandaBloque = null;
 
 function montarResalte() {
   const ta = E.codigoTa;
@@ -29,8 +31,12 @@ function montarResalte() {
   preResalte = document.createElement('pre');
   preResalte.className = 'codigo-resalte';
   preResalte.setAttribute('aria-hidden', 'true');
+  bandaBloque = document.createElement('div');
+  bandaBloque.className = 'codigo-banda';
+  bandaBloque.setAttribute('aria-hidden', 'true');
+  bandaBloque.hidden = true;
   ta.parentElement.insertBefore(cont, ta);
-  cont.append(preResalte, ta);
+  cont.append(bandaBloque, preResalte, ta);
 }
 
 function sincronizarResalte() {
@@ -75,6 +81,8 @@ export function actualizarCodigo(forzar = false) {
   if (E.codigoTa.value !== t) { E.codigoTa.value = t; }
   ultimoAplicado = t;
   gutter();
+  // el texto cambió: recolocar la banda del bloque marcado sobre sus nuevas líneas
+  if (bloqueMarcado) { const id = bloqueMarcado; bloqueMarcado = null; marcarBloqueEnCodigo(id); }
   if (forzar || document.activeElement !== E.codigoTa) mostrarAvisos([]);
 }
 
@@ -148,6 +156,44 @@ function bloqueEnPosicion(offset) {
   return elegido;
 }
 
+// ── Documento → código: marcar en el código el bloque que se edita en la vista visual ──────────
+let bloqueMarcado = null;   // id del bloque cuya banda está pintada
+let rangoMarcado = null;    // { ini, fin } offsets en el .tex, para recolocar la banda al hacer scroll
+
+/** Coloca/actualiza la banda sobre las líneas del bloque marcado, siguiendo el scroll del textarea. */
+function situarBanda() {
+  if (!bandaBloque) return;
+  const ta = E.codigoTa;
+  if (!rangoMarcado || S.vista === 'codigo') { bandaBloque.hidden = true; return; }
+  const tex = ta.value;
+  // altura de línea real (no scrollHeight/nLíneas, que se infla si el textarea tiene espacio sobrante)
+  const cs = getComputedStyle(ta);
+  let alturaLinea = parseFloat(cs.lineHeight);
+  if (!Number.isFinite(alturaLinea)) alturaLinea = parseFloat(cs.fontSize) * 1.55; // 'normal': usa el ratio del CSS
+  const padTop = parseFloat(cs.paddingTop) || 0;
+  const lineaIni = (tex.slice(0, rangoMarcado.ini).match(/\n/g) || []).length;
+  const nLineas = Math.max(1, (tex.slice(rangoMarcado.ini, rangoMarcado.fin).match(/\n/g) || []).length);
+  bandaBloque.hidden = false;
+  bandaBloque.style.top = (padTop + lineaIni * alturaLinea - ta.scrollTop) + 'px';
+  bandaBloque.style.height = (nLineas * alturaLinea) + 'px';
+}
+
+/** Marca en el código el bloque `id` (el que se está editando en el documento). */
+export function marcarBloqueEnCodigo(id) {
+  if (!bandaBloque) return;
+  if (S.vista === 'codigo' || !id || !S.doc) { bloqueMarcado = null; rangoMarcado = null; bandaBloque.hidden = true; return; }
+  if (id === bloqueMarcado) { situarBanda(); return; }
+  const tex = E.codigoTa.value;
+  const pos = mapearBloques({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques, tex);
+  const ini = pos.get(id);
+  if (ini == null) { bloqueMarcado = null; rangoMarcado = null; bandaBloque.hidden = true; return; }
+  // fin = inicio del siguiente bloque que tenga posición, o el fin del cuerpo
+  let fin = tex.lastIndexOf('\\end{document}'); if (fin < 0) fin = tex.length;
+  for (const p of pos.values()) if (p > ini && p < fin) fin = p;
+  bloqueMarcado = id; rangoMarcado = { ini, fin };
+  situarBanda();
+}
+
 let ultimoEco = null, eand = 0;
 /** Resalta en la vista del documento el bloque donde está el cursor del código (SyncTeX directo). */
 function reflejarEnDocumento() {
@@ -176,7 +222,17 @@ export function iniciarCodigo() {
     clearTimeout(tPeg);
     tPeg = setTimeout(aplicarTexto, 650);
   });
-  E.codigoTa.addEventListener('scroll', gutter);
+  E.codigoTa.addEventListener('scroll', () => { gutter(); situarBanda(); });
+  // al pasar a editar el código, se oculta la banda del documento (manda la dirección código→doc)
+  E.codigoTa.addEventListener('focus', () => { bloqueMarcado = null; rangoMarcado = null; if (bandaBloque) bandaBloque.hidden = true; });
+  // editar un bloque en la vista del documento marca su código aquí (SyncTeX inverso)
+  document.addEventListener('lv-foco', () => {
+    if (S.vista !== 'dividida') return;
+    // mandar en la dirección documento→código: quitar el eco código→documento para no confundir
+    ultimoEco = null;
+    for (const x of E.bloques.querySelectorAll('.bq-eco')) x.classList.remove('bq-eco');
+    marcarBloqueEnCodigo(S.sel);
+  });
   // mover el cursor/selección en el código resalta el bloque correspondiente en el documento
   E.codigoTa.addEventListener('keyup', programarReflejo);
   E.codigoTa.addEventListener('click', programarReflejo);
