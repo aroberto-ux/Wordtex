@@ -27,10 +27,14 @@ export function h(tag, props = {}, ...hijos) {
 
 export function aviso(texto, tipo = 'info', ms = 3200) {
   const cont = $('#toasts');
-  if (!cont) return;
+  if (!cont) return () => {};
   const t = h('div', { class: `toast ${tipo}`, role: 'status' }, texto);
   cont.append(t);
-  setTimeout(() => { t.classList.add('sale'); setTimeout(() => t.remove(), 250); }, ms);
+  let quitado = false;
+  const quitar = () => { if (quitado) return; quitado = true; t.classList.add('sale'); setTimeout(() => t.remove(), 250); };
+  const temp = setTimeout(quitar, ms);
+  // Devuelve una función para cerrarlo antes de tiempo (p. ej. un «Compilando…» al llegar el resultado).
+  return () => { clearTimeout(temp); quitar(); };
 }
 
 // ── Diálogos ────────────────────────────────────────────────────────────
