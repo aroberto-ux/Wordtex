@@ -415,6 +415,11 @@ table.tabx td.fusionada:focus-within { background: rgba(47, 109, 246, .08); box-
 .rv-bloques > .rv-mini { flex: 0 0 auto; }
 .rv-env-et { display: none; }
 .raw:hover .rv-env-et { display: block; font: 11px system-ui, sans-serif; color: #8a70c0; margin-bottom: .2em; }
+/* Caja destacada tipo tcolorbox: marco de color con cabecera opcional (title=…). */
+.rv-caja { border: 1px solid color-mix(in srgb, var(--ac) 55%, var(--borde)); border-radius: 8px; margin: .6em 0; overflow: hidden; background: color-mix(in srgb, var(--ac) 5%, var(--papel)); }
+.rv-caja-cab { font-weight: 700; font-size: .95em; padding: .35em .8em; color: var(--ac-fg); background: color-mix(in srgb, var(--ac) 72%, #000); }
+.rv-caja > :not(.rv-caja-cab) { margin-left: .8em; margin-right: .8em; }
+.rv-caja > .rv-bloques { margin: .4em .8em; }
 .rv-pie { text-align: center; font-size: .95em; margin: .3em 0; }
 .rv-pie[data-pref]::before { content: attr(data-pref); font-weight: 700; }
 table.rv-tab { border-collapse: collapse; margin: .3em auto; }
@@ -633,7 +638,7 @@ table.rv-tab.con-lineas { border-top: 2px solid #111; border-bottom: 2px solid #
 .autocompletar-item.sel, .autocompletar-item:hover { background: rgba(47, 109, 246, .14); }
 .autocompletar-item.sel .ac-cmd { color: var(--ac, #2f6df6); }
 
-/* ── Pulido visual (2026.11.07-l) ─────────────────────────────────────── */
+/* ── Pulido visual (2026.11.07-m) ─────────────────────────────────────── */
 
 /* La zona de trabajo: un degradado suave para que la hoja «flote» como papel */
 #zona-visual {
