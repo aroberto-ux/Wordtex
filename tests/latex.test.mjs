@@ -214,6 +214,25 @@ test('\\multirow se importa como celda fusionada y conserva su semántica al exp
   assert.equal(generarTex(m2, m2.bloques).tex, t1);
 });
 
+test('tabla con espacio extra por fila (\\\\[2ex]) se importa y conserva el espaciado', () => {
+  const m = parsearTex(docTex('\\begin{tabular}{l l}\na & b \\\\[2ex]\nc & d \\\\\ne & f \\\\\n\\end{tabular}'));
+  assert.equal(m.bloques[0].t, 'tabla', 'ya no se degrada a LaTeX avanzado');
+  assert.equal(m.bloques[0].esp[0], '2ex'); // el espacio pertenece a la primera fila
+  assert.ok(!m.bloques[0].esp[1] && !m.bloques[0].esp[2]); // las demás filas sin espaciado extra
+  const t1 = generarTex(m, m.bloques).tex;
+  assert.match(t1, /b \\\\\[2ex\]/, 'regenera el espaciado en la fila correcta');
+  const m2 = parsearTex(t1);
+  assert.equal(generarTex(m2, m2.bloques).tex, t1); // round-trip estable
+});
+
+test('tabla dentro de \\begin{center} se importa como tabla editable', () => {
+  const m = parsearTex(docTex('\\begin{center}\n\\begin{tabular}{l l}\nFecha: x & Resumen: y \\\\\n\\end{tabular}\n\\end{center}'));
+  const tabla = m.bloques.find((b) => b.t === 'tabla');
+  assert.ok(tabla, 'hay una tabla nativa');
+  assert.equal(tabla.filas.length, 1);
+  assert.equal(tabla.al.length, 2);
+});
+
 test('detección de paquetes nuevos: cleveref tras hyperref; csquotes/nicefrac/esint antes', () => {
   const d = doc([
     { t: 'p', c: [{ s: 'Ver ' }, { raw: '\\cref{x}' }, { s: ' y ' }, { raw: '\\enquote{t}' }], al: 'j' },

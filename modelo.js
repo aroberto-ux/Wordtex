@@ -258,6 +258,14 @@ export function sanearBloque(b) {
       const specTabla = texCorto(b.spec, 1000), anchoTab = texCorto(b.anchoTab, 100);
       if (specTabla) o.spec = specTabla;
       if (anchoTab) o.anchoTab = anchoTab;
+      // espacio extra por fila (\\[2ex]): un valor de dimensión sencillo por fila, o '' si no lo hay
+      if (Array.isArray(b.esp)) {
+        const esp = b.esp.slice(0, filas.length).map((x) => {
+          const s = cadena(x, 20).trim();
+          return /^[\d.]+\s*(pt|mm|cm|in|ex|em|bp|pc)?$/.test(s) ? s : '';
+        });
+        if (esp.some((x) => x)) o.esp = esp;
+      }
       return o;
     }
     case 'fig': return {

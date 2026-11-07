@@ -1,12 +1,12 @@
 // Lista de documentos: crear (con plantillas), importar .tex / .json, renombrar, duplicar, descargar, eliminar.
 
-import { S, E } from './estado.js?v=2026.11.07-f';
-import { h, aviso, pedir, confirmar, abrirMenu, hace, modal, descargar, nombreArchivo } from './ui.js?v=2026.11.07-f';
-import { PLANTILLAS, crearDesdePlantilla } from './plantillas.js?v=2026.11.07-f';
-import { parsearTex } from './latex-parse.js?v=2026.11.07-f';
-import { generarTex } from './latex-gen.js?v=2026.11.07-f';
-import { sanearBloque } from './modelo.js?v=2026.11.07-f';
-import { resumenImportacion } from './vista-latex.js?v=2026.11.07-f';
+import { S, E } from './estado.js?v=2026.11.07-g';
+import { h, aviso, pedir, confirmar, abrirMenu, hace, modal, descargar, nombreArchivo } from './ui.js?v=2026.11.07-g';
+import { PLANTILLAS, crearDesdePlantilla } from './plantillas.js?v=2026.11.07-g';
+import { parsearTex } from './latex-parse.js?v=2026.11.07-g';
+import { generarTex } from './latex-gen.js?v=2026.11.07-g';
+import { sanearBloque } from './modelo.js?v=2026.11.07-g';
+import { resumenImportacion } from './vista-latex.js?v=2026.11.07-g';
 
 let unsub = null;
 let cableado = false;

@@ -5,9 +5,9 @@
 
 import {
   cfgPorDefecto, CLASES, IDIOMAS, ALIAS_TEOREMA, compactar, sanearBloque, sanearCfg, sanearBiblio, nuevoId, EQ_SIN_NUMERO, EQ_FILAS, dividirFilas,
-} from './modelo.js?v=2026.11.07-f';
-import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO, PAQUETES_TARDIOS } from './latex-gen.js?v=2026.11.07-f';
-import { tablaMacros } from './macros.js?v=2026.11.07-f';
+} from './modelo.js?v=2026.11.07-g';
+import { SIMBOLOS, ABSTRACT_BOOK, PAQUETES_AUTO, PAQUETES_TARDIOS } from './latex-gen.js?v=2026.11.07-g';
+import { tablaMacros } from './macros.js?v=2026.11.07-g';
 
 // \ensuremath{\alpha} → α (lo contrario de lo que hace latex-gen.js con los símbolos Unicode)
 const SIMBOLO_DE = new Map(Object.entries(SIMBOLOS).map(([u, cmd]) => [cmd, u]));
@@ -405,15 +405,26 @@ function celdaConSpan(txt) {
 function parsearTabular(cuerpo, spec, meta = {}) {
   const letras = alineacionesSpec(spec);
   if (!letras) return null;
-  // Todavía no modelamos reglas parciales ni espacio extra por fila. Convertirlas borraría formato:
-  // se conserva toda la tabla como LaTeX avanzado hasta que el modelo pueda reproducirlas.
-  if (/\\(?:cline|cmidrule)(?:\([^)]*\))?\{/.test(cuerpo) || /\\\\\s*\[[^\]]+\]/.test(cuerpo)) return null;
+  // Las reglas parciales (\cline/\cmidrule) todavía no se modelan: se conservaría la tabla como
+  // LaTeX avanzado. El espacio extra por fila (\\[2ex]) sí se guarda y se vuelve a emitir.
+  if (/\\(?:cline|cmidrule)(?:\([^)]*\))?\{/.test(cuerpo)) return null;
   let borde = /[|]/.test(spec) ? 'completo' : 'ninguno';
   if (/\\toprule|\\midrule/.test(cuerpo)) borde = 'horizontal';
   else if (borde === 'ninguno' && /\\hline/.test(cuerpo)) borde = 'completo';
   const limpio = cuerpo.replace(/\\(hline|toprule|midrule|bottomrule)\b/g, '');
-  const filasTxt = dividirNivel(limpio, '\\\\').map((r) => r.replace(/^\s*\[[^\]]*\]/, '').trim()).filter((r, idx, arr) => r !== '' || idx < arr.length - 1);
-  while (filasTxt.length && filasTxt[filasTxt.length - 1] === '') filasTxt.pop();
+  // Al dividir por «\\», un «[2ex]» queda al inicio del trozo siguiente pero pertenece a la fila que
+  // acaba de terminar: se guarda como su espaciado (esp[i]) y se quita del texto de la fila siguiente.
+  const trozos = dividirNivel(limpio, '\\\\');
+  const esp = [];
+  const filasTxt = [];
+  trozos.forEach((r, idx) => {
+    const m = /^\s*\[([^\]]*)\]/.exec(r);
+    if (m && idx > 0) esp[idx - 1] = m[1].trim(); // el espacio pertenece a la fila anterior
+    const texto = m ? r.slice(m[0].length).trim() : r.trim();
+    filasTxt.push(texto);
+  });
+  // quita el último trozo vacío (tras el «\\» final) sin perder el alineamiento de `esp`
+  while (filasTxt.length && filasTxt[filasTxt.length - 1] === '') { filasTxt.pop(); esp.length = Math.min(esp.length, filasTxt.length); }
   if (!filasTxt.length) return null;
   const cols = letras.length;
   const filas = Array.from({ length: filasTxt.length }, () => Array(cols).fill(null));
@@ -452,7 +463,8 @@ function parsearTabular(cuerpo, spec, meta = {}) {
     });
   }
   const avanzada = meta.env && meta.env !== 'tabular' || /[pmbX>@<!*]/.test(spec);
-  return { t: 'tabla', filas, enc, al: letras, borde, pie: [], label: '', ...(avanzada ? { spec, ...meta } : {}) };
+  const hayEsp = esp.some((x) => x);
+  return { t: 'tabla', filas, enc, al: letras, borde, pie: [], label: '', ...(hayEsp ? { esp } : {}), ...(avanzada ? { spec, ...meta } : {}) };
 }
 
 function ambosTabular(cuerpo) {
