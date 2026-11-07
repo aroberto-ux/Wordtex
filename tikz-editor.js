@@ -1,11 +1,11 @@
 // Editor de un bloque TikZ: código con vista previa al lado, herramienta de dibujo, plantillas,
 // ubicación (centrado / figura con pie / suelto), tamaño y librerías.
 
-import { h, modal, confirmar, pedir } from './ui.js?v=2026.11.07-d';
-import { dibujarTikz } from './vista-latex.js?v=2026.11.07-d';
-import { libreriasNecesarias } from './tikz.js?v=2026.11.07-d';
-import { crearHerramienta } from './tikz-dibujo.js?v=2026.11.07-d';
-import { PLANTILLAS_TIKZ } from './tikz-plantillas.js?v=2026.11.07-d';
+import { h, modal, confirmar, pedir } from './ui.js?v=2026.11.07-e';
+import { dibujarTikz } from './vista-latex.js?v=2026.11.07-e';
+import { libreriasNecesarias } from './tikz.js?v=2026.11.07-e';
+import { crearHerramienta } from './tikz-dibujo.js?v=2026.11.07-e';
+import { PLANTILLAS_TIKZ } from './tikz-plantillas.js?v=2026.11.07-e';
 
 const UBICACIONES = [['center', 'Centrado (si le pones pie, pasa a ser figura)'], ['figure', 'Figura flotante (con número si tiene pie)'], ['', 'Suelto, tal cual en el texto']];
 const TAMANOS = [[0, 'Tamaño natural'], [100, 'Todo el ancho'], [80, '80 % del ancho'], [60, '60 % del ancho'], [40, '40 % del ancho'], [25, '25 % del ancho']];
