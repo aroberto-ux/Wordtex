@@ -1,12 +1,12 @@
 // Pestaña «Código»: el documento como LaTeX, editable. Lo que se escribe aquí se interpreta y
 // pasa a la vista visual (y al revés). Lo que no se entiende se conserva como «LaTeX avanzado».
 
-import { S, E } from './estado.js?v=2026.11.07-c';
-import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-c';
-import { parsearTex } from './latex-parse.js?v=2026.11.07-c';
-import { diffBloques } from './sync.js?v=2026.11.07-c';
-import { aplicarCambios, guardarPendientes, bus } from './ops.js?v=2026.11.07-c';
-import { resaltarTex } from './resaltar.js?v=2026.11.07-c';
+import { S, E } from './estado.js?v=2026.11.07-d';
+import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-d';
+import { parsearTex } from './latex-parse.js?v=2026.11.07-d';
+import { diffBloques } from './sync.js?v=2026.11.07-d';
+import { aplicarCambios, guardarPendientes, bus, mapa as mapaBloques } from './ops.js?v=2026.11.07-d';
+import { resaltarTex } from './resaltar.js?v=2026.11.07-d';
 
 let tPeg = null, tGen = null;
 let aplicando = false;
@@ -138,18 +138,52 @@ export function irABloque(id) {
   return true;
 }
 
+/** Qué bloque corresponde a la posición `offset` del código: el último que empieza en o antes de ahí. */
+function bloqueEnPosicion(offset) {
+  if (!S.doc) return null;
+  const posiciones = mapearBloques({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques, E.codigoTa.value);
+  let elegido = null, mejor = -1;
+  for (const [id, pos] of posiciones) if (pos <= offset && pos > mejor) { mejor = pos; elegido = id; }
+  return elegido;
+}
+
+let ultimoEco = null, eand = 0;
+/** Resalta en la vista del documento el bloque donde está el cursor del código (SyncTeX directo). */
+function reflejarEnDocumento() {
+  if (S.vista === 'codigo') return; // sin vista del documento no hay nada que resaltar
+  const id = bloqueEnPosicion(E.codigoTa.selectionStart);
+  if (id === ultimoEco) return;
+  ultimoEco = id;
+  for (const x of E.bloques.querySelectorAll('.bq-eco')) x.classList.remove('bq-eco');
+  const bq = id && mapaBloques.get(id); // mapa id→elemento .bq (de ops.js)
+  if (!bq) return;
+  bq.classList.add('bq-eco');
+  bq.scrollIntoView({ block: 'nearest' });
+}
+function programarReflejo() {
+  cancelAnimationFrame(eand);
+  eand = requestAnimationFrame(reflejarEnDocumento);
+}
+
 export function iniciarCodigo() {
   montarResalte();
   E.codigoTa.addEventListener('input', () => {
     gutter();
+    programarReflejo();
     clearTimeout(tPeg);
     tPeg = setTimeout(aplicarTexto, 650);
   });
   E.codigoTa.addEventListener('scroll', gutter);
+  // mover el cursor/selección en el código resalta el bloque correspondiente en el documento
+  E.codigoTa.addEventListener('keyup', programarReflejo);
+  E.codigoTa.addEventListener('click', programarReflejo);
+  E.codigoTa.addEventListener('select', programarReflejo);
   E.codigoTa.addEventListener('blur', () => { clearTimeout(tPeg); aplicarTexto(); setTimeout(() => actualizarCodigo(true), 0); });
   E.codigoTa.addEventListener('keydown', (e) => {
     if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '  '); }
   });
   bus.addEventListener('cambio', programarActualizacion);
   bus.addEventListener('doc', programarActualizacion);
+  // tras repintar bloques (reconciliar reemplaza el DOM y pierde .bq-eco), volver a reflejar el cursor
+  bus.addEventListener('cambio', () => { if (document.activeElement === E.codigoTa) { ultimoEco = null; programarReflejo(); } });
 }
