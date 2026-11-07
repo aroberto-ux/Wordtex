@@ -73,8 +73,12 @@ export function dividirFilas(tex) {
 /** Bloque TikZ: dónde va el dibujo. 'center' pasa a figura flotante en cuanto tiene pie. */
 export const ENTORNOS_TIKZ = ['center', 'figure', ''];
 
+/** Formato de salida del documento: LaTeX (por defecto) o Typst. */
+export const FORMATOS = [['latex', 'LaTeX'], ['typst', 'Typst']];
+
 export function cfgPorDefecto() {
   return {
+    formato: 'latex',
     clase: 'article', fuente: 11, papel: 'a4paper', margen: 2.5, idioma: 'spanish', interlineado: 1,
     columnas: 1, numPag: true, titulo: '', autor: '', fecha: '', mostrarTitulo: true,
   };
@@ -294,6 +298,7 @@ export function sanearCfg(c) {
   const d = cfgPorDefecto();
   c = c && typeof c === 'object' ? c : {};
   return {
+    formato: FORMATOS.some(([v]) => v === c.formato) ? c.formato : d.formato,
     clase: CLASES.some(([v]) => v === c.clase) ? c.clase : d.clase,
     fuente: TAMANOS.includes(Number(c.fuente)) ? Number(c.fuente) : d.fuente,
     papel: PAPELES.some(([v]) => v === c.papel) ? c.papel : d.papel,

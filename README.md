@@ -125,6 +125,9 @@ Se descartó [TikZJax](https://tikzjax.com) (TeX real en WebAssembly): pesa vari
 
 ## Cambios
 
+**2026.11.07-o**
+- **Soporte de Typst (fase 1)**: al crear un documento nuevo ahora puedes elegir **LaTeX** o **Typst**. Un documento Typst se edita con la misma vista visual de siempre (párrafos, secciones, listas, tablas, fórmulas…), la pestaña «Código» muestra el **código Typst** generado, y el botón **«Compilar PDF»** lo compila en el navegador con typst.ts (WebAssembly, sin servidor; descarga el motor la primera vez). Las fórmulas se reutilizan tal cual vía el paquete `mitex`. Puedes descargar el `.typ`. Limitaciones de esta fase: el código Typst es de solo lectura (todavía no se importa ni se edita a mano), y TikZ y «LaTeX avanzado» no tienen equivalente en Typst (se avisan).
+
 **2026.11.07-n**
 - **Botón «Compilar PDF»**: compila el documento a PDF de verdad usando un servicio de LaTeX en línea gratuito (texlive.net), sin salir de Wordtex. Como el sitio no tiene servidor propio, primero intenta mostrar el PDF dentro de la app; si el navegador lo impide (CORS), abre el PDF en una pestaña nueva automáticamente. A diferencia de la vista previa, aquí se compila LaTeX real (TikZ, tcolorbox, fancyhdr, etc.). Si la compilación falla, se muestra el registro de errores. Las imágenes del documento no viajan a este compilador: para un PDF con imágenes se ofrece descargar el .zip para Overleaf.
 

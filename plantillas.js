@@ -1,7 +1,7 @@
 // Plantillas de documentos. Están escritas en LaTeX y se interpretan con el mismo lector que
 // usa la pestaña «Código», así que lo que se ve aquí es exactamente lo que se podrá editar.
 
-import { parsearTex } from './latex-parse.js?v=2026.11.07-n';
+import { parsearTex } from './latex-parse.js?v=2026.11.07-o';
 
 const CABECERA = String.raw`\documentclass[11pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
@@ -200,8 +200,55 @@ Teléfono · Correo electrónico
   },
 ];
 
-/** Interpreta una plantilla y la devuelve lista para crear el documento. */
-export function crearDesdePlantilla(id, titulo) {
+// ── Plantillas Typst ─────────────────────────────────────────────────────
+// Typst aún no tiene lector en Wordtex (Fase 1), así que estas plantillas definen sus bloques del modelo
+// directamente (no se parsea un .typ). La estructura de bloques es la misma que la de LaTeX; solo cambia
+// el formato de salida (cfg.formato = 'typst').
+const cfgTypst = (extra = {}) => ({ clase: 'article', fuente: 11, papel: 'a4paper', margen: 2.5, idioma: 'spanish', interlineado: 1, columnas: 1, numPag: true, titulo: '', autor: '', fecha: '', mostrarTitulo: true, formato: 'typst', ...extra });
+
+export const PLANTILLAS_TYPST = [
+  {
+    id: 'typst-blanco', nombre: 'Documento en blanco', icono: '📄', desc: 'Una hoja vacía para empezar de cero (Typst).',
+    cfg: cfgTypst({ titulo: 'Mi documento', autor: 'Tu nombre' }),
+    bloques: [{ t: 'p', c: [], al: 'j' }],
+  },
+  {
+    id: 'typst-articulo', nombre: 'Artículo o informe', icono: '🔬', desc: 'Resumen, secciones, ecuación y tabla (Typst).',
+    cfg: cfgTypst({ titulo: 'Título del artículo', autor: 'Nombre Apellido' }),
+    bloques: [
+      { t: 'resumen', c: [{ s: 'Escribe aquí un resumen breve con el problema, el método y el resultado principal.' }] },
+      { t: 'h', n: 1, c: [{ s: 'Introducción' }], num: true, label: '' },
+      { t: 'p', c: [{ s: 'Presenta el tema y explica por qué es importante. La energía cinética es ' }, { mate: 'E_c = \\frac{1}{2}mv^2' }, { s: ' y, en una línea aparte:' }], al: 'j' },
+      { t: 'eq', env: 'equation', tex: 'E = mc^{2}', num: true, label: 'eq:energia' },
+      { t: 'h', n: 1, c: [{ s: 'Resultados' }], num: true, label: '' },
+      { t: 'tabla', filas: [[[{ s: 'Muestra' }], [{ s: 'Medida' }], [{ s: 'Error' }]], [[{ s: 'A' }], [{ s: '1.25' }], [{ s: '0.02' }]], [[{ s: 'B' }], [{ s: '1.31' }], [{ s: '0.03' }]]], enc: true, al: ['l', 'c', 'r'], borde: 'completo', pie: [{ s: 'Resultados de las mediciones' }], label: 'tab:datos' },
+      { t: 'h', n: 1, c: [{ s: 'Conclusiones' }], num: true, label: '' },
+      { t: 'p', c: [{ s: 'Resume lo más importante y propón trabajo futuro.' }], al: 'j' },
+    ],
+  },
+  {
+    id: 'typst-tarea', nombre: 'Taller o tarea', icono: '✏️', desc: 'Ejercicios con ecuaciones (Typst).',
+    cfg: cfgTypst({ titulo: 'Taller 1', autor: 'Nombre Apellido' }),
+    bloques: [
+      { t: 'h', n: 1, c: [{ s: 'Ejercicio 1' }], num: false, label: '' },
+      { t: 'p', c: [{ s: 'Calcula la derivada de ' }, { mate: 'f(x) = x^{3} + 2x' }, { s: '.' }], al: 'j' },
+      { t: 'eq', env: 'equation', tex: "f'(x) = 3x^{2} + 2", num: false, label: '' },
+      { t: 'h', n: 1, c: [{ s: 'Ejercicio 2' }], num: false, label: '' },
+      { t: 'p', c: [{ s: 'Resuelve la ecuación ' }, { mate: 'x^{2} - 5x + 6 = 0' }, { s: '. Las soluciones son ' }, { mate: 'x = 2' }, { s: ' y ' }, { mate: 'x = 3' }, { s: '.' }], al: 'j' },
+    ],
+  },
+];
+
+/** Interpreta una plantilla y la devuelve lista para crear el documento. `formato` = 'latex' | 'typst'. */
+export function crearDesdePlantilla(id, titulo, formato = 'latex') {
+  if (formato === 'typst') {
+    const p = PLANTILLAS_TYPST.find((x) => x.id === id) || PLANTILLAS_TYPST[0];
+    const cfg = { ...p.cfg };
+    if (!cfg.titulo && titulo) cfg.titulo = titulo;
+    const bloques = JSON.parse(JSON.stringify(p.bloques));
+    if (!bloques.length) bloques.push({ t: 'p', c: [], al: 'j' });
+    return { titulo: titulo || p.nombre, cfg, biblio: [], extra: '', bloques };
+  }
   const p = PLANTILLAS.find((x) => x.id === id) || PLANTILLAS[0];
   const m = parsearTex(p.tex);
   if (m.cfg.titulo === '' && titulo) m.cfg.titulo = titulo;

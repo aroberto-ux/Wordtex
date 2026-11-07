@@ -1,12 +1,12 @@
 // Lista de documentos: crear (con plantillas), importar .tex / .json, renombrar, duplicar, descargar, eliminar.
 
-import { S, E } from './estado.js?v=2026.11.07-n';
-import { h, aviso, pedir, confirmar, abrirMenu, hace, modal, descargar, nombreArchivo } from './ui.js?v=2026.11.07-n';
-import { PLANTILLAS, crearDesdePlantilla } from './plantillas.js?v=2026.11.07-n';
-import { parsearTex } from './latex-parse.js?v=2026.11.07-n';
-import { generarTex } from './latex-gen.js?v=2026.11.07-n';
-import { sanearBloque } from './modelo.js?v=2026.11.07-n';
-import { resumenImportacion } from './vista-latex.js?v=2026.11.07-n';
+import { S, E } from './estado.js?v=2026.11.07-o';
+import { h, aviso, pedir, confirmar, abrirMenu, hace, modal, descargar, nombreArchivo } from './ui.js?v=2026.11.07-o';
+import { PLANTILLAS, PLANTILLAS_TYPST, crearDesdePlantilla } from './plantillas.js?v=2026.11.07-o';
+import { parsearTex } from './latex-parse.js?v=2026.11.07-o';
+import { generarCodigo, extensionDe } from './generar.js?v=2026.11.07-o';
+import { sanearBloque, FORMATOS } from './modelo.js?v=2026.11.07-o';
+import { resumenImportacion } from './vista-latex.js?v=2026.11.07-o';
 
 let unsub = null;
 let cableado = false;
@@ -56,19 +56,45 @@ async function importarArchivo(f) {
 }
 
 async function nueva() {
+  let formato = 'latex';
   let elegida = 'blanco';
   const titulo = h('input', { type: 'text', value: 'Documento sin título', maxlength: 120, 'aria-label': 'Nombre del documento' });
-  const rejilla = h('div', { class: 'plantillas', role: 'listbox', 'aria-label': 'Plantillas' }, PLANTILLAS.map((p) => {
-    const b = h('button', { type: 'button', role: 'option', class: 'plantilla', 'aria-selected': String(p.id === elegida), onclick: () => {
-      elegida = p.id; rejilla.querySelectorAll('.plantilla').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
-      if (/^(Documento sin título|Taller 1|Mi documento)$/.test(titulo.value) || PLANTILLAS.some((q) => q.nombre === titulo.value)) titulo.value = p.id === 'blanco' ? 'Documento sin título' : p.nombre;
-    } }, h('span', { class: 'pl-ico' }, p.icono), h('b', {}, p.nombre), h('small', {}, p.desc));
-    return b;
-  }));
+  const plantillasDe = (f) => (f === 'typst' ? PLANTILLAS_TYPST : PLANTILLAS);
+
+  const rejilla = h('div', { class: 'plantillas', role: 'listbox', 'aria-label': 'Plantillas' });
+  const pintarPlantillas = () => {
+    const lista = plantillasDe(formato);
+    if (!lista.some((p) => p.id === elegida)) elegida = lista[0].id;
+    rejilla.replaceChildren(...lista.map((p) => {
+      const b = h('button', { type: 'button', role: 'option', class: 'plantilla', 'aria-selected': String(p.id === elegida), onclick: () => {
+        elegida = p.id; rejilla.querySelectorAll('.plantilla').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+        if (/^(Documento sin título|Taller 1|Mi documento)$/.test(titulo.value) || lista.some((q) => q.nombre === titulo.value)) titulo.value = /blanco/.test(p.id) ? 'Documento sin título' : p.nombre;
+      } }, h('span', { class: 'pl-ico' }, p.icono), h('b', {}, p.nombre), h('small', {}, p.desc));
+      return b;
+    }));
+  };
+  pintarPlantillas();
+
+  // Conmutador de formato: LaTeX (por defecto) o Typst.
+  const segFormato = h('div', { class: 'seg seg-formato', role: 'group', 'aria-label': 'Formato del documento' },
+    FORMATOS.map(([v, et]) => h('button', {
+      type: 'button', 'data-formato': v, 'aria-pressed': String(v === formato), onclick: () => {
+        formato = v;
+        segFormato.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.formato === v)));
+        pintarPlantillas();
+      },
+    }, et)));
+
   const ok = await new Promise((res) => {
     modal({
       titulo: 'Nuevo documento', ancho: 640,
-      cuerpo: h('div', {}, h('label', { class: 'campo' }, h('span', {}, 'Nombre'), titulo), h('div', { class: 'campo-et' }, 'Empieza desde una plantilla'), rejilla),
+      cuerpo: h('div', {},
+        h('label', { class: 'campo' }, h('span', {}, 'Nombre'), titulo),
+        h('div', { class: 'campo-et' }, 'Formato'),
+        segFormato,
+        h('p', { class: 'vacio-panel formato-nota' }, 'LaTeX es el formato clásico. Typst es más moderno y rápido de compilar. Podrás editarlo igual con la vista visual.'),
+        h('div', { class: 'campo-et' }, 'Empieza desde una plantilla'),
+        rejilla),
       acciones: [{ texto: 'Cancelar', fn: (c) => c(null) }, { texto: 'Crear', primario: true, fn: (c) => c(true) }],
       alCerrar: (v) => res(v === true),
     });
@@ -77,9 +103,9 @@ async function nueva() {
   if (!ok) return;
   try {
     const nombre = titulo.value.trim() || 'Documento sin título';
-    const d = crearDesdePlantilla(elegida, nombre);
+    const d = crearDesdePlantilla(elegida, nombre, formato);
     // en el documento en blanco el título de la portada es el nombre que se escribió
-    if (elegida === 'blanco' && nombre !== 'Documento sin título') d.cfg.titulo = nombre;
+    if (/blanco/.test(elegida) && nombre !== 'Documento sin título') d.cfg.titulo = nombre;
     const id = await S.store.crearDocumento({ titulo: nombre, cfg: d.cfg, biblio: d.biblio, extra: d.extra }, d.bloques);
     location.hash = `#documentos/${id}`;
   } catch (e) {
@@ -106,8 +132,9 @@ async function descargarTexDe(d) {
   try {
     const o = await S.store.exportar(d.id);
     const bloques = o.bloques.map((b) => ({ ...sanearBloque(b), id: '' }));
-    const { tex, imagenes } = generarTex({ cfg: o.cfg, biblio: o.biblio, extra: o.extra }, bloques);
-    descargar(`${nombreArchivo(d.titulo)}.tex`, tex, 'application/x-tex;charset=utf-8');
+    const { tex, imagenes } = generarCodigo({ cfg: o.cfg, biblio: o.biblio, extra: o.extra }, bloques);
+    const ext = extensionDe({ cfg: o.cfg });
+    descargar(`${nombreArchivo(d.titulo)}.${ext}`, tex, ext === 'typ' ? 'text/plain;charset=utf-8' : 'application/x-tex;charset=utf-8');
     if (imagenes.length) aviso('Tiene imágenes: abre el documento y descarga el .zip para incluirlas.', 'info', 6000);
   } catch { aviso('No se pudo exportar.', 'error'); }
 }

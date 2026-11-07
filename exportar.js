@@ -1,13 +1,16 @@
 // Descargas: .tex, .zip (con imágenes), PDF por impresión, Overleaf y copia JSON.
 
-import { S } from './estado.js?v=2026.11.07-n';
-import { descargar, nombreArchivo, aviso, modal, h } from './ui.js?v=2026.11.07-n';
-import { generarTex } from './latex-gen.js?v=2026.11.07-n';
-import { guardarPendientes } from './ops.js?v=2026.11.07-n';
+import { S } from './estado.js?v=2026.11.07-o';
+import { descargar, nombreArchivo, aviso, modal, h } from './ui.js?v=2026.11.07-o';
+import { generarTex } from './latex-gen.js?v=2026.11.07-o';
+import { generarCodigo, formatoDe, extensionDe, nombreFormato } from './generar.js?v=2026.11.07-o';
+import { compilarTypstAPdf } from './typst-compilar.js?v=2026.11.07-o';
+import { guardarPendientes } from './ops.js?v=2026.11.07-o';
 
+/** Código del documento en su formato (LaTeX o Typst). Devuelve { tex, imagenes }. */
 export function textoLatex() {
   guardarPendientes(true);
-  return generarTex({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques);
+  return generarCodigo({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques);
 }
 
 /** Quita comentarios y regiones literales antes de buscar comandos activos. */
@@ -26,12 +29,26 @@ function latexActivo(src) {
   return sinComentarios.replace(/\\begin\{(verbatim\*?|Verbatim|lstlisting|minted|comment)\}[\s\S]*?\\end\{\1\}/g, '');
 }
 
-/** Revisión estática del proyecto. No sustituye una compilación TeX real. */
+/** Revisión estática de un documento Typst: avisa de bloques sin equivalente e imágenes sin incluir. */
+function analizarTypst(generado) {
+  const hallazgos = [];
+  const raw = S.bloques.filter((b) => b.t === 'raw').length;
+  const tikz = S.bloques.filter((b) => b.t === 'tikz').length;
+  if (raw) hallazgos.push({ nivel: 'aviso', titulo: `${raw} bloque(s) de «LaTeX avanzado»`, detalle: 'No tienen equivalente en Typst y se omiten en el documento Typst.' });
+  if (tikz) hallazgos.push({ nivel: 'aviso', titulo: `${tikz} dibujo(s) TikZ`, detalle: 'TikZ es de LaTeX. En Typst se muestran como un recuadro; para dibujar usa el paquete cetz.' });
+  if (S.bloques.some((b) => b.t === 'fig' && b.src)) hallazgos.push({ nivel: 'info', titulo: 'El documento tiene imágenes', detalle: 'La compilación en línea de Typst aún no incluye las imágenes incrustadas; aparecerán como un recuadro.' });
+  return { generado, hallazgos, errores: 0, avisos: hallazgos.filter((x) => x.nivel === 'aviso').length };
+}
+
+/** Revisión estática del proyecto. No sustituye una compilación real. */
 export function analizarExportacion(generado = textoLatex()) {
   const { tex, imagenes } = generado;
-  const activo = latexActivo(tex);
   const hallazgos = [];
   const agregar = (nivel, titulo, detalle = '') => hallazgos.push({ nivel, titulo, detalle });
+  // Los chequeos de abajo son específicos de LaTeX (\includegraphics, \ref, \cite…). En Typst solo se
+  // informa de los bloques que no tienen equivalente (raw/tikz) y las imágenes.
+  if (formatoDe({ cfg: S.doc.cfg }) === 'typst') return analizarTypst(generado);
+  const activo = latexActivo(tex);
   const conocidos = new Set(imagenes.map((x) => `imagenes/${x.nombre}`));
   const rutasImagen = new Set();
   for (const m of activo.matchAll(/\\includegraphics(?:\[[^\]]*\])?\s*\{([^}]+)\}/g)) rutasImagen.add(m[1].trim());
@@ -65,7 +82,9 @@ function cuerpoRevision(r) {
   const estado = r.errores ? `${r.errores} problema${r.errores === 1 ? '' : 's'} que requieren atención` : r.avisos ? `${r.avisos} aviso${r.avisos === 1 ? '' : 's'}` : 'No se detectaron problemas';
   return h('div', { class: 'revision-exportacion' },
     h('p', { class: `revision-resumen ${r.errores ? 'error' : r.avisos ? 'aviso' : 'ok'}` }, estado),
-    h('p', { class: 'vacio-panel' }, 'Esta comprobación revisa archivos y referencias. La confirmación definitiva se obtiene compilando en Overleaf o con una distribución LaTeX.'),
+    h('p', { class: 'vacio-panel' }, formatoDe({ cfg: S.doc.cfg }) === 'typst'
+      ? 'Esta comprobación es orientativa. La confirmación definitiva se obtiene compilando el documento.'
+      : 'Esta comprobación revisa archivos y referencias. La confirmación definitiva se obtiene compilando en Overleaf o con una distribución LaTeX.'),
     r.hallazgos.length ? h('ul', {}, r.hallazgos.map((x) => h('li', { class: `revision-${x.nivel}` }, h('strong', {}, x.titulo), x.detalle ? h('span', {}, x.detalle) : null))) : null,
   );
 }
@@ -91,8 +110,10 @@ function trasRevision(nombreAccion, accion) {
 const base = () => nombreArchivo(S.doc.titulo || S.doc.cfg.titulo || 'documento');
 
 export function descargarTex() {
+  const ext = extensionDe({ cfg: S.doc.cfg });
+  const mime = ext === 'typ' ? 'text/plain;charset=utf-8' : 'application/x-tex;charset=utf-8';
   trasRevision('Descargar de todos modos', ({ tex, imagenes }) => {
-    descargar(`${base()}.tex`, tex, 'application/x-tex;charset=utf-8');
+    descargar(`${base()}.${ext}`, tex, mime);
     if (imagenes.length) aviso('El documento tiene imágenes: para compilarlo necesitas también la carpeta «imagenes». Mejor descarga el .zip.', 'info', 6000);
   });
 }
@@ -271,18 +292,22 @@ function mostrarPDF(blob) {
   return cerrar;
 }
 
-/** Muestra el log de compilación cuando el servicio devuelve errores en vez de un PDF. */
+/** Muestra el log de compilación cuando el compilador devuelve errores en vez de un PDF. */
 function mostrarLog(texto, generado, engine) {
   const log = String(texto || '').slice(-8000);
+  const esTypst = engine === 'typst';
+  const acciones = esTypst
+    ? [{ texto: 'Cerrar', primario: true, fn: (c) => c(true) }]
+    : [{ texto: 'Reintentar en pestaña nueva', fn: (c) => { enviarFormularioTexlive(generado, engine); c(true); } },
+       { texto: 'Cerrar', primario: true, fn: (c) => c(true) }];
   modal({
     titulo: 'La compilación falló', ancho: 720, clase: 'modal-log',
     cuerpo: h('div', {},
-      h('p', {}, 'El servicio de LaTeX no pudo generar el PDF. Suele deberse a un error en el código o a un paquete que no está en el servidor. Abajo está el registro (las últimas líneas son las más útiles):'),
+      h('p', {}, esTypst
+        ? 'Typst no pudo generar el PDF. Suele deberse a un error en el documento (o a que no se pudo descargar el motor). Abajo está el detalle:'
+        : 'El servicio de LaTeX no pudo generar el PDF. Suele deberse a un error en el código o a un paquete que no está en el servidor. Abajo está el registro (las últimas líneas son las más útiles):'),
       h('pre', { class: 'log-tex' }, log || 'Sin registro disponible.')),
-    acciones: [
-      { texto: 'Reintentar en pestaña nueva', fn: (c) => { enviarFormularioTexlive(generado, engine); c(true); } },
-      { texto: 'Cerrar', primario: true, fn: (c) => c(true) },
-    ],
+    acciones,
   });
 }
 
@@ -320,8 +345,28 @@ async function compilarConTexlive(generado) {
   }
 }
 
+/** Compila un documento Typst a PDF en el navegador (typst.ts WASM) y lo muestra. */
+async function compilarConTypst(generado) {
+  const cerrarEspera = aviso('Compilando con Typst… (la primera vez descarga el motor, puede tardar)', 'info', 180000);
+  try {
+    const bytes = await compilarTypstAPdf(generado.tex);
+    cerrarEspera();
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    if (blob.size) mostrarPDF(blob);
+    else mostrarLog('Typst no produjo ningún PDF. Revisa el documento e inténtalo de nuevo.', generado, 'typst');
+  } catch (e) {
+    cerrarEspera();
+    // typst.ts lanza con el mensaje de error de compilación (o un fallo de red al traer el motor WASM).
+    mostrarLog(String(e && e.message || e), generado, 'typst');
+  }
+}
+
 export function compilarPDF() {
   if (!S.bloques.length) { aviso('El documento está vacío: no hay nada que compilar.', 'info'); return; }
+  if (formatoDe({ cfg: S.doc.cfg }) === 'typst') {
+    trasRevision('Compilar de todos modos', (generado) => { compilarConTypst(generado); });
+    return;
+  }
   trasRevision('Compilar de todos modos', (generado) => {
     const imgs = imagenesExternas(generado.tex);
     if (imgs.length) {

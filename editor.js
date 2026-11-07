@@ -1,22 +1,23 @@
 // Vista del editor: une la cinta, la página, el código, el panel lateral y la colaboración.
 
-import { S, E } from './estado.js?v=2026.11.07-n';
-import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.07-n';
-import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.07-n';
-import { rotulos } from './numerar.js?v=2026.11.07-n';
+import { S, E } from './estado.js?v=2026.11.07-o';
+import { h, aviso, abrirMenu, iniciales, copiarTexto, hace } from './ui.js?v=2026.11.07-o';
+import { bloqueNuevo, nuevoId } from './modelo.js?v=2026.11.07-o';
+import { rotulos } from './numerar.js?v=2026.11.07-o';
 import {
   bus, limpiarEstado, recibirBloques, guardarPendientes, haySinGuardar, deshacer, rehacer, refrescarDerivados, reconciliar, aplicarCambios, insertarBloque,
-} from './ops.js?v=2026.11.07-n';
-import { instalarEventos } from './eventos.js?v=2026.11.07-n';
+} from './ops.js?v=2026.11.07-o';
+import { instalarEventos } from './eventos.js?v=2026.11.07-o';
 import {
   seguirSeleccion, restaurarRango, formato, estadoFormato, alinear, alternarLista, sangria, accionMate, accionNota, accionCita, accionRef,
   accionEnlace, accionSimbolo, accionSaltoLinea, accionTabla, accionFig, accionImagen, menuInsertar, alElegirEstilo, edDe, celdaActual, accionTikz,
-} from './acciones.js?v=2026.11.07-n';
-import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.07-n';
-import { registrarPreambulo, comprobarPreambulo } from './mathjax.js?v=2026.11.07-n';
-import { definicionesMathJax, usarFuentePreambulo } from './macros.js?v=2026.11.07-n';
-import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.07-n';
-import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON, revisarExportacion, compilarPDF } from './exportar.js?v=2026.11.07-n';
+} from './acciones.js?v=2026.11.07-o';
+import { iniciarCodigo, actualizarCodigo, textoActual } from './codigo.js?v=2026.11.07-o';
+import { registrarPreambulo, comprobarPreambulo } from './mathjax.js?v=2026.11.07-o';
+import { definicionesMathJax, usarFuentePreambulo } from './macros.js?v=2026.11.07-o';
+import { iniciarPaneles, pintar as pintarPanel, cambiarCfg, abrirPestana } from './paneles.js?v=2026.11.07-o';
+import { descargarTex, descargarZip, imprimirPDF, abrirOverleaf, descargarJSON, revisarExportacion, compilarPDF } from './exportar.js?v=2026.11.07-o';
+import { formatoDe, nombreFormato, extensionDe } from './generar.js?v=2026.11.07-o';
 
 let unsubs = [];
 let listo = false;
@@ -162,19 +163,24 @@ export function fijarVista(v) {
 // ── Exportar, compartir ─────────────────────────────────────────────────
 
 function menuExportar(ancla) {
-  abrirMenu(ancla, [
+  const typst = formatoDe(S.doc) === 'typst';
+  const fmt = nombreFormato(S.doc);
+  const ext = extensionDe(S.doc);
+  const items = [
     { texto: 'Revisar compatibilidad…', icono: '✓', fn: () => revisarExportacion() },
     '-',
-    { texto: 'Compilar a PDF (en línea)', icono: '⚙', fn: () => compilarPDF() },
+    { texto: 'Compilar a PDF', icono: '⚙', fn: () => compilarPDF() },
     '-',
-    { texto: 'Descargar .zip (proyecto completo)', icono: '⇩', fn: () => descargarZip() },
-    { texto: 'Descargar solo el .tex', icono: '⇩', fn: () => descargarTex() },
-    { texto: 'Guardar como PDF (imprimir)…', icono: '🖨', fn: () => imprimirPDF() },
-    { texto: 'Abrir en Overleaf (para compilar)', icono: '↗', fn: () => abrirOverleaf() },
-    '-',
-    { texto: 'Copiar el código LaTeX', icono: '⧉', fn: async () => { guardarPendientes(true); try { await copiarTexto(textoActual()); aviso('Código copiado.', 'ok'); } catch { aviso('No se pudo copiar.', 'error'); } } },
-    { texto: 'Copia de seguridad (.json)', icono: '{ }', fn: () => descargarJSON() },
-  ], { alineado: 'der' });
+  ];
+  // El .zip (con imágenes) y Overleaf son del flujo LaTeX; en Typst se ofrece descargar el .typ.
+  if (!typst) items.push({ texto: 'Descargar .zip (proyecto completo)', icono: '⇩', fn: () => descargarZip() });
+  items.push({ texto: `Descargar solo el .${ext}`, icono: '⇩', fn: () => descargarTex() });
+  items.push({ texto: 'Guardar como PDF (imprimir)…', icono: '🖨', fn: () => imprimirPDF() });
+  if (!typst) items.push({ texto: 'Abrir en Overleaf (para compilar)', icono: '↗', fn: () => abrirOverleaf() });
+  items.push('-',
+    { texto: `Copiar el código ${fmt}`, icono: '⧉', fn: async () => { guardarPendientes(true); try { await copiarTexto(textoActual()); aviso('Código copiado.', 'ok'); } catch { aviso('No se pudo copiar.', 'error'); } } },
+    { texto: 'Copia de seguridad (.json)', icono: '{ }', fn: () => descargarJSON() });
+  abrirMenu(ancla, items, { alineado: 'der' });
 }
 
 async function compartir() {

@@ -1,9 +1,9 @@
 // Panel lateral: esquema, ajustes del documento, bibliografía y preámbulo propio.
 
-import { S, E } from './estado.js?v=2026.11.07-n';
-import { h, aviso, confirmar } from './ui.js?v=2026.11.07-n';
-import { CLASES, TAMANOS, PAPELES, IDIOMAS, textoPlano } from './modelo.js?v=2026.11.07-n';
-import { numeracion, bus, mapa, enfocar } from './ops.js?v=2026.11.07-n';
+import { S, E } from './estado.js?v=2026.11.07-o';
+import { h, aviso, confirmar } from './ui.js?v=2026.11.07-o';
+import { CLASES, TAMANOS, PAPELES, IDIOMAS, textoPlano } from './modelo.js?v=2026.11.07-o';
+import { numeracion, bus, mapa, enfocar } from './ops.js?v=2026.11.07-o';
 
 const PESTANAS = [['esquema', 'Esquema'], ['doc', 'Documento'], ['bib', 'Referencias'], ['avanzado', 'Avanzado'], ['ayuda', 'Ayuda']];
 let activa = 'esquema';
@@ -50,7 +50,9 @@ function ajustes() {
   const margenPropio = c.margen === 'extra';
   const margen = h('input', { type: 'number', min: 0.5, max: 6, step: 0.5, value: margenPropio ? 2.5 : c.margen, disabled: margenPropio, 'aria-label': 'Márgenes en cm', onchange: (e) => cambiarCfg({ margen: Math.max(0.5, Math.min(6, +e.target.value || 2.5)) }) });
   const propio = h('input', { type: 'checkbox', checked: margenPropio, onchange: (e) => cambiarCfg({ margen: e.target.checked ? 'extra' : 2.5 }) });
+  const formato = c.formato === 'typst' ? 'Typst' : 'LaTeX';
   return h('div', { class: 'ajustes' },
+    h('div', { class: 'formato-chip' }, 'Formato: ', h('strong', {}, formato)),
     h('h3', {}, 'Portada'),
     campo('Título', titulo), campo('Autor(es)', autor), campo('Fecha', [fechaSel, fechaTxt]),
     h('label', { class: 'fila chk' }, h('input', { type: 'checkbox', checked: c.mostrarTitulo, onchange: (e) => cambiarCfg({ mostrarTitulo: e.target.checked }) }), 'Mostrar el bloque de título'),
