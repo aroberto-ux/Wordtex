@@ -11,6 +11,7 @@ import { procesarImagen, marcarLista, chipTermino, NIVELES_LISTA } from './bloqu
 import { editarTikz } from './tikz-editor.js?v=2026.11.07-d';
 import { textoPlano } from './modelo.js?v=2026.11.07-d';
 import { parsearInline, parsearTex } from './latex-parse.js?v=2026.11.07-d';
+import { generarTex } from './latex-gen.js?v=2026.11.07-d';
 import {
   mapa, bloqueDe, modificar, insertarBloque, eliminarBloque, duplicarBloque, moverBloque, convertirBloque, editarLista,
   guardarPendientes, marcarSucio, numeracion, refrescarDerivados, enfocar, aplicarCambios,
@@ -210,6 +211,17 @@ export function reinterpretarRaw(id) {
   const u = bloques.length === 1 ? bloques[0] : null;
   const sigueCrudo = u && (u.t === 'raw' || (u.t === 'p' && (u.c || []).length === 1 && u.c[0].raw != null));
   if (!bloques.length || sigueCrudo) { aviso('Este bloque no se puede convertir todavía; se queda como LaTeX avanzado.', 'info', 5000); return 0; }
+  // Garantía de que no se pierde nada: al regenerar los bloques nuevos y volver a interpretarlos, el
+  // modelo debe ser el mismo (estabilidad semántica). Si cambia, el fragmento dependía del contexto o
+  // no es representable sin pérdida: se deja como LaTeX avanzado. No se compara el texto crudo porque
+  // el generador puede reformatear espacios/saltos de forma inofensiva.
+  const sinIds = (bs) => bs.map(({ id: _i, orden: _o, ...r }) => r);
+  const regenerado = generarTex({ cfg: S.doc.cfg, biblio: [], extra: '' }, bloques).tex;
+  let reparsado;
+  try { reparsado = parsearTex(regenerado).bloques; } catch { reparsado = null; }
+  if (!reparsado || JSON.stringify(sinIds(reparsado)) !== JSON.stringify(sinIds(bloques))) {
+    aviso('No se pudo convertir sin cambiar el contenido; se queda como LaTeX avanzado.', 'info', 5000); return 0;
+  }
   editarLista((l) => {
     const i = l.findIndex((x) => x.id === id);
     if (i < 0) return false;
@@ -217,9 +229,7 @@ export function reinterpretarRaw(id) {
     const nuevos = bloques.map((nb, k) => ({ ...nb, id: k === 0 ? id : nuevoId('b'), ...(k === 0 ? { orden } : {}) }));
     l.splice(i, 1, ...nuevos);
   }, { foco: { id, donde: 'inicio' } });
-  const tipos = [...new Set(bloques.map((x) => x.t))].length;
   aviso(`Convertido en ${bloques.length} elemento${bloques.length === 1 ? '' : 's'} editable${bloques.length === 1 ? '' : 's'}.`, 'ok', 3500);
-  void tipos;
   return bloques.length;
 }
 

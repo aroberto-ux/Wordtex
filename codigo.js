@@ -5,7 +5,7 @@ import { S, E } from './estado.js?v=2026.11.07-d';
 import { generarTex, mapearBloques } from './latex-gen.js?v=2026.11.07-d';
 import { parsearTex } from './latex-parse.js?v=2026.11.07-d';
 import { diffBloques } from './sync.js?v=2026.11.07-d';
-import { aplicarCambios, guardarPendientes, bus } from './ops.js?v=2026.11.07-d';
+import { aplicarCambios, guardarPendientes, bus, mapa as mapaBloques } from './ops.js?v=2026.11.07-d';
 import { resaltarTex } from './resaltar.js?v=2026.11.07-d';
 
 let tPeg = null, tGen = null;
@@ -141,9 +141,9 @@ export function irABloque(id) {
 /** Qué bloque corresponde a la posición `offset` del código: el último que empieza en o antes de ahí. */
 function bloqueEnPosicion(offset) {
   if (!S.doc) return null;
-  const mapa = mapearBloques({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques, E.codigoTa.value);
+  const posiciones = mapearBloques({ cfg: S.doc.cfg, biblio: S.doc.biblio, extra: S.doc.extra }, S.bloques, E.codigoTa.value);
   let elegido = null, mejor = -1;
-  for (const [id, pos] of mapa) if (pos <= offset && pos > mejor) { mejor = pos; elegido = id; }
+  for (const [id, pos] of posiciones) if (pos <= offset && pos > mejor) { mejor = pos; elegido = id; }
   return elegido;
 }
 
@@ -155,10 +155,10 @@ function reflejarEnDocumento() {
   if (id === ultimoEco) return;
   ultimoEco = id;
   for (const x of E.bloques.querySelectorAll('.bq-eco')) x.classList.remove('bq-eco');
-  const bq = id && mapa.get(id);
+  const bq = id && mapaBloques.get(id); // mapa id→elemento .bq (de ops.js)
   if (!bq) return;
   bq.classList.add('bq-eco');
-  bq.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  bq.scrollIntoView({ block: 'nearest' });
 }
 function programarReflejo() {
   cancelAnimationFrame(eand);
@@ -184,4 +184,6 @@ export function iniciarCodigo() {
   });
   bus.addEventListener('cambio', programarActualizacion);
   bus.addEventListener('doc', programarActualizacion);
+  // tras repintar bloques (reconciliar reemplaza el DOM y pierde .bq-eco), volver a reflejar el cursor
+  bus.addEventListener('cambio', () => { if (document.activeElement === E.codigoTa) { ultimoEco = null; programarReflejo(); } });
 }

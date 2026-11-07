@@ -279,6 +279,23 @@ test('mapearBloques: raw que empieza con salto de línea, figura con pie y bloqu
   assert.ok(m.get('r') < m.get('f') && m.get('f') < m.get('p'), 'posiciones crecientes');
 });
 
+test('reinterpretar LaTeX avanzado: convierte lo representable y deja crudo lo dependiente de contexto', () => {
+  // réplica de la lógica de acciones.js:reinterpretarRaw sobre el modelo (sin DOM)
+  const sinIds = (bs) => bs.map(({ id, orden, ...r }) => r);
+  const convertible = (texRaw) => {
+    const m = parsearTex(docTex(texRaw));
+    const u = m.bloques.length === 1 ? m.bloques[0] : null;
+    const sigueCrudo = u && (u.t === 'raw' || (u.t === 'p' && (u.c || []).length === 1 && u.c[0].raw != null));
+    if (!m.bloques.length || sigueCrudo) return false;
+    const regen = generarTex({ cfg: cfgPorDefecto(), biblio: [], extra: '' }, m.bloques).tex;
+    let rep; try { rep = parsearTex(regen).bloques; } catch { rep = null; }
+    return !!rep && JSON.stringify(sinIds(rep)) === JSON.stringify(sinIds(m.bloques));
+  };
+  assert.equal(convertible('\\begin{itemize}\n\\item Uno\n\\item Dos\n\\end{itemize}'), true);
+  assert.equal(convertible('\\begin{tabular}{cc}\n\\multirow{2}{*}{G} & 1 \\\\\n & 2 \\\\\n\\end{tabular}'), true);
+  assert.equal(convertible('Celda A & Celda B \\\\'), false); // fila suelta: depende del contexto, se deja crudo
+});
+
 test('itemize: \\item seguido solo de [texto] es el contenido, no una viñeta propia', () => {
   const m = parsearTex(docTex('\\begin{itemize}\n\\item [Ensayo 1: verificar.]\n\\item [Ensayo 2: medir.]\n\\end{itemize}'));
   assert.equal(m.bloques[0].t, 'lista');
