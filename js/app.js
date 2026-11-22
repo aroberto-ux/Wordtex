@@ -62,12 +62,23 @@ const dom = {
   lista: el('lista'),
   // estudio
   btnVolverEstudio: el('btn-volver-estudio'),
+  estudioCronometro: el('estudio-cronometro'),
+  btnEstudioTimer: el('btn-estudio-timer'),
+  btnEstudioTimerReset: el('btn-estudio-timer-reset'),
+  btnEstudioEnfoque: el('btn-estudio-enfoque'),
   estudioRuta: el('estudio-ruta'),
   estudioTitulo: el('estudio-titulo'),
+  estudioTema: el('estudio-tema'),
   estudioDif: el('estudio-dif'),
+  estudioOrden: el('estudio-orden'),
   estudioFav: el('estudio-fav'),
   estudioBarajar: el('btn-estudio-barajar'),
+  estudioEstadoBloque: el('estudio-estado-bloque'),
   estudioProgreso: el('estudio-progreso'),
+  estStatPendientes: el('est-stat-pendientes'),
+  estStatRepasar: el('est-stat-repasar'),
+  estStatSabidos: el('est-stat-sabidos'),
+  estudioBarra: el('estudio-barra'),
   estudioTarjeta: el('estudio-tarjeta'),
   // asignatura (diálogo)
   btnNueva: el('btn-nueva-asig'),
@@ -309,6 +320,8 @@ function refrescar() {
     if (dom.buscadorAsig.value.trim()) buscarAsignatura();
   } else if (vista === 'prob') {
     renderProblemas();
+  } else if (vista === 'estudio' && est) {
+    sincronizarEstudio();
   }
   actualizarPapeleraBotones();
   if (dom.dlgPap.open) renderPapelera();
@@ -1010,79 +1023,255 @@ async function importarRespaldo(archivo) {
 /* ---------- Modo estudio ---------- */
 
 let est = null;
+const PESO_DIF = { baja: 1, media: 2, alta: 3 };
+
 const barajarLista = (arr) => {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
 };
 
+function formatearTiempo(seg) {
+  const h = Math.floor(seg / 3600);
+  const m = Math.floor((seg % 3600) / 60);
+  const s = seg % 60;
+  const mm = String(m).padStart(2, '0');
+  const ss = String(s).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+function pintarCronometro() {
+  if (!est) return;
+  dom.estudioCronometro.textContent = formatearTiempo(est.segundos);
+  dom.btnEstudioTimer.textContent = est.pausado ? 'Reanudar' : 'Pausar';
+  dom.btnEstudioTimer.setAttribute('aria-pressed', String(est.pausado));
+}
+
+function detenerCronometro() {
+  if (est && est.timerId) {
+    clearInterval(est.timerId);
+    est.timerId = null;
+  }
+}
+
+function iniciarCronometro() {
+  if (!est) return;
+  detenerCronometro();
+  pintarCronometro();
+  est.timerId = setInterval(() => {
+    if (!est || est.pausado || est.cola.length === 0) return;
+    est.segundos += 1;
+    dom.estudioCronometro.textContent = formatearTiempo(est.segundos);
+  }, 1000);
+}
+
+function alternarPausaCronometro() {
+  if (!est) return;
+  est.pausado = !est.pausado;
+  pintarCronometro();
+}
+
+function reiniciarCronometro() {
+  if (!est) return;
+  est.segundos = 0;
+  pintarCronometro();
+}
+
+function aplicarModoEnfoque(activo) {
+  if (est) est.enfoque = activo;
+  document.body.dataset.enfoque = activo ? 'si' : 'no';
+  dom.btnEstudioEnfoque.setAttribute('aria-pressed', String(activo));
+  dom.btnEstudioEnfoque.textContent = activo ? 'Salir de enfoque' : 'Modo enfoque';
+}
+
+function poblarTemasEstudio(seleccionado = '') {
+  const temas = temasDeAsignatura();
+  dom.estudioTema.replaceChildren();
+  const optTodos = document.createElement('option');
+  optTodos.value = '';
+  optTodos.textContent = `Todos los temas (${temas.length})`;
+  dom.estudioTema.appendChild(optTodos);
+  for (const t of temas) {
+    const o = document.createElement('option');
+    o.value = t.nombre;
+    o.textContent = `${t.nombre} (${t.n})`;
+    dom.estudioTema.appendChild(o);
+  }
+  dom.estudioTema.value = temas.some((t) => t.nombre === seleccionado) ? seleccionado : '';
+}
+
 function abrirEstudio(ambito) {
   if (!aidActual) return;
-  est = { ambito, cola: [], total: 0, sabidas: 0, repasos: 0, revelada: false };
+  detenerCronometro();
+  est = {
+    ambito,
+    cola: [],
+    total: 0,
+    sabidas: 0,
+    repasos: 0,
+    fallados: new Set(),
+    pendientesRepaso: new Set(),
+    notas: new Map(),
+    borradorAbierto: false,
+    revelada: false,
+    visible: false,
+    segundos: 0,
+    pausado: false,
+    timerId: null,
+    enfoque: false,
+  };
   const asig = asigActual();
   dom.estudioRuta.textContent = asig ? asig.nombre : '';
   dom.estudioTitulo.textContent = ambito === 'tema' ? `Modo estudio · ${temaActual}` : 'Modo estudio · toda la asignatura';
   dom.estudioDif.value = '';
+  dom.estudioOrden.value = 'aleatorio';
   dom.estudioFav.checked = false;
+  if (ambito === 'asig') {
+    poblarTemasEstudio('');
+    dom.estudioTema.hidden = false;
+  } else {
+    dom.estudioTema.hidden = true;
+    dom.estudioTema.value = '';
+  }
+  aplicarModoEnfoque(false);
   soloVista('estudio');
   armarMazo();
 }
 
-function armarMazo() {
+function armarMazo(soloIds = null) {
+  if (!est) return;
   const dif = dom.estudioDif.value;
   const soloFav = dom.estudioFav.checked;
-  const pool = problemas.filter((p) =>
-    (est.ambito === 'asig' || p.tema === temaActual) &&
-    (!dif || p.dificultad === dif) &&
-    (!soloFav || esFavorito(aidActual, p.id)));
-  est.cola = barajarLista(pool);
-  est.total = pool.length;
+  const temaFiltro = est.ambito === 'asig' ? dom.estudioTema.value : temaActual;
+
+  const pool = problemas.filter((p) => {
+    if (soloIds && !soloIds.has(p.id)) return false;
+    if (temaFiltro && p.tema !== temaFiltro) return false;
+    if (dif && p.dificultad !== dif) return false;
+    if (soloFav && !esFavorito(aidActual, p.id)) return false;
+    return true;
+  });
+
+  const orden = dom.estudioOrden.value;
+  let mazo;
+  if (orden === 'dificultad') {
+    mazo = pool.slice().sort((a, b) => (PESO_DIF[a.dificultad] || 9) - (PESO_DIF[b.dificultad] || 9));
+  } else if (orden === 'secuencial') {
+    mazo = pool.slice();
+  } else {
+    mazo = barajarLista(pool);
+  }
+
+  est.cola = mazo;
+  est.total = mazo.length;
   est.sabidas = 0;
   est.repasos = 0;
+  est.fallados = new Set();
+  est.pendientesRepaso = new Set();
   est.revelada = false;
+  est.visible = false;
+  est.segundos = 0;
+  est.pausado = false;
+  iniciarCronometro();
   renderEstudio();
 }
 
+function sincronizarEstudio() {
+  if (!est) return;
+  if (est.ambito === 'asig') poblarTemasEstudio(dom.estudioTema.value);
+  const porId = new Map(problemas.map((p) => [p.id, p]));
+  const anteriorId = est.cola[0]?.id;
+  est.cola = est.cola.map((p) => porId.get(p.id)).filter(Boolean);
+  if (est.cola.length > 0 && est.cola[0].id === anteriorId) {
+    renderEstudio();
+  } else if (est.cola.length === 0 && est.total > 0) {
+    renderEstudio();
+  }
+}
+
 function salirEstudio() {
+  detenerCronometro();
+  aplicarModoEnfoque(false);
   const volverATema = est && est.ambito === 'tema';
   est = null;
   if (volverATema && temaActual !== null) { soloVista('prob'); renderProblemas(); }
   else { temaActual = null; soloVista('temas'); renderTemas(); }
 }
 
+function actualizarMetricasEstudio() {
+  if (!est) return;
+  const pendientesNuevos = Math.max(0, est.cola.length - est.pendientesRepaso.size);
+  dom.estStatPendientes.textContent = String(pendientesNuevos);
+  dom.estStatRepasar.textContent = String(est.pendientesRepaso.size);
+  dom.estStatSabidos.textContent = String(est.sabidas);
+  dom.estudioBarra.max = Math.max(1, est.total);
+  dom.estudioBarra.value = Math.min(est.total, est.sabidas);
+}
+
 function renderEstudio() {
   const cont = dom.estudioTarjeta;
   cont.replaceChildren();
   if (est.total === 0) {
-    dom.estudioProgreso.textContent = '';
+    detenerCronometro();
+    dom.estudioEstadoBloque.hidden = true;
     const v = document.createElement('p');
     v.className = 'vacio';
     v.textContent = 'No hay problemas para estudiar con estos filtros.';
     cont.appendChild(v);
     return;
   }
+
+  dom.estudioEstadoBloque.hidden = false;
+  actualizarMetricasEstudio();
+
   if (est.cola.length === 0) {
-    dom.estudioProgreso.textContent = `Completado: ${est.total} de ${est.total}.`;
+    detenerCronometro();
+    const aLaPrimera = Math.max(0, est.total - est.fallados.size);
+    const pct = Math.round((aLaPrimera / est.total) * 100);
+    dom.estudioProgreso.textContent = `Completado: ${est.total} de ${est.total} (100 %).`;
+
     const fin = document.createElement('div');
     fin.className = 'estudio-fin';
-    fin.innerHTML = '<h2>¡Repaso terminado!</h2>';
+    const h2 = document.createElement('h2');
+    h2.textContent = '¡Repaso terminado!';
     const p1 = document.createElement('p');
-    p1.textContent = `Problemas: ${est.total} · repasos adicionales: ${est.repasos}.`;
+    p1.textContent = `Dominados: ${est.sabidas} de ${est.total} · Tiempo: ${formatearTiempo(est.segundos)}.`;
+    const p2 = document.createElement('p');
+    p2.textContent = `A la primera: ${aLaPrimera} de ${est.total} (${pct} %) · Repasos adicionales: ${est.repasos}.`;
+    fin.append(h2, p1, p2);
+
+    if (est.fallados.size > 0) {
+      const idsFallados = new Set(est.fallados);
+      const bFall = document.createElement('button');
+      bFall.type = 'button';
+      bFall.className = 'btn';
+      bFall.textContent = `Repasar solo los fallados (${idsFallados.size})`;
+      bFall.addEventListener('click', () => armarMazo(idsFallados));
+      fin.appendChild(bFall);
+    }
+
     const b1 = document.createElement('button');
-    b1.type = 'button'; b1.className = 'btn'; b1.textContent = 'Estudiar de nuevo';
-    b1.addEventListener('click', armarMazo);
+    b1.type = 'button';
+    b1.className = est.fallados.size > 0 ? 'btn btn-sutil' : 'btn';
+    b1.textContent = 'Estudiar de nuevo';
+    b1.addEventListener('click', () => armarMazo());
+
     const b2 = document.createElement('button');
-    b2.type = 'button'; b2.className = 'btn btn-sutil'; b2.textContent = 'Salir';
+    b2.type = 'button';
+    b2.className = 'btn btn-sutil';
+    b2.textContent = 'Salir';
     b2.addEventListener('click', salirEstudio);
-    fin.append(p1, b1, b2);
+
+    fin.append(b1, b2);
     cont.appendChild(fin);
-    b1.focus({ preventScroll: true });
+    (fin.querySelector('.btn') || b1).focus({ preventScroll: true });
     return;
   }
 
   const p = est.cola[0];
+  const pct = Math.round((est.sabidas / est.total) * 100);
   dom.estudioProgreso.textContent =
-    `Quedan ${est.cola.length} de ${est.total} · ${est.sabidas} sabida${est.sabidas === 1 ? '' : 's'}`;
+    `Quedan ${est.cola.length} de ${est.total} · ${est.sabidas} sabida${est.sabidas === 1 ? '' : 's'} (${pct} %)`;
 
   const meta = document.createElement('div');
   meta.className = 'estudio-meta';
@@ -1093,12 +1282,22 @@ function renderEstudio() {
     c.textContent = p.dificultad.charAt(0).toUpperCase() + p.dificultad.slice(1);
     meta.appendChild(c);
   }
-  if (est.ambito === 'asig') {
+  if (est.ambito === 'asig' && !dom.estudioTema.value) {
     const c = document.createElement('span');
     c.className = 'chip chip-ruta';
     c.textContent = p.tema;
     meta.appendChild(c);
   }
+  if (est.pendientesRepaso.has(p.id)) {
+    const c = document.createElement('span');
+    c.className = 'chip chip-repaso';
+    c.textContent = 'En repaso';
+    meta.appendChild(c);
+  }
+
+  const metaAcc = document.createElement('div');
+  metaAcc.className = 'estudio-meta-acciones';
+
   const fav = document.createElement('button');
   fav.type = 'button';
   fav.className = 'link-btn btn-fav';
@@ -1109,7 +1308,16 @@ function renderEstudio() {
   };
   pintarFav();
   fav.addEventListener('click', () => { alternarFavorito(aidActual, p.id); pintarFav(); });
-  meta.appendChild(fav);
+  metaAcc.appendChild(fav);
+
+  const btnEdit = document.createElement('button');
+  btnEdit.type = 'button';
+  btnEdit.className = 'link-btn solo-editor';
+  btnEdit.textContent = 'Editar';
+  btnEdit.addEventListener('click', () => abrirFormProblema(p, aidActual));
+  metaAcc.appendChild(btnEdit);
+
+  meta.appendChild(metaAcc);
   cont.appendChild(meta);
 
   const enun = document.createElement('div');
@@ -1117,6 +1325,22 @@ function renderEstudio() {
   enun.textContent = p.enunciado;
   cont.appendChild(enun);
   if (p.diagrama) cont.appendChild(crearDiagramaTikZ(p.diagrama));
+
+  // Borrador de cálculo por tarjeta (no interfiere con atajos de teclado)
+  const detalles = document.createElement('details');
+  detalles.className = 'estudio-borrador';
+  detalles.open = est.borradorAbierto;
+  detalles.addEventListener('toggle', () => { if (est) est.borradorAbierto = detalles.open; });
+  const sum = document.createElement('summary');
+  sum.textContent = 'Borrador / notas de cálculo';
+  const notasInput = document.createElement('textarea');
+  notasInput.className = 'estudio-notas-input';
+  notasInput.rows = 3;
+  notasInput.placeholder = 'Escribe pasos intermedios, fórmulas despejadas o resultados antes de ver la respuesta…';
+  notasInput.value = est.notas.get(p.id) || '';
+  notasInput.addEventListener('input', () => { if (est) est.notas.set(p.id, notasInput.value); });
+  detalles.append(sum, notasInput);
+  cont.appendChild(detalles);
 
   const resp = document.createElement('div');
   resp.className = 'problema-respuesta';
@@ -1138,40 +1362,78 @@ function renderEstudio() {
   const bRev = document.createElement('button');
   bRev.type = 'button'; bRev.className = 'btn'; bRev.id = 'estudio-revelar';
   bRev.textContent = 'Mostrar respuesta';
+  bRev.setAttribute('aria-expanded', 'false');
+
+  const bSaltar = document.createElement('button');
+  bSaltar.type = 'button'; bSaltar.className = 'btn btn-sutil'; bSaltar.id = 'estudio-saltar';
+  bSaltar.textContent = 'Saltar';
+  bSaltar.title = 'Pasar al final sin marcar como fallado (↓)';
+
   const bRep = document.createElement('button');
   bRep.type = 'button'; bRep.className = 'btn btn-sutil'; bRep.id = 'estudio-repasar';
   bRep.textContent = 'Repasar de nuevo'; bRep.hidden = true;
+
   const bSab = document.createElement('button');
   bSab.type = 'button'; bSab.className = 'btn'; bSab.id = 'estudio-sabia';
   bSab.textContent = 'Lo sabía'; bSab.hidden = true;
-  bRev.addEventListener('click', estudioRevelar);
+
+  bRev.addEventListener('click', estudioAlternarRespuesta);
+  bSaltar.addEventListener('click', estudioSaltar);
   bRep.addEventListener('click', () => estudioMarcar(false));
   bSab.addEventListener('click', () => estudioMarcar(true));
-  controles.append(bRev, bRep, bSab);
+  controles.append(bRev, bSaltar, bRep, bSab);
 
   cont.append(resp, controles);
   est.revelada = false;
+  est.visible = false;
   tipografiarMatematicas(cont);
   bRev.focus({ preventScroll: true });
 }
 
-function estudioRevelar() {
-  if (!est || est.revelada || est.cola.length === 0) return;
-  est.revelada = true;
+function estudioAlternarRespuesta() {
+  if (!est || est.cola.length === 0) return;
   const cont = dom.estudioTarjeta;
-  cont.querySelector('.problema-respuesta').hidden = false;
-  cont.querySelector('#estudio-revelar').hidden = true;
-  cont.querySelector('#estudio-repasar').hidden = false;
-  const sab = cont.querySelector('#estudio-sabia');
-  sab.hidden = false;
-  tipografiarMatematicas(cont.querySelector('.problema-respuesta'));
-  sab.focus({ preventScroll: true });
+  const resp = cont.querySelector('.problema-respuesta');
+  const bRev = cont.querySelector('#estudio-revelar');
+
+  est.visible = !est.visible;
+  resp.hidden = !est.visible;
+  bRev.textContent = est.visible ? 'Ocultar respuesta' : 'Mostrar respuesta';
+  bRev.setAttribute('aria-expanded', String(est.visible));
+
+  if (est.visible) tipografiarMatematicas(resp);
+
+  if (!est.revelada) {
+    est.revelada = true;
+    bRev.classList.remove('btn');
+    bRev.classList.add('btn', 'btn-sutil');
+    cont.querySelector('#estudio-repasar').hidden = false;
+    const sab = cont.querySelector('#estudio-sabia');
+    sab.hidden = false;
+    sab.focus({ preventScroll: true });
+  }
+}
+
+function estudioSaltar() {
+  if (!est || est.cola.length <= 1) return;
+  est.cola.push(est.cola.shift());
+  renderEstudio();
 }
 
 function estudioMarcar(sabia) {
   if (!est || est.cola.length === 0 || !est.revelada) return;
-  if (sabia) { est.cola.shift(); est.sabidas += 1; }
-  else { est.cola.push(est.cola.shift()); est.repasos += 1; }
+  const actual = est.cola.shift();
+  if (sabia) {
+    est.pendientesRepaso.delete(actual.id);
+    est.sabidas += 1;
+  } else {
+    est.fallados.add(actual.id);
+    est.pendientesRepaso.add(actual.id);
+    est.repasos += 1;
+    // Reinserta 3 tarjetas más adelante para volver a evaluarlo pronto
+    const pos = Math.min(est.cola.length, 3);
+    est.cola.splice(pos, 0, actual);
+  }
   renderEstudio();
 }
 
@@ -1181,10 +1443,12 @@ function teclasEstudio(e) {
   const tag = e.target && e.target.tagName;
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
   if (e.key === ' ' || e.key === 'Spacebar') {
-    if (tag === 'BUTTON') return; // el botón enfocado actúa por sí mismo
-    e.preventDefault(); estudioRevelar();
+    if (tag === 'BUTTON' || tag === 'SUMMARY') return;
+    e.preventDefault();
+    estudioAlternarRespuesta();
   } else if (e.key === 'ArrowRight') { e.preventDefault(); estudioMarcar(true); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); estudioMarcar(false); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); estudioSaltar(); }
   else if (e.key === 'f' || e.key === 'F') {
     const b = dom.estudioTarjeta.querySelector('.btn-fav');
     if (b) b.click();
@@ -1272,9 +1536,17 @@ function enlazarEventos() {
 
   // Estudio
   dom.btnVolverEstudio.addEventListener('click', salirEstudio);
-  dom.estudioDif.addEventListener('change', armarMazo);
-  dom.estudioFav.addEventListener('change', armarMazo);
-  dom.estudioBarajar.addEventListener('click', armarMazo);
+  dom.btnEstudioTimer.addEventListener('click', alternarPausaCronometro);
+  dom.btnEstudioTimerReset.addEventListener('click', reiniciarCronometro);
+  dom.btnEstudioEnfoque.addEventListener('click', () => aplicarModoEnfoque(!(est && est.enfoque)));
+  dom.estudioTema.addEventListener('change', () => armarMazo());
+  dom.estudioDif.addEventListener('change', () => armarMazo());
+  dom.estudioOrden.addEventListener('change', () => armarMazo());
+  dom.estudioFav.addEventListener('change', () => armarMazo());
+  dom.estudioBarajar.addEventListener('click', () => {
+    dom.estudioOrden.value = 'aleatorio';
+    armarMazo();
+  });
   document.addEventListener('keydown', teclasEstudio);
 
   // Carga de JSON
