@@ -8,21 +8,21 @@
   <link rel="preconnect" href="https://rsms.me" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
 
-  <!-- TikZJax: compila diagramas TikZ a SVG en el navegador -->
-  <link rel="stylesheet" type="text/css" href="https://tikzjax.com/v1/fonts.css" />
-  <script>window.TikZJaxNoAutostart = true;</script>
-  <script src="https://tikzjax.com/v1/tikzjax.js"></script>
+  <link rel="stylesheet" href="assets/styles.css" />
 
-  <!-- MathJax: renderiza fórmulas LaTeX -->
+  <!-- Recursos de terminación: se cargan sin bloquear la interfaz.
+       TikZJax (diagramas) y MathJax (fórmulas) son opcionales: la app
+       funciona aunque no carguen; solo no se renderizarían diagramas/fórmulas. -->
+  <link rel="stylesheet" type="text/css" href="https://tikzjax.com/v1/fonts.css" />
   <script>
+    window.TikZJaxNoAutostart = true;
     window.MathJax = {
       tex: { inlineMath: [["\\(", "\\)"], ["$", "$"]], displayMath: [["\\[", "\\]"], ["$$", "$$"]] },
       options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre"] }
     };
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
-
-  <link rel="stylesheet" href="assets/styles.css" />
+  <script defer src="https://tikzjax.com/v1/tikzjax.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </head>
 <body>
   <header class="site-header">

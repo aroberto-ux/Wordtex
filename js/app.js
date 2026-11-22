@@ -154,10 +154,16 @@ function abrirDialogoEditar(a) {
 async function guardarDialogo() {
   const nombre = dom.dlgNombre.value.trim();
   if (!nombre) { dom.dlgNombre.focus(); return; }
+  if (!store) { alert('Todavía estamos conectando con el almacenamiento. Espera un momento e inténtalo de nuevo.'); return; }
   const datos = { nombre, descripcion: dom.dlgDesc.value.trim() };
   dom.dlg.close();
-  if (dlgModo.tipo === 'crear') await store.crearAsignatura(datos);
-  else await store.actualizarAsignatura(dlgModo.aid, datos);
+  try {
+    if (dlgModo.tipo === 'crear') await store.crearAsignatura(datos);
+    else await store.actualizarAsignatura(dlgModo.aid, datos);
+  } catch (e) {
+    console.error(e);
+    alert('No se pudo guardar la asignatura: ' + (e && e.message ? e.message : e));
+  }
 }
 async function borrarAsignatura(a) {
   if (!confirm(`¿Borrar la asignatura “${a.nombre}” y todos sus problemas? Esto afecta a todos los usuarios y no se puede deshacer.`)) return;
@@ -360,6 +366,9 @@ function enlazarEventos() {
 async function iniciar() {
   iniciarTema();
   enlazarEventos();
+
+  dom.estadoNube.textContent = '⏳ Conectando…';
+  renderAsignaturas(); // pinta el estado vacío de inmediato
 
   const { store: s, aviso } = await iniciarStore();
   store = s;
