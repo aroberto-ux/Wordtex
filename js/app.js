@@ -52,7 +52,7 @@ let dlgModo = { tipo: 'crear', aid: null };
 
 function aplicarTema(tema) {
   document.documentElement.dataset.tema = tema;
-  dom.themeToggle.textContent = tema === 'claro' ? '☀️' : '🌙';
+  dom.themeToggle.title = tema === 'claro' ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro';
   try { localStorage.setItem(TEMA_KEY, tema); } catch { /* ignore */ }
 }
 function iniciarTema() {
@@ -106,7 +106,7 @@ function renderAsignaturas() {
   if (asignaturas.length === 0) {
     const vacio = document.createElement('p');
     vacio.className = 'vacio';
-    vacio.textContent = 'Aún no hay asignaturas. Crea la primera con “+ Nueva asignatura”.';
+    vacio.textContent = 'Aún no hay asignaturas. Crea la primera con “Nueva asignatura”.';
     dom.grid.appendChild(vacio);
     return;
   }
@@ -154,10 +154,16 @@ function abrirDialogoEditar(a) {
 async function guardarDialogo() {
   const nombre = dom.dlgNombre.value.trim();
   if (!nombre) { dom.dlgNombre.focus(); return; }
+  if (!store) { alert('Todavía estamos conectando con el almacenamiento. Espera un momento e inténtalo de nuevo.'); return; }
   const datos = { nombre, descripcion: dom.dlgDesc.value.trim() };
   dom.dlg.close();
-  if (dlgModo.tipo === 'crear') await store.crearAsignatura(datos);
-  else await store.actualizarAsignatura(dlgModo.aid, datos);
+  try {
+    if (dlgModo.tipo === 'crear') await store.crearAsignatura(datos);
+    else await store.actualizarAsignatura(dlgModo.aid, datos);
+  } catch (e) {
+    console.error(e);
+    alert('No se pudo guardar la asignatura: ' + (e && e.message ? e.message : e));
+  }
 }
 async function borrarAsignatura(a) {
   if (!confirm(`¿Borrar la asignatura “${a.nombre}” y todos sus problemas? Esto afecta a todos los usuarios y no se puede deshacer.`)) return;
@@ -205,7 +211,7 @@ function crearTarjeta(p) {
 
   const chipDif = nodo.querySelector('.chip-dificultad');
   if (p.dificultad) {
-    chipDif.textContent = 'Dificultad: ' + p.dificultad;
+    chipDif.textContent = p.dificultad.charAt(0).toUpperCase() + p.dificultad.slice(1);
     chipDif.dataset.nivel = p.dificultad;
   } else {
     chipDif.remove();
@@ -361,9 +367,13 @@ async function iniciar() {
   iniciarTema();
   enlazarEventos();
 
+  dom.estadoNube.textContent = 'Conectando…';
+  dom.estadoNube.dataset.modo = 'conectando';
+  renderAsignaturas(); // pinta el estado vacío de inmediato
+
   const { store: s, aviso } = await iniciarStore();
   store = s;
-  dom.estadoNube.textContent = store.modo === 'firebase' ? '☁️ En la nube' : '💾 Solo este navegador';
+  dom.estadoNube.textContent = store.modo === 'firebase' ? 'En la nube' : 'Solo este navegador';
   dom.estadoNube.dataset.modo = store.modo;
   if (aviso) mostrarMensaje(aviso, 'error');
 

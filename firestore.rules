@@ -57,10 +57,10 @@ service cloud.firestore {
 
       match /problemas/{pid} {
         allow read: if ingresado();
-        allow write: if ingresado()
-          && (request.method == 'delete'
-              || (request.resource.data.enunciado is string
-                  && request.resource.data.enunciado.size() <= 20000));
+        allow delete: if ingresado();
+        allow create, update: if ingresado()
+          && request.resource.data.enunciado is string
+          && request.resource.data.enunciado.size() <= 20000;
       }
     }
 
