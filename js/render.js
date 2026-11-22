@@ -6,9 +6,66 @@
 
 import { tikzSvg } from '../old/tikz.js?v=2026.11.22-banco';
 
+// ── Adaptación al tema claro/oscuro ──────────────────────────────────────
+// Antes los diagramas se invertían con un filtro CSS en modo oscuro, lo que
+// alteraba cualquier color con significado. Ahora:
+//   · Si el diagrama es solo de tonos neutros (negro, blanco, grises), se
+//     reasigna a los colores del tema: el negro pasa a `currentColor`, el
+//     blanco al color de fondo y los grises se mezclan entre ambos.
+//   · Si usa algún color real (rojo, azul…), NO se toca ningún color y en modo
+//     oscuro se muestra sobre un panel claro, de modo que se vea tal como se
+//     dibujó.
+const esHex6 = /#([0-9a-f]{6})\b/gi;
+
+export function tieneColor(svg) {
+  for (const m of svg.matchAll(esHex6)) {
+    const n = parseInt(m[1], 16);
+    const r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    if (Math.max(r, g, b) - Math.min(r, g, b) > 12) return true;
+  }
+  return false;
+}
+
+// Devuelve { valor, estilo } para un gris/negro/blanco. `prop` = fill | stroke | color.
+function neutro(hex, prop) {
+  const v = parseInt(hex.slice(0, 2), 16);
+  if (v <= 8) return { valor: 'currentColor', estilo: '' };
+  if (v >= 247) return { valor: '#' + hex, estilo: prop + ':var(--surface)' };
+  const pct = Math.round((1 - v / 255) * 100);
+  return { valor: '#' + hex, estilo: prop + ':color-mix(in srgb,var(--text) ' + pct + '%,var(--surface))' };
+}
+
+function adaptarEtiqueta(tag) {
+  const estilos = [];
+  let t = tag.replace(/\b(fill|stroke)="#([0-9a-f]{6})"/gi, (m, attr, hex) => {
+    const r = neutro(hex.toLowerCase(), attr.toLowerCase());
+    if (r.estilo) estilos.push(r.estilo);
+    return attr + '="' + r.valor + '"';
+  });
+  if (estilos.length) {
+    if (/\sstyle="/.test(t)) t = t.replace(/\sstyle="/, ' style="' + estilos.join(';') + ';');
+    else t = t.replace(/(\/?>)$/, ' style="' + estilos.join(';') + '"$1');
+  }
+  return t;
+}
+
+export function adaptarSvg(svg) {
+  if (tieneColor(svg)) return { svg, conColor: true };
+  let out = svg.replace(/<(?:path|circle|ellipse|rect|line|polygon|polyline)\b[^>]*>/g, adaptarEtiqueta);
+  // Texto de los nodos (divs dentro de foreignObject): color:#xxxxxx
+  out = out.replace(/color:#([0-9a-f]{6})/gi, (m, hex) => {
+    const r = neutro(hex.toLowerCase(), 'color');
+    return r.estilo ? r.estilo : 'color:currentColor';
+  });
+  return { svg: out, conColor: false };
+}
+
 export function crearDiagramaTikZ(codigo) {
   const cont = document.createElement('div');
   cont.className = 'problema-diagrama';
+  const lienzo = document.createElement('div');
+  lienzo.className = 'tikz-lienzo';
+  cont.appendChild(lienzo);
 
   // Se difiere un fotograma para pintar primero el resto de la tarjeta.
   requestAnimationFrame(() => {
@@ -16,7 +73,9 @@ export function crearDiagramaTikZ(codigo) {
     try {
       const { src, opc } = separarTikzpicture(codigo);
       const resultado = tikzSvg(src, { opc });
-      cont.innerHTML = resultado.svg;
+      const adaptado = adaptarSvg(resultado.svg);
+      lienzo.innerHTML = adaptado.svg;
+      lienzo.dataset.colores = adaptado.conColor ? 'si' : 'no';
 
       if (resultado.avisos.length) {
         const detalles = document.createElement('details');
@@ -34,11 +93,11 @@ export function crearDiagramaTikZ(codigo) {
       }
     } catch (e) {
       console.warn('Diagrama TikZ:', e);
-      cont.replaceChildren();
+      lienzo.replaceChildren();
       const error = document.createElement('p');
       error.className = 'diagrama-error';
       error.textContent = 'No se pudo dibujar el diagrama: ' + (e?.message || String(e));
-      cont.appendChild(error);
+      lienzo.appendChild(error);
     }
   });
 
