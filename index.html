@@ -21,12 +21,15 @@
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
           onerror="window.__mathFallo=true;console.error('No se pudo cargar MathJax desde el CDN')"></script>
 </head>
-<body>
+<body data-editor="no">
   <header class="site-header">
     <div class="wrap header-top">
       <span class="marca">Banco de problemas</span>
       <div class="header-acciones">
         <span id="estado-nube" class="estado-nube" data-modo="conectando" title="Estado de almacenamiento"></span>
+        <span id="sesion-chip" class="chip-sesion" hidden></span>
+        <button type="button" id="btn-login" class="btn btn-sutil btn-peq" hidden>Iniciar sesión con Google</button>
+        <button type="button" id="btn-logout" class="link-btn" hidden>Salir</button>
         <button type="button" id="theme-toggle" class="icon-btn" aria-label="Cambiar tema" title="Cambiar tema">
           <svg class="ico-luna" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
           <svg class="ico-sol" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -35,17 +38,32 @@
     </div>
   </header>
 
-  <main class="wrap">
+  <p id="banner-acceso" class="banner-acceso" role="status" hidden></p>
+
+  <main class="wrap" id="contenido">
     <!-- Vista: asignaturas -->
     <section id="vista-asignaturas">
       <div class="encabezado">
         <div>
-          <h1>Asignaturas</h1>
+          <h1 id="h1-asig" tabindex="-1">Asignaturas</h1>
           <p class="sub">Crea un espacio por asignatura y sube tus problemas con sus respuestas.</p>
         </div>
-        <button type="button" id="btn-nueva-asig" class="btn">Nueva asignatura</button>
+        <button type="button" id="btn-nueva-asig" class="btn solo-editor">Nueva asignatura</button>
       </div>
+
+      <div class="toolbar" aria-label="Búsqueda y respaldo">
+        <input type="search" id="buscador-banco" placeholder="Buscar en todo el banco…" aria-label="Buscar en todo el banco" />
+        <button type="button" id="btn-exportar-todo" class="btn btn-sutil">Exportar todo</button>
+        <button type="button" id="btn-importar-respaldo" class="btn btn-sutil solo-editor">Importar respaldo</button>
+        <button type="button" id="btn-papelera-asig" class="btn btn-sutil solo-editor">Papelera</button>
+        <input type="file" id="file-respaldo" accept="application/json,.json" hidden />
+      </div>
+
       <div id="grid-asignaturas" class="grid-asignaturas"></div>
+      <div id="resultados-banco" hidden>
+        <p id="resultados-banco-info" class="contador" aria-live="polite"></p>
+        <div id="resultados-banco-lista" class="lista"></div>
+      </div>
     </section>
 
     <!-- Vista: temas de una asignatura -->
@@ -54,12 +72,23 @@
 
       <div class="encabezado">
         <div>
-          <h1 id="tema-asig-nombre"></h1>
+          <h1 id="tema-asig-nombre" tabindex="-1"></h1>
           <p id="tema-asig-desc" class="sub"></p>
         </div>
-        <button type="button" id="btn-nuevo-tema" class="btn">Nuevo tema</button>
+        <button type="button" id="btn-nuevo-tema" class="btn solo-editor">Nuevo tema</button>
       </div>
+
+      <div class="toolbar" aria-label="Controles de la asignatura">
+        <input type="search" id="buscador-asig" placeholder="Buscar en esta asignatura…" aria-label="Buscar en esta asignatura" />
+        <button type="button" id="btn-estudiar-asig" class="btn btn-sutil">Modo estudio</button>
+        <button type="button" id="btn-papelera-prob" class="btn btn-sutil solo-editor">Papelera</button>
+      </div>
+
       <div id="grid-temas" class="grid-asignaturas"></div>
+      <div id="resultados-asig" hidden>
+        <p id="resultados-asig-info" class="contador" aria-live="polite"></p>
+        <div id="resultados-asig-lista" class="lista"></div>
+      </div>
     </section>
 
     <!-- Vista: problemas de un tema -->
@@ -69,10 +98,14 @@
       <div class="encabezado">
         <div>
           <p id="prob-ruta" class="ruta"></p>
-          <h1 id="asig-nombre"></h1>
+          <h1 id="asig-nombre" tabindex="-1"></h1>
           <p id="asig-descripcion" class="sub"></p>
         </div>
-        <button type="button" id="btn-exportar" class="btn btn-sutil">Exportar JSON</button>
+        <div class="acciones-enc">
+          <button type="button" id="btn-nuevo-prob" class="btn solo-editor">Nuevo problema</button>
+          <button type="button" id="btn-estudiar-tema" class="btn btn-sutil">Modo estudio</button>
+          <button type="button" id="btn-exportar" class="btn btn-sutil">Exportar JSON</button>
+        </div>
       </div>
 
       <div class="toolbar" aria-label="Controles">
@@ -83,34 +116,61 @@
           <option value="media">Media</option>
           <option value="alta">Alta</option>
         </select>
+        <label class="check-fav"><input type="checkbox" id="filtro-fav" /> ★ Solo favoritos</label>
       </div>
 
-      <div id="dropzone" class="dropzone" tabindex="0" role="button"
+      <div id="dropzone" class="dropzone solo-editor" tabindex="0" role="button"
            aria-label="Arrastra archivos JSON aquí o haz clic para seleccionar">
         <span>Arrastra archivos <code>.json</code> aquí o <u>selecciónalos</u> para agregar problemas a este tema</span>
         <input type="file" id="file-input" accept="application/json,.json" multiple hidden />
       </div>
       <p id="mensaje" class="mensaje" role="status" aria-live="polite"></p>
 
-      <p id="contador" class="contador"></p>
+      <p id="contador" class="contador" aria-live="polite"></p>
       <div id="lista" class="lista" aria-label="Lista de problemas"></div>
+    </section>
+
+    <!-- Vista: modo estudio -->
+    <section id="vista-estudio" hidden>
+      <button type="button" id="btn-volver-estudio" class="link-btn btn-volver">← Salir del modo estudio</button>
+      <div class="encabezado">
+        <div>
+          <p id="estudio-ruta" class="ruta"></p>
+          <h1 id="estudio-titulo" tabindex="-1">Modo estudio</h1>
+        </div>
+      </div>
+
+      <div class="toolbar" aria-label="Opciones de estudio">
+        <select id="estudio-dif" aria-label="Dificultad">
+          <option value="">Toda dificultad</option>
+          <option value="baja">Baja</option>
+          <option value="media">Media</option>
+          <option value="alta">Alta</option>
+        </select>
+        <label class="check-fav"><input type="checkbox" id="estudio-fav" /> ★ Solo favoritos</label>
+        <button type="button" id="btn-estudio-barajar" class="btn btn-sutil">Barajar de nuevo</button>
+      </div>
+
+      <p id="estudio-progreso" class="contador" aria-live="polite"></p>
+      <div id="estudio-tarjeta" class="estudio-tarjeta"></div>
+      <p class="atajos">Atajos: <kbd>Espacio</kbd> muestra la respuesta · <kbd>←</kbd> repasar de nuevo · <kbd>→</kbd> lo sabía · <kbd>F</kbd> favorito</p>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="wrap">
-      Datos compartidos en Firebase · Diagramas TikZ renderizados localmente · Fórmulas con <a href="https://www.mathjax.org/" target="_blank" rel="noopener">MathJax</a>
+      Datos compartidos en Firebase · edición solo para cuentas autorizadas · Diagramas TikZ renderizados localmente · Fórmulas con <a href="https://www.mathjax.org/" target="_blank" rel="noopener">MathJax</a>
     </div>
   </footer>
 
   <!-- Diálogo: crear/editar asignatura -->
-  <dialog id="dlg-asig">
+  <dialog id="dlg-asig" aria-labelledby="dlg-asig-titulo">
     <form method="dialog" class="form-dlg">
       <h2 id="dlg-asig-titulo">Nueva asignatura</h2>
       <label>Nombre
         <input type="text" id="dlg-asig-nombre" maxlength="120" required placeholder="p. ej. Mecánica de Sólidos" />
       </label>
-      <label>Descripción <span class="opcional">(opcional)</span>
+      <label><span>Descripción <span class="opcional">(opcional)</span></span>
         <textarea id="dlg-asig-desc" maxlength="400" rows="2" placeholder="Breve descripción"></textarea>
       </label>
       <div class="form-acciones">
@@ -121,7 +181,7 @@
   </dialog>
 
   <!-- Diálogo: crear/renombrar tema -->
-  <dialog id="dlg-tema">
+  <dialog id="dlg-tema" aria-labelledby="dlg-tema-titulo">
     <form method="dialog" class="form-dlg">
       <h2 id="dlg-tema-titulo">Nuevo tema</h2>
       <label>Nombre del tema
@@ -134,6 +194,101 @@
     </form>
   </dialog>
 
+
+  <!-- Diálogo: crear/editar problema, con vista previa en vivo -->
+  <dialog id="dlg-problema" class="dlg-ancho" aria-labelledby="dp-titulo">
+    <form method="dialog" class="form-dlg" id="dp-form">
+      <h2 id="dp-titulo">Nuevo problema</h2>
+      <div class="dp-cuerpo">
+        <div class="dp-campos">
+          <div class="fila-2">
+            <label>Tema
+              <select id="dp-tema"></select>
+            </label>
+            <label>Dificultad
+              <select id="dp-dif">
+                <option value="">Sin definir</option>
+                <option value="baja">Baja</option>
+                <option value="media">Media</option>
+                <option value="alta">Alta</option>
+              </select>
+            </label>
+          </div>
+          <label id="dp-tema-nuevo-fila" hidden>Nombre del tema nuevo
+            <input type="text" id="dp-tema-nuevo" maxlength="120" placeholder="p. ej. Torsión" />
+          </label>
+          <label><span>Enunciado <span class="opcional">(admite fórmulas LaTeX)</span></span>
+            <textarea id="dp-enunciado" rows="5" maxlength="20000" required></textarea>
+          </label>
+          <label><span>Diagrama del enunciado <span class="opcional">(TikZ, opcional)</span></span>
+            <textarea id="dp-diagrama" class="mono" rows="5" maxlength="20000" spellcheck="false"></textarea>
+          </label>
+          <label><span>Respuesta <span class="opcional">(opcional)</span></span>
+            <textarea id="dp-respuesta" rows="5" maxlength="20000"></textarea>
+          </label>
+          <label><span>Diagrama de la respuesta <span class="opcional">(TikZ, opcional)</span></span>
+            <textarea id="dp-diagrama-resp" class="mono" rows="4" maxlength="20000" spellcheck="false"></textarea>
+          </label>
+          <label><span>Fuente <span class="opcional">(opcional)</span></span>
+            <input type="text" id="dp-fuente" maxlength="300" placeholder="Libro, autor o referencia" />
+          </label>
+        </div>
+        <div class="dp-vista-col">
+          <h3 class="dp-vista-titulo">Vista previa</h3>
+          <div id="dp-vista" class="dp-vista" aria-live="off"></div>
+        </div>
+      </div>
+      <div class="form-acciones">
+        <button type="button" id="dp-cancelar" class="btn btn-sutil">Cancelar</button>
+        <button type="button" id="dp-guardar" class="btn">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Diálogo: mover problema a otro tema -->
+  <dialog id="dlg-mover" aria-labelledby="dm-titulo">
+    <form method="dialog" class="form-dlg">
+      <h2 id="dm-titulo">Mover problema</h2>
+      <label>Tema de destino
+        <select id="dm-tema"></select>
+      </label>
+      <label id="dm-nuevo-fila" hidden>Nombre del tema nuevo
+        <input type="text" id="dm-nuevo" maxlength="120" />
+      </label>
+      <div class="form-acciones">
+        <button type="button" id="dm-cancelar" class="btn btn-sutil">Cancelar</button>
+        <button type="button" id="dm-guardar" class="btn">Mover</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Diálogo: papelera -->
+  <dialog id="dlg-papelera" class="dlg-ancho" aria-labelledby="pap-titulo">
+    <div class="form-dlg">
+      <h2 id="pap-titulo">Papelera</h2>
+      <p class="sub" id="pap-sub"></p>
+      <div id="pap-lista" class="pap-lista"></div>
+      <div class="form-acciones">
+        <button type="button" id="pap-cerrar" class="btn btn-sutil">Cerrar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Diálogo: confirmación -->
+  <dialog id="dlg-confirm" role="alertdialog" aria-labelledby="dlg-confirm-titulo" aria-describedby="dlg-confirm-texto">
+    <div class="form-dlg">
+      <h2 id="dlg-confirm-titulo">¿Confirmar?</h2>
+      <p id="dlg-confirm-texto" class="sub"></p>
+      <div class="form-acciones">
+        <button type="button" id="dlg-confirm-no" class="btn btn-sutil">Cancelar</button>
+        <button type="button" id="dlg-confirm-ok" class="btn">Aceptar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Avisos: región aria-live -->
+  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+
   <template id="tpl-asignatura">
     <article class="card-asig">
       <h3 class="card-asig-nombre"></h3>
@@ -141,8 +296,8 @@
       <div class="card-asig-pie">
         <span class="card-asig-meta"></span>
         <span class="card-asig-acciones">
-          <button type="button" class="link-btn btn-editar">Editar</button>
-          <button type="button" class="link-btn btn-borrar">Borrar</button>
+          <button type="button" class="link-btn btn-editar solo-editor">Editar</button>
+          <button type="button" class="link-btn btn-borrar solo-editor">Borrar</button>
         </span>
       </div>
       <button type="button" class="btn-abrir" aria-label="Abrir asignatura"></button>
@@ -155,8 +310,8 @@
       <div class="card-asig-pie">
         <span class="card-asig-meta"></span>
         <span class="card-asig-acciones">
-          <button type="button" class="link-btn btn-editar">Renombrar</button>
-          <button type="button" class="link-btn btn-borrar">Borrar</button>
+          <button type="button" class="link-btn btn-editar solo-editor">Renombrar</button>
+          <button type="button" class="link-btn btn-borrar solo-editor">Borrar</button>
         </span>
       </div>
       <button type="button" class="btn-abrir" aria-label="Abrir tema"></button>
@@ -167,7 +322,14 @@
     <article class="problema">
       <div class="problema-cabecera">
         <span class="chip chip-dificultad"></span>
-        <button type="button" class="btn-eliminar-prob" title="Eliminar problema" aria-label="Eliminar problema">×</button>
+        <span class="chip chip-ruta"></span>
+        <span class="problema-acciones">
+          <button type="button" class="link-btn btn-fav" aria-pressed="false" title="Marcar para repasar después">☆ Favorito</button>
+          <button type="button" class="link-btn btn-editar-prob solo-editor">Editar</button>
+          <button type="button" class="link-btn btn-mover-prob solo-editor">Mover</button>
+          <button type="button" class="link-btn btn-eliminar-prob solo-editor">Eliminar</button>
+          <button type="button" class="link-btn btn-ir-tema">Abrir tema</button>
+        </span>
       </div>
       <div class="problema-enunciado"></div>
       <div class="problema-diagrama-enunciado"></div>
@@ -180,6 +342,6 @@
     </article>
   </template>
 
-  <script type="module" src="js/app.js?v=2026.11.22-temas"></script>
+  <script type="module" src="js/app.js?v=2026.11.22-mejoras"></script>
 </body>
 </html>

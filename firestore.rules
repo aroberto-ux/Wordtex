@@ -14,8 +14,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ═══ VARIANTE A · Abierta con enlace ═══════════════════════
-    // Cualquier persona que abra la página (sesión anónima) puede ver y editar.
+    // ═══ Editor de documentos LaTeX (otra página del mismo proyecto) ══
+    // Variante A · Abierta con enlace: cualquier sesión anónima puede ver y editar.
     // Requiere habilitar «Anónimo» en Authentication → Método de acceso.
 
     function ingresado() { return request.auth != null; }
@@ -43,31 +43,61 @@ service cloud.firestore {
     }
 
     // ─── Banco de problemas (app EjerciciosMecSO) ──────────────
-    // Colección independiente del editor. Cualquier sesión anónima puede
-    // ver, crear, editar y borrar asignaturas y sus problemas (banco común).
+    // SOLO LECTURA para cualquier visitante (sesión anónima) y escritura
+    // únicamente para las cuentas de Google listadas en el documento
+    //   config/acceso   →   { editores: ['persona1@gmail.com', ...] }
+    // (correos en minúsculas). Ese documento se crea y edita a mano en la
+    // consola de Firebase; nadie puede escribirlo desde la web.
+    function esEditor() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/config/acceso)
+        && request.auth.token.email.lower()
+             in get(/databases/$(database)/documents/config/acceso).data.editores;
+    }
+
+    match /config/{doc} {
+      allow read: if ingresado();
+      allow write: if false;
+    }
+
     match /asignaturas/{aid} {
       allow read: if ingresado();
-      allow create: if ingresado()
+      allow create, update: if esEditor()
         && request.resource.data.nombre is string
         && request.resource.data.nombre.size() <= 120;
-      allow update: if ingresado()
-        && request.resource.data.nombre is string
-        && request.resource.data.nombre.size() <= 120;
-      allow delete: if ingresado();
+      allow delete: if esEditor();
 
       match /problemas/{pid} {
         allow read: if ingresado();
-        allow delete: if ingresado();
-        allow create, update: if ingresado()
+        allow delete: if esEditor();
+        allow create, update: if esEditor()
           && request.resource.data.enunciado is string
           && request.resource.data.enunciado.size() <= 20000;
       }
     }
 
-    // ═══ VARIANTE B · Solo personas autorizadas ═════════════════
-    // En firebase-config.js pon  autenticacion: 'google',
-    // habilita «Google» en Authentication, borra la variante A de arriba
-    // y descomenta este bloque con los correos que puedan editar.
+    // Variante abierta del banco (cualquiera con el enlace edita). Solo si
+    // dejas  autenticacion: 'anonima'  en firebase-config.js: sustituye el
+    // bloque anterior por este.
+    //
+    // match /asignaturas/{aid} {
+    //   allow read: if ingresado();
+    //   allow create, update: if ingresado()
+    //     && request.resource.data.nombre is string
+    //     && request.resource.data.nombre.size() <= 120;
+    //   allow delete: if ingresado();
+    //   match /problemas/{pid} {
+    //     allow read, delete: if ingresado();
+    //     allow create, update: if ingresado()
+    //       && request.resource.data.enunciado is string
+    //       && request.resource.data.enunciado.size() <= 20000;
+    //   }
+    // }
+
+    // ═══ Editor de documentos · Variante B (solo personas autorizadas) ══
+    // Solo afecta a «documentos»: el banco de problemas ya usa su propia lista
+    // (config/acceso). Descomenta este bloque y quita el match /documentos de arriba.
     //
     // function autorizado() {
     //   return request.auth != null

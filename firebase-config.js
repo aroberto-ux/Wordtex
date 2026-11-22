@@ -39,10 +39,13 @@ export const firebaseConfig = {
 };
 
 export const opciones = {
-  // 'anonima': quien abre el enlace entra directo y elige un nombre.
-  // 'google' : hay que iniciar sesión con Google (úsalo con las reglas
-  //            "estrictas" del README para limitar quién puede editar).
-  autenticacion: 'anonima',
+  // 'google' : todos pueden LEER el banco; solo las cuentas de Google listadas
+  //            en el documento Firestore  config/acceso  pueden editar.
+  //            Requiere las reglas de firestore.rules y los pasos del README
+  //            («Seguridad»). Es la opción recomendada.
+  // 'anonima': cualquiera con el enlace puede editar y borrar (banco abierto).
+  //            Úsala solo si dejas activa la variante abierta de las reglas.
+  autenticacion: 'google',
 
   // Título que se ve en la lista de documentos.
   titulo: 'Documentos LaTeX',
