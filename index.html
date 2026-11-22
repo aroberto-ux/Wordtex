@@ -48,12 +48,27 @@
       <div id="grid-asignaturas" class="grid-asignaturas"></div>
     </section>
 
-    <!-- Vista: problemas de una asignatura -->
-    <section id="vista-problemas" hidden>
-      <button type="button" id="btn-volver" class="link-btn btn-volver">← Asignaturas</button>
+    <!-- Vista: temas de una asignatura -->
+    <section id="vista-temas" hidden>
+      <button type="button" id="btn-volver-asig" class="link-btn btn-volver">← Asignaturas</button>
 
       <div class="encabezado">
         <div>
+          <h1 id="tema-asig-nombre"></h1>
+          <p id="tema-asig-desc" class="sub"></p>
+        </div>
+        <button type="button" id="btn-nuevo-tema" class="btn">Nuevo tema</button>
+      </div>
+      <div id="grid-temas" class="grid-asignaturas"></div>
+    </section>
+
+    <!-- Vista: problemas de un tema -->
+    <section id="vista-problemas" hidden>
+      <button type="button" id="btn-volver" class="link-btn btn-volver">← Temas</button>
+
+      <div class="encabezado">
+        <div>
+          <p id="prob-ruta" class="ruta"></p>
           <h1 id="asig-nombre"></h1>
           <p id="asig-descripcion" class="sub"></p>
         </div>
@@ -62,7 +77,6 @@
 
       <div class="toolbar" aria-label="Controles">
         <input type="search" id="buscador" placeholder="Buscar…" aria-label="Buscar problemas" />
-        <select id="filtro-tema" aria-label="Filtrar por tema"><option value="">Todos los temas</option></select>
         <select id="filtro-dificultad" aria-label="Filtrar por dificultad">
           <option value="">Toda dificultad</option>
           <option value="baja">Baja</option>
@@ -73,7 +87,7 @@
 
       <div id="dropzone" class="dropzone" tabindex="0" role="button"
            aria-label="Arrastra archivos JSON aquí o haz clic para seleccionar">
-        <span>Arrastra archivos <code>.json</code> aquí o <u>selecciónalos</u> para agregar problemas</span>
+        <span>Arrastra archivos <code>.json</code> aquí o <u>selecciónalos</u> para agregar problemas a este tema</span>
         <input type="file" id="file-input" accept="application/json,.json" multiple hidden />
       </div>
       <p id="mensaje" class="mensaje" role="status" aria-live="polite"></p>
@@ -106,6 +120,20 @@
     </form>
   </dialog>
 
+  <!-- Diálogo: crear/renombrar tema -->
+  <dialog id="dlg-tema">
+    <form method="dialog" class="form-dlg">
+      <h2 id="dlg-tema-titulo">Nuevo tema</h2>
+      <label>Nombre del tema
+        <input type="text" id="dlg-tema-nombre" maxlength="120" required placeholder="p. ej. Torsión" />
+      </label>
+      <div class="form-acciones">
+        <button type="button" id="dlg-tema-cancelar" class="btn btn-sutil">Cancelar</button>
+        <button type="button" id="dlg-tema-guardar" class="btn">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
   <template id="tpl-asignatura">
     <article class="card-asig">
       <h3 class="card-asig-nombre"></h3>
@@ -121,10 +149,23 @@
     </article>
   </template>
 
+  <template id="tpl-tema">
+    <article class="card-asig">
+      <h3 class="card-asig-nombre"></h3>
+      <div class="card-asig-pie">
+        <span class="card-asig-meta"></span>
+        <span class="card-asig-acciones">
+          <button type="button" class="link-btn btn-editar">Renombrar</button>
+          <button type="button" class="link-btn btn-borrar">Borrar</button>
+        </span>
+      </div>
+      <button type="button" class="btn-abrir" aria-label="Abrir tema"></button>
+    </article>
+  </template>
+
   <template id="tpl-problema">
     <article class="problema">
       <div class="problema-cabecera">
-        <span class="chip chip-tema"></span>
         <span class="chip chip-dificultad"></span>
         <button type="button" class="btn-eliminar-prob" title="Eliminar problema" aria-label="Eliminar problema">×</button>
       </div>
@@ -139,6 +180,6 @@
     </article>
   </template>
 
-  <script type="module" src="js/app.js?v=2026.11.22-local"></script>
+  <script type="module" src="js/app.js?v=2026.11.22-temas"></script>
 </body>
 </html>

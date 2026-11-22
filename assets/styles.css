@@ -119,6 +119,9 @@ h1 {
 }
 .sub { margin: 0.35rem 0 0; color: var(--muted); }
 .sub:empty { display: none; }
+.ruta { margin: 0 0 0.25rem; font-size: 0.8rem; color: var(--muted); }
+.ruta:empty { display: none; }
+.sub:empty { display: none; }
 
 /* ---------- Botones ---------- */
 .btn {

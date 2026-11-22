@@ -1,6 +1,6 @@
 # Banco de problemas
 
-Aplicación web para crear **espacios por asignatura** y reunir **problemas con sus respuestas** para estudiar. Cada asignatura tiene su propio banco de problemas, con búsqueda, filtros, fórmulas matemáticas y diagramas TikZ.
+Aplicación web para crear **espacios por asignatura**, dividirlos en **temas** y reunir **problemas con sus respuestas** para estudiar. La jerarquía es Asignatura → Tema → Problemas, con búsqueda, filtro por dificultad, fórmulas matemáticas y diagramas TikZ.
 
 Las asignaturas y los problemas se guardan en la **nube (Firebase/Firestore)** y se comparten entre todos los que abren la página. Si Firebase no está disponible, la app sigue funcionando en modo local (solo en tu navegador).
 
@@ -8,10 +8,11 @@ Las asignaturas y los problemas se guardan en la **nube (Firebase/Firestore)** y
 
 ## Cómo funciona
 
-- **Inicio:** verás las tarjetas de asignaturas. Puedes **crear**, **editar** o **borrar** una asignatura, o **abrirla**.
-- **Dentro de una asignatura:** el banco de problemas de esa materia. Busca por texto, filtra por tema o dificultad y pulsa **Mostrar respuesta** para revelar cada solución.
-- **Agregar problemas:** arrastra o selecciona archivos `.json` en la zona de carga. Los problemas se guardan en la asignatura abierta, en la nube, para todos.
-- **Exportar JSON:** descarga todos los problemas de la asignatura (útil para respaldo o para compartir un archivo).
+- **Inicio:** tarjetas de asignaturas. Puedes **crear**, **editar**, **borrar** o **abrir** una asignatura.
+- **Dentro de una asignatura:** tarjetas de **temas**. Puedes **crear** un tema (incluso vacío), **renombrarlo** o **borrarlo**. Cada tarjeta muestra cuántos problemas tiene. Los temas aparecen automáticamente a partir del campo `tema` de los problemas, más los que crees a mano.
+- **Dentro de un tema:** sus problemas. Busca por texto, filtra por dificultad y pulsa **Mostrar respuesta** para revelar la solución.
+- **Agregar problemas:** arrastra o selecciona archivos `.json` dentro de un tema. Todos los problemas del archivo se asignan a ese tema (sobrescribiendo su campo `tema`). Se guardan en la nube, para todos.
+- **Exportar JSON:** descarga los problemas del tema abierto.
 
 > ⚠️ **Acceso abierto:** cualquiera que abra la página (sesión anónima) puede crear, editar y **borrar** asignaturas y problemas. Es un banco común. Si en el futuro quieres restringirlo, cambia a login con Google siguiendo la *Variante B* de [`firestore.rules`](firestore.rules).
 
@@ -55,7 +56,7 @@ Para generar los JSON con una IA, usa el prompt de [`PROMPT_IA.md`](PROMPT_IA.md
 Las reglas de [`firestore.rules`](firestore.rules) incluyen un bloque `match /asignaturas/{aid}` para esta app, independiente del editor anterior. Si cambias las reglas en la consola de Firebase, publica ese bloque. Datos en Firestore:
 
 ```
-asignaturas/{aid}                  { nombre, descripcion, creadoPor, creado, actualizado }
+asignaturas/{aid}                  { nombre, descripcion, temas[], creadoPor, creado, actualizado }
 asignaturas/{aid}/problemas/{pid}  { tema, dificultad, enunciado, respuesta,
                                      diagrama, diagrama_respuesta, fuente, orden, creado }
 ```

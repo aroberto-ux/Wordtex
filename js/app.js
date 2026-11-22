@@ -1,23 +1,29 @@
 // Banco de problemas · app principal.
 // Dos vistas: lista de asignaturas (home) y problemas de una asignatura.
 
-import { iniciarStore, sanearProblema } from './store.js';
+import { iniciarStore, sanearProblema, sanearNombreTema } from './store.js?v=2026.11.22-temas';
 import { crearDiagramaTikZ, tipografiarMatematicas } from './render.js?v=2026.11.22-local';
 
-const DIFICULTADES = ['baja', 'media', 'alta'];
 const TEMA_KEY = 'banco-tema';
 
 const el = (id) => document.getElementById(id);
 const dom = {
   // vistas
   vistaAsig: el('vista-asignaturas'),
+  vistaTemas: el('vista-temas'),
   vistaProb: el('vista-problemas'),
   grid: el('grid-asignaturas'),
+  gridTemas: el('grid-temas'),
+  // temas
+  temaAsigNombre: el('tema-asig-nombre'),
+  temaAsigDesc: el('tema-asig-desc'),
+  btnNuevoTema: el('btn-nuevo-tema'),
+  btnVolverAsig: el('btn-volver-asig'),
   // problemas
+  probRuta: el('prob-ruta'),
   asigNombre: el('asig-nombre'),
   asigDesc: el('asig-descripcion'),
   buscador: el('buscador'),
-  filtroTema: el('filtro-tema'),
   filtroDif: el('filtro-dificultad'),
   dropzone: el('dropzone'),
   fileInput: el('file-input'),
@@ -34,19 +40,28 @@ const dom = {
   dlgDesc: el('dlg-asig-desc'),
   dlgGuardar: el('dlg-asig-guardar'),
   dlgCancelar: el('dlg-asig-cancelar'),
+  // tema (diálogo)
+  dlgTema: el('dlg-tema'),
+  dlgTemaTitulo: el('dlg-tema-titulo'),
+  dlgTemaNombre: el('dlg-tema-nombre'),
+  dlgTemaGuardar: el('dlg-tema-guardar'),
+  dlgTemaCancelar: el('dlg-tema-cancelar'),
   // varios
   estadoNube: el('estado-nube'),
   themeToggle: el('theme-toggle'),
   tplAsig: el('tpl-asignatura'),
+  tplTema: el('tpl-tema'),
   tplProb: el('tpl-problema'),
 };
 
 let store = null;
 let asignaturas = [];
-let problemas = [];
-let aidActual = null;
+let problemas = [];          // todos los problemas de la asignatura abierta
+let aidActual = null;        // asignatura abierta (en vista temas o problemas)
+let temaActual = null;       // tema abierto (en vista problemas); null = solo en vista temas
 let desuscribirProblemas = null;
 let dlgModo = { tipo: 'crear', aid: null };
+let dlgTemaModo = { tipo: 'crear', viejo: null };
 
 /* ---------- Tema claro/oscuro ---------- */
 
@@ -67,36 +82,143 @@ function iniciarTema() {
 
 /* ---------- Navegación entre vistas ---------- */
 
+function soloVista(cual) {
+  dom.vistaAsig.hidden = cual !== 'asig';
+  dom.vistaTemas.hidden = cual !== 'temas';
+  dom.vistaProb.hidden = cual !== 'prob';
+}
+
 function mostrarAsignaturas() {
   aidActual = null;
+  temaActual = null;
   if (desuscribirProblemas) { desuscribirProblemas(); desuscribirProblemas = null; }
-  dom.vistaProb.hidden = true;
-  dom.vistaAsig.hidden = false;
+  soloVista('asig');
   location.hash = '';
 }
 
+// Abre una asignatura: muestra sus temas. Se suscribe a los problemas para
+// derivar la lista de temas y los conteos.
 function abrirAsignatura(aid) {
   const asig = asignaturas.find((a) => a.id === aid);
   if (!asig) return;
   aidActual = aid;
-  dom.asigNombre.textContent = asig.nombre;
-  dom.asigDesc.textContent = asig.descripcion || '';
-  dom.buscador.value = '';
-  dom.filtroTema.value = '';
-  dom.filtroDif.value = '';
-  dom.mensaje.textContent = '';
-  dom.vistaAsig.hidden = true;
-  dom.vistaProb.hidden = false;
+  temaActual = null;
+  dom.temaAsigNombre.textContent = asig.nombre;
+  dom.temaAsigDesc.textContent = asig.descripcion || '';
+  soloVista('temas');
   location.hash = '#' + encodeURIComponent(aid);
 
   if (desuscribirProblemas) desuscribirProblemas();
   problemas = [];
-  renderProblemas();
+  renderTemas();
   desuscribirProblemas = store.suscribirProblemas(aid, (lista) => {
     problemas = lista;
-    refrescarTemas();
-    renderProblemas();
+    if (temaActual === null) renderTemas();
+    else renderProblemas();
   });
+}
+
+// Abre un tema dentro de la asignatura actual: muestra sus problemas.
+function abrirTema(nombre) {
+  if (!aidActual) return;
+  temaActual = nombre;
+  const asig = asignaturas.find((a) => a.id === aidActual);
+  dom.probRuta.textContent = asig ? asig.nombre : '';
+  dom.asigNombre.textContent = nombre;
+  dom.asigDesc.textContent = '';
+  dom.buscador.value = '';
+  dom.filtroDif.value = '';
+  dom.mensaje.textContent = '';
+  soloVista('prob');
+  location.hash = '#' + encodeURIComponent(aidActual) + '/' + encodeURIComponent(nombre);
+  renderProblemas();
+}
+
+function volverATemas() {
+  temaActual = null;
+  soloVista('temas');
+  if (aidActual) location.hash = '#' + encodeURIComponent(aidActual);
+  renderTemas();
+}
+
+// Lista de temas de la asignatura abierta = temas creados (array `temas`) +
+// temas presentes en los problemas. Con el conteo de problemas de cada uno.
+function temasDeAsignatura() {
+  const asig = asignaturas.find((a) => a.id === aidActual);
+  const conteo = new Map();
+  for (const p of problemas) conteo.set(p.tema, (conteo.get(p.tema) || 0) + 1);
+  const nombres = new Set(Array.isArray(asig?.temas) ? asig.temas : []);
+  for (const t of conteo.keys()) nombres.add(t);
+  return [...nombres]
+    .sort((a, b) => a.localeCompare(b))
+    .map((nombre) => ({ nombre, n: conteo.get(nombre) || 0 }));
+}
+
+/* ---------- Render: temas ---------- */
+
+function renderTemas() {
+  const temas = temasDeAsignatura();
+  dom.gridTemas.innerHTML = '';
+  if (temas.length === 0) {
+    const vacio = document.createElement('p');
+    vacio.className = 'vacio';
+    vacio.textContent = 'Esta asignatura aún no tiene temas. Crea el primero con “Nuevo tema”.';
+    dom.gridTemas.appendChild(vacio);
+    return;
+  }
+  for (const t of temas) {
+    const nodo = dom.tplTema.content.cloneNode(true);
+    nodo.querySelector('.card-asig-nombre').textContent = t.nombre;
+    nodo.querySelector('.card-asig-meta').textContent =
+      t.n === 0 ? 'Sin problemas' : `${t.n} problema${t.n === 1 ? '' : 's'}`;
+    nodo.querySelector('.btn-abrir').addEventListener('click', () => abrirTema(t.nombre));
+    nodo.querySelector('.btn-editar').addEventListener('click', () => abrirDialogoTemaEditar(t.nombre));
+    nodo.querySelector('.btn-borrar').addEventListener('click', () => borrarTema(t));
+    dom.gridTemas.appendChild(nodo);
+  }
+}
+
+/* ---------- Diálogo tema ---------- */
+
+function abrirDialogoTemaCrear() {
+  dlgTemaModo = { tipo: 'crear', viejo: null };
+  dom.dlgTemaTitulo.textContent = 'Nuevo tema';
+  dom.dlgTemaNombre.value = '';
+  dom.dlgTema.showModal();
+  dom.dlgTemaNombre.focus();
+}
+function abrirDialogoTemaEditar(nombre) {
+  dlgTemaModo = { tipo: 'editar', viejo: nombre };
+  dom.dlgTemaTitulo.textContent = 'Renombrar tema';
+  dom.dlgTemaNombre.value = nombre;
+  dom.dlgTema.showModal();
+  dom.dlgTemaNombre.focus();
+}
+async function guardarDialogoTema() {
+  const nombre = sanearNombreTema(dom.dlgTemaNombre.value);
+  if (!dom.dlgTemaNombre.value.trim()) { dom.dlgTemaNombre.focus(); return; }
+  if (!store || !aidActual) return;
+  dom.dlgTema.close();
+  try {
+    if (dlgTemaModo.tipo === 'crear') await store.agregarTema(aidActual, nombre);
+    else if (dlgTemaModo.viejo !== nombre) await store.renombrarTema(aidActual, dlgTemaModo.viejo, nombre);
+  } catch (e) {
+    console.error(e);
+    alert('No se pudo guardar el tema: ' + (e && e.message ? e.message : e));
+  }
+}
+async function borrarTema(t) {
+  const aviso = t.n > 0
+    ? `¿Borrar el tema “${t.nombre}” y sus ${t.n} problema(s)? Afecta a todos y no se puede deshacer.`
+    : `¿Borrar el tema “${t.nombre}”?`;
+  if (!confirm(aviso)) return;
+  try {
+    await store.eliminarTema(aidActual, t.nombre);
+    if (temaActual === t.nombre) volverATemas();
+  } catch (e) {
+    console.error(e);
+    alert('No se pudo borrar el tema: ' + (e && e.message ? e.message : e));
+  }
 }
 
 /* ---------- Render: asignaturas ---------- */
@@ -173,15 +295,18 @@ async function borrarAsignatura(a) {
 
 /* ---------- Render: problemas ---------- */
 
+// Problemas del tema abierto (temaActual), tras aplicar búsqueda y dificultad.
+function problemasDelTema() {
+  return problemas.filter((p) => p.tema === temaActual);
+}
+
 function problemasFiltrados() {
   const q = dom.buscador.value.trim().toLowerCase();
-  const tema = dom.filtroTema.value;
   const dif = dom.filtroDif.value;
-  return problemas.filter((p) => {
-    if (tema && p.tema !== tema) return false;
+  return problemasDelTema().filter((p) => {
     if (dif && p.dificultad !== dif) return false;
     if (q) {
-      const texto = `${p.enunciado} ${p.tema} ${p.fuente} ${p.respuesta}`.toLowerCase();
+      const texto = `${p.enunciado} ${p.fuente} ${p.respuesta}`.toLowerCase();
       if (!texto.includes(q)) return false;
     }
     return true;
@@ -189,25 +314,25 @@ function problemasFiltrados() {
 }
 
 function renderProblemas() {
+  const delTema = problemasDelTema();
   const lista = problemasFiltrados();
   dom.lista.innerHTML = '';
   if (lista.length === 0) {
     const vacio = document.createElement('p');
     vacio.className = 'vacio';
-    vacio.textContent = problemas.length === 0
-      ? 'Esta asignatura aún no tiene problemas. Sube un archivo JSON para empezar.'
+    vacio.textContent = delTema.length === 0
+      ? 'Este tema aún no tiene problemas. Sube un archivo JSON para empezar.'
       : 'No hay problemas que coincidan con el filtro.';
     dom.lista.appendChild(vacio);
   } else {
     for (const p of lista) dom.lista.appendChild(crearTarjeta(p));
   }
-  dom.contador.textContent = `Mostrando ${lista.length} de ${problemas.length} problema(s).`;
+  dom.contador.textContent = `Mostrando ${lista.length} de ${delTema.length} problema(s).`;
   tipografiarMatematicas();
 }
 
 function crearTarjeta(p) {
   const nodo = dom.tplProb.content.cloneNode(true);
-  nodo.querySelector('.chip-tema').textContent = p.tema;
 
   const chipDif = nodo.querySelector('.chip-dificultad');
   if (p.dificultad) {
@@ -252,18 +377,6 @@ function crearTarjeta(p) {
   return nodo;
 }
 
-function refrescarTemas() {
-  const temas = [...new Set(problemas.map((p) => p.tema))].sort((a, b) => a.localeCompare(b));
-  const actual = dom.filtroTema.value;
-  dom.filtroTema.innerHTML = '<option value="">Todos los temas</option>';
-  for (const t of temas) {
-    const opt = document.createElement('option');
-    opt.value = t; opt.textContent = t;
-    dom.filtroTema.appendChild(opt);
-  }
-  if (temas.includes(actual)) dom.filtroTema.value = actual;
-}
-
 /* ---------- Subir / exportar JSON ---------- */
 
 // Acepta: lista de problemas, un problema suelto, o un objeto { problemas: [...] }.
@@ -297,11 +410,13 @@ async function manejarArchivos(fileList) {
   }
 
   if (total.length) {
+    // Dentro de un tema, todos los problemas subidos se asignan a ese tema.
+    if (temaActual) total = total.map((p) => ({ ...p, tema: temaActual }));
     mostrarMensaje(`Subiendo ${total.length} problema(s)…`, '');
     try {
       await store.agregarProblemas(aidActual, total);
       mostrarMensaje(
-        `Se agregaron ${total.length} problema(s).` + (errores.length ? ' Con avisos: ' + errores.join('; ') : ''),
+        `Se agregaron ${total.length} problema(s) a “${temaActual}”.` + (errores.length ? ' Con avisos: ' + errores.join('; ') : ''),
         'ok'
       );
     } catch (e) {
@@ -320,19 +435,22 @@ function mostrarMensaje(texto, tipo) {
 
 function exportar() {
   const asig = asignaturas.find((a) => a.id === aidActual);
+  const delTema = problemasDelTema();
   const salida = {
     formato: 'banco-problemas-v1',
     asignatura: asig ? asig.nombre : '',
-    problemas: problemas.map(({ id, orden, creado, ...p }) => p),
+    tema: temaActual || '',
+    problemas: delTema.map(({ id, orden, creado, ...p }) => p),
   };
   const blob = new Blob([JSON.stringify(salida, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = (asig ? asig.nombre.replace(/[^\w.-]+/g, '_') : 'problemas') + '.json';
+  const base = `${asig ? asig.nombre : 'asignatura'}-${temaActual || 'tema'}`.replace(/[^\w.-]+/g, '_');
+  a.download = base + '.json';
   a.click();
   URL.revokeObjectURL(url);
-  mostrarMensaje(`Exportados ${problemas.length} problema(s).`, 'ok');
+  mostrarMensaje(`Exportados ${delTema.length} problema(s) del tema “${temaActual}”.`, 'ok');
 }
 
 /* ---------- Eventos ---------- */
@@ -343,10 +461,16 @@ function enlazarEventos() {
   dom.dlgCancelar.addEventListener('click', () => dom.dlg.close());
   dom.dlgNombre.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); guardarDialogo(); } });
 
-  dom.btnVolver.addEventListener('click', mostrarAsignaturas);
+  // Temas
+  dom.btnNuevoTema.addEventListener('click', abrirDialogoTemaCrear);
+  dom.btnVolverAsig.addEventListener('click', mostrarAsignaturas);
+  dom.dlgTemaGuardar.addEventListener('click', guardarDialogoTema);
+  dom.dlgTemaCancelar.addEventListener('click', () => dom.dlgTema.close());
+  dom.dlgTemaNombre.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); guardarDialogoTema(); } });
+
+  dom.btnVolver.addEventListener('click', volverATemas);
 
   dom.buscador.addEventListener('input', renderProblemas);
-  dom.filtroTema.addEventListener('change', renderProblemas);
   dom.filtroDif.addEventListener('change', renderProblemas);
 
   dom.dropzone.addEventListener('click', () => dom.fileInput.click());
@@ -377,18 +501,28 @@ async function iniciar() {
   dom.estadoNube.dataset.modo = store.modo;
   if (aviso) mostrarMensaje(aviso, 'error');
 
+  let arranqueHash = false;
   store.suscribirAsignaturas((lista) => {
     asignaturas = lista;
     renderAsignaturas();
-    // Si estamos dentro de una asignatura, refrescar su cabecera.
+
     if (aidActual) {
       const a = asignaturas.find((x) => x.id === aidActual);
-      if (a) { dom.asigNombre.textContent = a.nombre; dom.asigDesc.textContent = a.descripcion || ''; }
-      else mostrarAsignaturas(); // fue borrada
-    } else {
-      // Abrir directamente si el hash apunta a una asignatura existente.
-      const hash = decodeURIComponent(location.hash.slice(1));
-      if (hash && asignaturas.some((x) => x.id === hash)) abrirAsignatura(hash);
+      if (!a) { mostrarAsignaturas(); return; } // la asignatura fue borrada
+      // Refrescar cabeceras y la lista de temas (p. ej. si cambió `temas`).
+      dom.temaAsigNombre.textContent = a.nombre;
+      dom.temaAsigDesc.textContent = a.descripcion || '';
+      if (temaActual === null) renderTemas();
+    } else if (!arranqueHash) {
+      // Primera carga: abrir directamente desde el hash #aid o #aid/tema.
+      arranqueHash = true;
+      const partes = location.hash.slice(1).split('/');
+      const aid = decodeURIComponent(partes[0] || '');
+      const tema = partes[1] != null ? decodeURIComponent(partes[1]) : null;
+      if (aid && asignaturas.some((x) => x.id === aid)) {
+        abrirAsignatura(aid);
+        if (tema) abrirTema(tema);
+      }
     }
   });
 }
