@@ -332,7 +332,7 @@ h1 {
 }
 .problema-fuente:empty { display: none; }
 
-/* Diagramas TikZ: sin caja; en tema oscuro se invierten para que las líneas se vean */
+/* Diagramas TikZ locales: en tema oscuro se invierten para dar contraste */
 .problema-diagrama {
   margin: 1rem 0;
   overflow-x: auto;
@@ -340,7 +340,24 @@ h1 {
 }
 .problema-diagrama svg { max-width: 100%; height: auto; }
 html[data-tema="oscuro"] .problema-diagrama svg { filter: invert(1) hue-rotate(180deg); }
-.diagrama-cargando { font-size: 0.8rem; color: var(--muted); }
+.diagrama-error {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--alta) 35%, var(--border));
+  border-radius: 8px;
+  color: var(--alta);
+  font-size: 0.82rem;
+  text-align: left;
+}
+.diagrama-avisos {
+  margin: 0.6rem auto 0;
+  max-width: 38rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-align: left;
+}
+.diagrama-avisos summary { cursor: pointer; text-align: center; }
+.diagrama-avisos ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
 
 /* ---------- Diálogo ---------- */
 dialog {

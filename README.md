@@ -30,7 +30,7 @@ Puedes subir una **lista** de problemas, un **único** problema, o un objeto `{ 
 | `fuente`             | No        | Libro o referencia. |
 
 - **Fórmulas:** LaTeX entre `\( ... \)` (en línea) o `\[ ... \]` (centradas), renderizadas con [MathJax](https://www.mathjax.org/). En JSON la barra invertida va **doble**: `\\( \\sigma = P/A \\)`.
-- **Diagramas:** el valor de `diagrama` / `diagrama_respuesta` es código TikZ que [TikZJax](https://tikzjax.com/) compila a SVG en el navegador. Escribe solo el interior del `tikzpicture`. La primera carga descarga el motor (varios MB) y puede tardar unos segundos; luego queda en caché.
+- **Diagramas:** el valor de `diagrama` / `diagrama_respuesta` es código TikZ que el intérprete incluido en el repositorio convierte directamente a SVG. No requiere un motor externo ni una descarga WebAssembly. Escribe solo el interior del `tikzpicture`; también se aceptan bloques completos. Soporta las instrucciones habituales de dibujo y muestra avisos cuando aproxima una función avanzada.
 
 Para generar los JSON con una IA, usa el prompt de [`PROMPT_IA.md`](PROMPT_IA.md).
 
@@ -43,7 +43,7 @@ Para generar los JSON con una IA, usa el prompt de [`PROMPT_IA.md`](PROMPT_IA.md
 ├── js/
 │   ├── app.js          # Orquestación de vistas y eventos
 │   ├── store.js        # Capa de datos (Firestore + localStorage)
-│   └── render.js       # TikZ (TikZJax) y fórmulas (MathJax)
+│   └── render.js       # Diagramas TikZ locales y fórmulas (MathJax)
 ├── firebase-config.js  # Configuración de Firebase (clave pública)
 ├── firestore.rules     # Reglas de seguridad (incluye la colección `asignaturas`)
 ├── vendor/             # KaTeX empaquetado (del proyecto anterior)

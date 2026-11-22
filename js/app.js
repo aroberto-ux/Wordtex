@@ -2,7 +2,7 @@
 // Dos vistas: lista de asignaturas (home) y problemas de una asignatura.
 
 import { iniciarStore, sanearProblema } from './store.js';
-import { crearDiagramaTikZ, tipografiarMatematicas } from './render.js';
+import { crearDiagramaTikZ, tipografiarMatematicas } from './render.js?v=2026.11.22-local';
 
 const DIFICULTADES = ['baja', 'media', 'alta'];
 const TEMA_KEY = 'banco-tema';

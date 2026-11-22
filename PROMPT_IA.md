@@ -44,12 +44,12 @@ NOTACIÓN MATEMÁTICA (MathJax)
 - En JSON la barra invertida va DOBLE: \\( \\sigma \\) \\dfrac \\int, etc.
 
 DIAGRAMAS TikZ
-- "diagrama" / "diagrama_respuesta" es código TikZ que se renderiza con TikZJax en el
-  navegador. Escribe SOLO el interior; el entorno \begin{tikzpicture}...\end{tikzpicture}
-  se agrega automáticamente.
+- "diagrama" / "diagrama_respuesta" es código TikZ que el navegador convierte a SVG
+  con el intérprete incluido en la página. Escribe SOLO el interior; el bloque completo
+  \\begin{tikzpicture}...\\end{tikzpicture} también es válido.
 - Escape JSON: cada barra invertida va DOBLE (\\draw, \\fill, \\node) y los saltos como \n.
 - Mantén los diagramas SIMPLES y en 2D (\\draw, \\fill, \\node, flechas ->, cotas <->,
-  etiquetas). Evita librerías/paquetes TikZ avanzados: pueden no cargar.
+  etiquetas). Evita librerías/paquetes TikZ avanzados: el intérprete puede aproximarlos.
 
 REGLAS DE FORMATO
 - JSON válido y estándar: comillas dobles, comas correctas, sin comas finales sobrantes.
@@ -88,4 +88,4 @@ Ahora convierte los siguientes problemas a ese JSON. Devuelve SOLO el JSON:
 
 - Sirve para **cualquier asignatura** (física, cálculo, química…), no solo mecánica de sólidos: cambia los temas del ejemplo si quieres.
 - Puedes pasarle varios problemas a la vez; la IA los pondrá todos en la misma lista.
-- Diagramas por [TikZJax](https://tikzjax.com/): la primera vez tarda unos segundos en descargar el motor; soporta TikZ básico.
+- El intérprete incluido renderiza líneas, nodos, flechas, cotas, figuras, colores, curvas y otras instrucciones habituales de TikZ. Mantén los diagramas simples para obtener una representación fiel.
