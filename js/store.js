@@ -4,9 +4,12 @@
 //   · Local (localStorage): si Firebase no está configurado o falla.
 //
 // Estructura en Firestore (colección independiente del editor):
-//   asignaturas/{aid}                   { nombre, descripcion, creadoPor, creado, actualizado }
+//   asignaturas/{aid}                   { nombre, descripcion, temas[], creadoPor, creado, actualizado }
 //   asignaturas/{aid}/problemas/{pid}   { tema, dificultad, enunciado, respuesta,
 //                                         diagrama, diagrama_respuesta, fuente, orden, creado }
+//
+// Los temas de una asignatura = unión del array `temas` (incluye los vacíos que
+// crea el usuario) con los valores `tema` presentes en los problemas.
 
 import { firebaseConfig } from '../firebase-config.js';
 
@@ -15,11 +18,25 @@ const DIFICULTADES = ['baja', 'media', 'alta'];
 
 const recortar = (v, n) => String(v ?? '').trim().slice(0, n);
 
+export function sanearNombreTema(v) {
+  return recortar(v || 'General', 120) || 'General';
+}
+
 export function sanearAsignatura(d) {
-  return {
+  const out = {
     nombre: recortar(d.nombre || 'Sin nombre', 120) || 'Sin nombre',
     descripcion: recortar(d.descripcion, 400),
   };
+  // `temas` guarda los temas creados por el usuario (incluidos los vacíos).
+  // Los temas que ya tienen problemas no necesitan estar aquí: se derivan.
+  if (Array.isArray(d.temas)) {
+    const vistos = new Set();
+    out.temas = d.temas
+      .map(sanearNombreTema)
+      .filter((t) => { if (vistos.has(t)) return false; vistos.add(t); return true; })
+      .slice(0, 300);
+  }
+  return out;
 }
 
 export function sanearProblema(p) {
@@ -88,12 +105,43 @@ function crearStoreLocal() {
     async actualizarAsignatura(aid, d) {
       leer();
       const a = datos.asignaturas[aid]; if (!a) return false;
-      Object.assign(a, sanearAsignatura({ ...a, ...d }), { actualizado: Date.now() });
+      a.nombre = recortar(d.nombre || a.nombre, 120) || a.nombre;
+      a.descripcion = recortar(d.descripcion ?? a.descripcion, 400);
+      a.actualizado = Date.now();
       guardar(); emitir(); return true;
     },
     async eliminarAsignatura(aid) {
       leer();
       delete datos.asignaturas[aid]; delete datos.problemas[aid];
+      guardar(); emitir(); return true;
+    },
+
+    async agregarTema(aid, nombre) {
+      leer();
+      const a = datos.asignaturas[aid]; if (!a) return false;
+      const t = sanearNombreTema(nombre);
+      a.temas = Array.isArray(a.temas) ? a.temas : [];
+      if (!a.temas.includes(t)) a.temas.push(t);
+      a.actualizado = Date.now();
+      guardar(); emitir(); return true;
+    },
+    async renombrarTema(aid, viejo, nuevo) {
+      leer();
+      const a = datos.asignaturas[aid]; if (!a) return false;
+      const t = sanearNombreTema(nuevo);
+      a.temas = (Array.isArray(a.temas) ? a.temas : []).map((x) => (x === viejo ? t : x));
+      if (!a.temas.includes(t)) a.temas.push(t);
+      for (const p of Object.values(datos.problemas[aid] || {})) if (p.tema === viejo) p.tema = t;
+      a.actualizado = Date.now();
+      guardar(); emitir(); return true;
+    },
+    async eliminarTema(aid, nombre) {
+      leer();
+      const a = datos.asignaturas[aid]; if (!a) return false;
+      a.temas = (Array.isArray(a.temas) ? a.temas : []).filter((x) => x !== nombre);
+      const col = datos.problemas[aid] || {};
+      for (const [pid, p] of Object.entries(col)) if (p.tema === nombre) delete col[pid];
+      a.actualizado = Date.now();
       guardar(); emitir(); return true;
     },
 
@@ -166,7 +214,43 @@ async function crearStoreFirebase() {
       return ref.id;
     },
     async actualizarAsignatura(aid, d) {
-      await F.updateDoc(refAsig(aid), { ...sanearAsignatura(d), actualizado: Date.now() });
+      // Solo nombre/descripción: no tocar `temas` aquí.
+      const parche = { actualizado: Date.now() };
+      if (d.nombre != null) parche.nombre = recortar(d.nombre, 120) || 'Sin nombre';
+      if (d.descripcion != null) parche.descripcion = recortar(d.descripcion, 400);
+      await F.updateDoc(refAsig(aid), parche);
+      return true;
+    },
+
+    async agregarTema(aid, nombre) {
+      const t = sanearNombreTema(nombre);
+      await F.updateDoc(refAsig(aid), { temas: F.arrayUnion(t), actualizado: Date.now() });
+      return true;
+    },
+    async renombrarTema(aid, viejo, nuevo) {
+      const t = sanearNombreTema(nuevo);
+      const snap = await F.getDoc(refAsig(aid));
+      const temas = (snap.exists() && Array.isArray(snap.data().temas) ? snap.data().temas : []).map((x) => (x === viejo ? t : x));
+      if (!temas.includes(t)) temas.push(t);
+      // Reasignar el tema en los problemas afectados.
+      const probs = await F.getDocs(F.query(colProb(aid), F.where('tema', '==', viejo)));
+      for (let i = 0; i < probs.docs.length; i += 400) {
+        const lote = F.writeBatch(db);
+        for (const dd of probs.docs.slice(i, i + 400)) lote.update(dd.ref, { tema: t });
+        await lote.commit();
+      }
+      await F.updateDoc(refAsig(aid), { temas: [...new Set(temas)], actualizado: Date.now() });
+      return true;
+    },
+    async eliminarTema(aid, nombre) {
+      // Borrar los problemas del tema y quitarlo del array.
+      const probs = await F.getDocs(F.query(colProb(aid), F.where('tema', '==', nombre)));
+      for (let i = 0; i < probs.docs.length; i += 400) {
+        const lote = F.writeBatch(db);
+        for (const dd of probs.docs.slice(i, i + 400)) lote.delete(dd.ref);
+        await lote.commit();
+      }
+      await F.updateDoc(refAsig(aid), { temas: F.arrayRemove(nombre), actualizado: Date.now() });
       return true;
     },
     async eliminarAsignatura(aid) {
