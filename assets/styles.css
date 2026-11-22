@@ -289,26 +289,6 @@ h1 {
 .chip-dificultad[data-nivel="media"] { color: var(--media); }
 .chip-dificultad[data-nivel="alta"] { color: var(--alta); }
 
-.btn-eliminar-prob {
-  margin-left: auto;
-  width: 26px;
-  height: 26px;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  color: var(--muted);
-  font-size: 1.1rem;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.12s, color 0.12s, background 0.12s;
-}
-.problema:hover .btn-eliminar-prob,
-.btn-eliminar-prob:focus-visible { opacity: 1; }
-.btn-eliminar-prob:hover { color: var(--alta); background: var(--subtle); }
-.btn-eliminar-prob:focus-visible { outline: none; box-shadow: var(--ring); }
-@media (hover: none) { .btn-eliminar-prob { opacity: 1; } }
-
 .problema-enunciado { white-space: pre-wrap; }
 
 .btn-revelar {
@@ -335,14 +315,13 @@ h1 {
 }
 .problema-fuente:empty { display: none; }
 
-/* Diagramas TikZ locales: en tema oscuro se invierten para dar contraste */
+/* Diagramas TikZ: los neutros siguen el tema; si llevan color real se muestran sobre panel claro (ver render.js) */
 .problema-diagrama {
   margin: 1rem 0;
   overflow-x: auto;
   text-align: center;
 }
 .problema-diagrama svg { max-width: 100%; height: auto; }
-html[data-tema="oscuro"] .problema-diagrama svg { filter: invert(1) hue-rotate(180deg); }
 .diagrama-error {
   margin: 0;
   padding: 0.7rem 0.85rem;
@@ -422,4 +401,220 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
   main { padding-top: 2rem; }
   .encabezado { flex-direction: column; gap: 1rem; }
   .toolbar select { flex: 1 1 45%; }
+}
+
+
+/* ═════════ Mejoras: sesión, permisos, avisos, edición, estudio ═════════ */
+
+/* El atributo hidden debe ganar a cualquier display definido en clases */
+[hidden] { display: none !important; }
+
+:root { --peligro: #b91c1c; --peligro-ink: #ffffff; }
+html[data-tema="oscuro"] { --peligro: #f87171; --peligro-ink: #1a0505; }
+
+/* Solo lectura: se ocultan los controles que modifican datos */
+body[data-editor="no"] .solo-editor { display: none !important; }
+
+.btn-peq { padding: 0.3rem 0.65rem; font-size: 0.8rem; }
+.btn-peligro { background: var(--peligro); border-color: var(--peligro); color: var(--peligro-ink); }
+
+.chip-sesion {
+  font-size: 0.78rem;
+  color: var(--muted);
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.banner-acceso {
+  margin: 0;
+  padding: 0.55rem 1.25rem;
+  font-size: 0.82rem;
+  text-align: center;
+  color: var(--text);
+  background: color-mix(in srgb, var(--media) 14%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--media) 35%, var(--border));
+}
+.banner-acceso[hidden] { display: none; }
+
+.acciones-enc { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; }
+.toolbar .btn { align-self: center; }
+.check-fav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
+.check-fav input { accent-color: var(--accent); }
+
+/* Foco visible en cualquier control */
+a:focus-visible, button:focus-visible, select:focus-visible,
+input:focus-visible, textarea:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+h1[tabindex="-1"]:focus { outline: none; }
+
+/* Tarjeta de problema */
+.problema-cabecera { flex-wrap: wrap; row-gap: 0.25rem; }
+.chip-ruta { color: var(--muted); }
+.chip-ruta:empty { display: none; }
+.problema-acciones { margin-left: auto; display: flex; flex-wrap: wrap; gap: 0.85rem; }
+.problema-acciones .link-btn { font-size: 0.8rem; }
+.btn-eliminar-prob:hover { color: var(--alta); }
+.btn-fav[aria-pressed="true"] { color: var(--media); font-weight: 500; }
+
+/* Avisos */
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(30rem, calc(100% - 2rem));
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.8rem 0.65rem 1rem;
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 10px;
+  font-size: 0.875rem;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  animation: toast-entra 0.16s ease-out;
+}
+.toast.saliendo { opacity: 0; transition: opacity 0.16s; }
+.toast-texto { flex: 1; }
+.toast-error { background: var(--peligro); color: var(--peligro-ink); }
+.toast-ok { background: color-mix(in srgb, var(--baja) 85%, var(--text)); color: var(--bg); }
+.toast-accion, .toast-cerrar {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.toast-accion { font-weight: 600; text-decoration: underline; text-underline-offset: 2px; padding: 0.1rem 0.25rem; }
+.toast-cerrar { font-size: 1.1rem; line-height: 1; opacity: 0.7; padding: 0 0.2rem; }
+.toast-cerrar:hover { opacity: 1; }
+.toast button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 4px; }
+@keyframes toast-entra { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } .toast.saliendo { transition: none; } }
+
+/* Diálogos anchos (problema, papelera) */
+dialog.dlg-ancho { max-width: min(1120px, calc(100% - 2rem)); }
+dialog { max-height: calc(100% - 2rem); }
+.form-dlg textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; }
+.fila-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.form-dlg select {
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+}
+.dp-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.25rem; }
+.dp-campos { display: flex; flex-direction: column; gap: 0.85rem; min-width: 0; }
+.dp-vista-col { min-width: 0; position: sticky; top: 0; align-self: start; }
+.dp-vista-titulo { margin: 0 0 0.5rem; font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.dp-vista {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--subtle);
+  max-height: 70vh;
+  overflow: auto;
+}
+.dp-vista h4 { margin: 1rem 0 0.4rem; font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+.dp-vista h4:first-child { margin-top: 0; }
+.dp-vista .vacio-vista { color: var(--muted); font-size: 0.85rem; margin: 0; }
+@media (max-width: 800px) {
+  .dp-cuerpo { grid-template-columns: 1fr; }
+  .dp-vista-col { position: static; }
+  .fila-2 { grid-template-columns: 1fr; }
+}
+
+/* Papelera */
+.pap-lista { display: flex; flex-direction: column; max-height: 55vh; overflow: auto; }
+.pap-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--border);
+}
+.pap-item:first-child { border-top: none; }
+.pap-info { flex: 1; min-width: 0; }
+.pap-titulo { margin: 0; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pap-meta { margin: 0; font-size: 0.75rem; color: var(--muted); }
+.pap-acciones { display: flex; gap: 0.85rem; flex: 0 0 auto; }
+.pap-acciones .btn-borrar:hover { color: var(--alta); }
+
+/* Resultados de búsqueda */
+.mas-resultados { display: block; margin: 1rem auto 0; }
+
+/* Modo estudio */
+.estudio-tarjeta {
+  padding: 1.5rem 1.5rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.estudio-meta { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+.estudio-meta .btn-fav { margin-left: auto; font-size: 0.82rem; }
+.estudio-controles { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.25rem; }
+.estudio-fin { text-align: center; padding: 2rem 1rem; }
+.estudio-fin h2 { margin: 0 0 0.5rem; font-size: 1.2rem; }
+.estudio-fin p { color: var(--muted); margin: 0.25rem 0; }
+.estudio-fin .btn { margin: 1rem 0.25rem 0; }
+.atajos { margin: 0.75rem 0 0; font-size: 0.78rem; color: var(--muted); }
+kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78em;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--subtle);
+}
+
+/* Diagramas: lienzo y panel claro cuando llevan color real */
+.tikz-lienzo { display: inline-block; max-width: 100%; color: var(--text); }
+html[data-tema="oscuro"] .tikz-lienzo[data-colores="si"] {
+  background: #ffffff;
+  color: #000000;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .acciones-enc { justify-content: flex-start; }
+  .problema-acciones { margin-left: 0; width: 100%; }
+}
+
+/* Ajustes: casilla de favoritos, separadores y botones del formulario */
+.toolbar .check-fav input[type="checkbox"] { flex: none; width: auto; padding: 0; margin: 0; }
+.check-fav { white-space: nowrap; flex: none; }
+.chip-dificultad::before { content: none !important; }
+.form-dlg label > span:first-child { display: block; }
+.dlg-ancho .form-acciones {
+  position: sticky;
+  bottom: -1.5rem;
+  z-index: 1;
+  margin: 0 -1.5rem -1.5rem;
+  padding: 0.85rem 1.5rem;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
 }
