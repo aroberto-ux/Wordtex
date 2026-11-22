@@ -16,7 +16,7 @@ function tikzListo(timeoutMs = 20000) {
     const inicio = Date.now();
     const id = setInterval(() => {
       if (window.TikZJax) { clearInterval(id); resolve(window.TikZJax); }
-      else if (Date.now() - inicio > timeoutMs) { clearInterval(id); resolve(null); }
+      else if (window.__tikzFallo || Date.now() - inicio > timeoutMs) { clearInterval(id); resolve(null); }
     }, 120);
   });
   return esperaTikZ;
@@ -43,21 +43,38 @@ export function crearDiagramaTikZ(codigo) {
   colaTikz = colaTikz.then(async () => {
     const TikZJax = await tikzListo();
     if (!TikZJax) {
-      aviso.textContent = 'No se pudo cargar el motor de diagramas (TikZJax).';
+      aviso.textContent = 'No se pudo cargar el motor de diagramas (sin conexión a tikzjax.com).';
       return;
     }
     if (!script.isConnected) { aviso.remove(); return; } // tarjeta ya quitada
     try {
-      // TikZJax procesa los <script type="text/tikz"> dentro de `cont`.
+      // TikZJax(root) procesa los <script type="text/tikz"> dentro de `root`,
+      // pero por un detalle de la librería NO espera a terminar: lanza el
+      // procesamiento y vuelve. Por eso esperamos nosotros a que aparezca el
+      // SVG (o se agote el tiempo), en lugar de confiar en su promesa.
       await TikZJax(cont);
-      aviso.remove();
+      const ok = await esperarSvg(cont, 90000);
+      if (ok) aviso.remove();
+      else aviso.textContent = 'El diagrama tardó demasiado o no se pudo renderizar.';
     } catch (e) {
       console.warn('TikZJax:', e);
-      aviso.textContent = 'No se pudo renderizar el diagrama (revisa la sintaxis TikZ).';
+      aviso.textContent = 'No se pudo renderizar el diagrama (revisa la sintaxis TikZ). Ver consola.';
     }
   });
 
   return cont;
+}
+
+// Espera a que TikZJax reemplace el <script> por un <svg> dentro de `cont`.
+function esperarSvg(cont, timeoutMs) {
+  return new Promise((resolve) => {
+    if (cont.querySelector('svg')) return resolve(true);
+    const inicio = Date.now();
+    const id = setInterval(() => {
+      if (cont.querySelector('svg')) { clearInterval(id); resolve(true); }
+      else if (Date.now() - inicio > timeoutMs) { clearInterval(id); resolve(false); }
+    }, 150);
+  });
 }
 
 function normalizarTikZ(codigo) {
@@ -77,7 +94,7 @@ function esperarMathJax(timeoutMs = 20000) {
     const inicio = Date.now();
     const id = setInterval(() => {
       if (window.MathJax && window.MathJax.typesetPromise) { clearInterval(id); resolve(window.MathJax); }
-      else if (Date.now() - inicio > timeoutMs) { clearInterval(id); resolve(null); }
+      else if (window.__mathFallo || Date.now() - inicio > timeoutMs) { clearInterval(id); resolve(null); }
     }, 120);
   });
   return mathListo;
