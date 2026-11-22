@@ -42,6 +42,28 @@ service cloud.firestore {
       }
     }
 
+    // ─── Banco de problemas (app EjerciciosMecSO) ──────────────
+    // Colección independiente del editor. Cualquier sesión anónima puede
+    // ver, crear, editar y borrar asignaturas y sus problemas (banco común).
+    match /asignaturas/{aid} {
+      allow read: if ingresado();
+      allow create: if ingresado()
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() <= 120;
+      allow update: if ingresado()
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() <= 120;
+      allow delete: if ingresado();
+
+      match /problemas/{pid} {
+        allow read: if ingresado();
+        allow write: if ingresado()
+          && (request.method == 'delete'
+              || (request.resource.data.enunciado is string
+                  && request.resource.data.enunciado.size() <= 20000));
+      }
+    }
+
     // ═══ VARIANTE B · Solo personas autorizadas ═════════════════
     // En firebase-config.js pon  autenticacion: 'google',
     // habilita «Google» en Authentication, borra la variante A de arriba
