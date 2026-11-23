@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Banco de problemas</title>
 
+
   <link rel="stylesheet" href="assets/styles.css" />
 
   <!-- MathJax renderiza las fórmulas del enunciado, la respuesta y los
@@ -20,10 +21,8 @@
 </head>
 <body data-editor="no">
   <header class="site-header">
-    <div class="wrap reticula-12 header-top">
-      <div class="header-marca-col">
-        <span class="marca">Banco de problemas</span>
-      </div>
+    <div class="wrap header-top">
+      <span class="marca">Banco de problemas</span>
       <div class="header-acciones">
         <span id="estado-nube" class="estado-nube" data-modo="conectando" title="Estado de almacenamiento"></span>
         <span id="sesion-chip" class="chip-sesion" hidden></span>
@@ -41,173 +40,124 @@
 
   <main class="wrap" id="contenido">
     <!-- Vista: asignaturas -->
-    <section id="vista-asignaturas" class="vista-seccion">
-      <div class="reticula-12 encabezado">
-        <div class="enc-lateral">
-          <span class="modulo-indice" aria-hidden="true">01 / ÍNDICE GENERAL</span>
-        </div>
-        <div class="enc-principal">
+    <section id="vista-asignaturas">
+      <div class="encabezado">
+        <div>
           <h1 id="h1-asig" tabindex="-1">Asignaturas</h1>
-          <div class="enc-pie">
-            <p class="sub">Crea un espacio por asignatura y sube tus problemas con sus respuestas.</p>
-            <div class="acciones-enc">
-              <button type="button" id="btn-nueva-asig" class="btn solo-editor">Nueva asignatura</button>
-            </div>
-          </div>
+          <p class="sub">Crea un espacio por asignatura y sube tus problemas con sus respuestas.</p>
         </div>
+        <button type="button" id="btn-nueva-asig" class="btn solo-editor">Nueva asignatura</button>
       </div>
 
-      <div class="reticula-12 banda-herramientas">
-        <div class="espacio-activo-col" aria-hidden="true"></div>
-        <div class="toolbar toolbar-desplazada" aria-label="Búsqueda y respaldo">
-          <input type="search" id="buscador-banco" placeholder="Buscar en todo el banco…" aria-label="Buscar en todo el banco" />
-          <button type="button" id="btn-exportar-todo" class="btn btn-sutil">Exportar todo</button>
-          <button type="button" id="btn-importar-respaldo" class="btn btn-sutil solo-editor">Importar respaldo</button>
-          <button type="button" id="btn-papelera-asig" class="btn btn-sutil solo-editor">Papelera</button>
-          <input type="file" id="file-respaldo" accept="application/json,.json" hidden />
-        </div>
+      <div class="toolbar" aria-label="Búsqueda y respaldo">
+        <input type="search" id="buscador-banco" placeholder="Buscar en todo el banco…" aria-label="Buscar en todo el banco" />
+        <button type="button" id="btn-exportar-todo" class="btn btn-sutil">Exportar todo</button>
+        <button type="button" id="btn-importar-respaldo" class="btn btn-sutil solo-editor">Importar respaldo</button>
+        <button type="button" id="btn-papelera-asig" class="btn btn-sutil solo-editor">Papelera</button>
+        <input type="file" id="file-respaldo" accept="application/json,.json" hidden />
       </div>
 
       <div id="grid-asignaturas" class="grid-asignaturas"></div>
       <div id="resultados-banco" hidden>
-        <div class="reticula-12 banda-contador">
-          <p id="resultados-banco-info" class="contador" aria-live="polite"></p>
-        </div>
+        <p id="resultados-banco-info" class="contador" aria-live="polite"></p>
         <div id="resultados-banco-lista" class="lista"></div>
       </div>
     </section>
 
     <!-- Vista: temas de una asignatura -->
-    <section id="vista-temas" class="vista-seccion" hidden>
-      <div class="reticula-12 encabezado">
-        <div class="enc-lateral">
-          <span class="modulo-indice" aria-hidden="true">02 / ASIGNATURA</span>
-          <button type="button" id="btn-volver-asig" class="link-btn btn-volver">← Asignaturas</button>
-        </div>
-        <div class="enc-principal">
+    <section id="vista-temas" hidden>
+      <button type="button" id="btn-volver-asig" class="link-btn btn-volver">← Asignaturas</button>
+
+      <div class="encabezado">
+        <div>
           <h1 id="tema-asig-nombre" tabindex="-1"></h1>
-          <div class="enc-pie">
-            <p id="tema-asig-desc" class="sub"></p>
-            <div class="acciones-enc">
-              <button type="button" id="btn-nuevo-tema" class="btn solo-editor">Nuevo tema</button>
-            </div>
-          </div>
+          <p id="tema-asig-desc" class="sub"></p>
         </div>
+        <button type="button" id="btn-nuevo-tema" class="btn solo-editor">Nuevo tema</button>
       </div>
 
-      <div class="reticula-12 banda-herramientas">
-        <div class="espacio-activo-col" aria-hidden="true"></div>
-        <div class="toolbar toolbar-desplazada" aria-label="Controles de la asignatura">
-          <input type="search" id="buscador-asig" placeholder="Buscar en esta asignatura…" aria-label="Buscar en esta asignatura" />
-          <button type="button" id="btn-estudiar-asig" class="btn btn-sutil">Modo estudio</button>
-          <button type="button" id="btn-papelera-prob" class="btn btn-sutil solo-editor">Papelera</button>
-        </div>
+      <div class="toolbar" aria-label="Controles de la asignatura">
+        <input type="search" id="buscador-asig" placeholder="Buscar en esta asignatura…" aria-label="Buscar en esta asignatura" />
+        <button type="button" id="btn-estudiar-asig" class="btn btn-sutil">Modo estudio</button>
+        <button type="button" id="btn-papelera-prob" class="btn btn-sutil solo-editor">Papelera</button>
       </div>
 
       <div id="grid-temas" class="grid-asignaturas"></div>
       <div id="resultados-asig" hidden>
-        <div class="reticula-12 banda-contador">
-          <p id="resultados-asig-info" class="contador" aria-live="polite"></p>
-        </div>
+        <p id="resultados-asig-info" class="contador" aria-live="polite"></p>
         <div id="resultados-asig-lista" class="lista"></div>
       </div>
     </section>
 
     <!-- Vista: problemas de un tema -->
-    <section id="vista-problemas" class="vista-seccion" hidden>
-      <div class="reticula-12 encabezado">
-        <div class="enc-lateral">
-          <span class="modulo-indice" aria-hidden="true">03 / TEMA</span>
-          <button type="button" id="btn-volver" class="link-btn btn-volver">← Temas</button>
-        </div>
-        <div class="enc-principal">
+    <section id="vista-problemas" hidden>
+      <button type="button" id="btn-volver" class="link-btn btn-volver">← Temas</button>
+
+      <div class="encabezado">
+        <div>
           <p id="prob-ruta" class="ruta"></p>
           <h1 id="asig-nombre" tabindex="-1"></h1>
-          <div class="enc-pie">
-            <p id="asig-descripcion" class="sub"></p>
-            <div class="acciones-enc">
-              <button type="button" id="btn-nuevo-prob" class="btn solo-editor">Nuevo problema</button>
-              <button type="button" id="btn-estudiar-tema" class="btn btn-sutil">Modo estudio</button>
-              <button type="button" id="btn-exportar" class="btn btn-sutil">Exportar JSON</button>
-            </div>
-          </div>
+          <p id="asig-descripcion" class="sub"></p>
+        </div>
+        <div class="acciones-enc">
+          <button type="button" id="btn-nuevo-prob" class="btn solo-editor">Nuevo problema</button>
+          <button type="button" id="btn-estudiar-tema" class="btn btn-sutil">Modo estudio</button>
+          <button type="button" id="btn-exportar" class="btn btn-sutil">Exportar JSON</button>
         </div>
       </div>
 
-      <div class="reticula-12 banda-herramientas">
-        <div class="espacio-activo-col" aria-hidden="true"></div>
-        <div class="bloque-controles-prob">
-          <div class="toolbar" aria-label="Controles">
-            <input type="search" id="buscador" placeholder="Buscar…" aria-label="Buscar problemas" />
-            <select id="filtro-dificultad" aria-label="Filtrar por dificultad">
-              <option value="">Toda dificultad</option>
-              <option value="baja">Baja</option>
-              <option value="media">Media</option>
-              <option value="alta">Alta</option>
-            </select>
-            <label class="check-fav"><input type="checkbox" id="filtro-fav" /> ★ Solo favoritos</label>
-          </div>
-
-          <div id="dropzone" class="dropzone solo-editor" tabindex="0" role="button"
-               aria-label="Arrastra archivos JSON aquí o haz clic para seleccionar">
-            <span>Arrastra archivos <code>.json</code> aquí o <u>selecciónalos</u> para agregar problemas a este tema</span>
-            <input type="file" id="file-input" accept="application/json,.json" multiple hidden />
-          </div>
-          <p id="mensaje" class="mensaje" role="status" aria-live="polite"></p>
-        </div>
+      <div class="toolbar" aria-label="Controles">
+        <input type="search" id="buscador" placeholder="Buscar…" aria-label="Buscar problemas" />
+        <select id="filtro-dificultad" aria-label="Filtrar por dificultad">
+          <option value="">Toda dificultad</option>
+          <option value="baja">Baja</option>
+          <option value="media">Media</option>
+          <option value="alta">Alta</option>
+        </select>
+        <label class="check-fav"><input type="checkbox" id="filtro-fav" /> ★ Solo favoritos</label>
       </div>
 
-      <div class="reticula-12 banda-contador">
-        <p id="contador" class="contador" aria-live="polite"></p>
+      <div id="dropzone" class="dropzone solo-editor" tabindex="0" role="button"
+           aria-label="Arrastra archivos JSON aquí o haz clic para seleccionar">
+        <span>Arrastra archivos <code>.json</code> aquí o <u>selecciónalos</u> para agregar problemas a este tema</span>
+        <input type="file" id="file-input" accept="application/json,.json" multiple hidden />
       </div>
+      <p id="mensaje" class="mensaje" role="status" aria-live="polite"></p>
+
+      <p id="contador" class="contador" aria-live="polite"></p>
       <div id="lista" class="lista" aria-label="Lista de problemas"></div>
     </section>
 
     <!-- Vista: modo estudio -->
-    <section id="vista-estudio" class="vista-seccion" hidden>
-      <div class="reticula-12 encabezado">
-        <div class="enc-lateral">
-          <span class="modulo-indice" aria-hidden="true">04 / ESTUDIO</span>
-          <button type="button" id="btn-volver-estudio" class="link-btn btn-volver">← Salir del modo estudio</button>
-        </div>
-        <div class="enc-principal">
+    <section id="vista-estudio" hidden>
+      <button type="button" id="btn-volver-estudio" class="link-btn btn-volver">← Salir del modo estudio</button>
+      <div class="encabezado">
+        <div>
           <p id="estudio-ruta" class="ruta"></p>
           <h1 id="estudio-titulo" tabindex="-1">Modo estudio</h1>
         </div>
       </div>
 
-      <div class="reticula-12 banda-herramientas">
-        <div class="espacio-activo-col" aria-hidden="true"></div>
-        <div class="toolbar toolbar-desplazada" aria-label="Opciones de estudio">
-          <select id="estudio-dif" aria-label="Dificultad">
-            <option value="">Toda dificultad</option>
-            <option value="baja">Baja</option>
-            <option value="media">Media</option>
-            <option value="alta">Alta</option>
-          </select>
-          <label class="check-fav"><input type="checkbox" id="estudio-fav" /> ★ Solo favoritos</label>
-          <button type="button" id="btn-estudio-barajar" class="btn btn-sutil">Barajar de nuevo</button>
-        </div>
+      <div class="toolbar" aria-label="Opciones de estudio">
+        <select id="estudio-dif" aria-label="Dificultad">
+          <option value="">Toda dificultad</option>
+          <option value="baja">Baja</option>
+          <option value="media">Media</option>
+          <option value="alta">Alta</option>
+        </select>
+        <label class="check-fav"><input type="checkbox" id="estudio-fav" /> ★ Solo favoritos</label>
+        <button type="button" id="btn-estudio-barajar" class="btn btn-sutil">Barajar de nuevo</button>
       </div>
 
-      <div class="reticula-12 banda-contador">
-        <p id="estudio-progreso" class="contador" aria-live="polite"></p>
-      </div>
+      <p id="estudio-progreso" class="contador" aria-live="polite"></p>
       <div id="estudio-tarjeta" class="estudio-tarjeta"></div>
-      <div class="reticula-12 banda-atajos">
-        <p class="atajos">Atajos: <kbd>Espacio</kbd> muestra la respuesta · <kbd>←</kbd> repasar de nuevo · <kbd>→</kbd> lo sabía · <kbd>F</kbd> favorito</p>
-      </div>
+      <p class="atajos">Atajos: <kbd>Espacio</kbd> muestra la respuesta · <kbd>←</kbd> repasar de nuevo · <kbd>→</kbd> lo sabía · <kbd>F</kbd> favorito</p>
     </section>
   </main>
 
   <footer class="site-footer">
-    <div class="wrap reticula-12 footer-grid">
-      <p class="footer-col-izq">
-        Los datos se guardan en Firebase y solo editan las cuentas autorizadas.
-      </p>
-      <p class="footer-col-der">
-        Las fórmulas las dibuja <a href="https://www.mathjax.org/" target="_blank" rel="noopener">MathJax</a> y los diagramas TikZ, tu propio navegador.
-      </p>
+    <div class="wrap">
+      <p>Los datos se guardan en Firebase y solo editan las cuentas autorizadas. Las fórmulas las dibuja <a href="https://www.mathjax.org/" target="_blank" rel="noopener">MathJax</a> y los diagramas TikZ, tu propio navegador.</p>
     </div>
   </footer>
 
@@ -241,6 +191,7 @@
       </div>
     </form>
   </dialog>
+
 
   <!-- Diálogo: crear/editar problema, con vista previa en vivo -->
   <dialog id="dlg-problema" class="dlg-ancho" aria-labelledby="dp-titulo">
@@ -338,7 +289,6 @@
 
   <template id="tpl-asignatura">
     <article class="card-asig">
-      <span class="card-asig-num" aria-hidden="true"></span>
       <h3 class="card-asig-nombre"></h3>
       <p class="card-asig-desc"></p>
       <div class="card-asig-pie">
@@ -354,7 +304,6 @@
 
   <template id="tpl-tema">
     <article class="card-asig">
-      <span class="card-asig-num" aria-hidden="true"></span>
       <h3 class="card-asig-nombre"></h3>
       <div class="card-asig-pie">
         <span class="card-asig-meta"></span>
@@ -391,6 +340,6 @@
     </article>
   </template>
 
-  <script type="module" src="js/app.js?v=2026.11.22-editorial"></script>
+  <script type="module" src="js/app.js?v=2026.11.22-reticula"></script>
 </body>
 </html>
