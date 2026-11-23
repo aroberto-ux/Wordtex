@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Banco de problemas</title>
 
-  <link rel="preconnect" href="https://rsms.me" />
-  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" />
 
   <link rel="stylesheet" href="assets/styles.css" />
 
@@ -24,7 +25,15 @@
 <body data-editor="no">
   <header class="site-header">
     <div class="wrap header-top">
-      <span class="marca">Banco de problemas</span>
+      <span class="marca">
+        <svg class="logo" viewBox="0 0 34 26" width="34" height="26" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 3v15M4 6 1 9M4 11 1 14M4 16 1 19"/>
+          <path d="M4 10.5h27" stroke-width="2.6"/>
+          <path class="carga" d="M29 1.5v7M26.6 6.2 29 8.6l2.4-2.4"/>
+          <path d="M4 23h27M4 21v4M31 21v4"/>
+        </svg>
+        Banco de problemas
+      </span>
       <div class="header-acciones">
         <span id="estado-nube" class="estado-nube" data-modo="conectando" title="Estado de almacenamiento"></span>
         <span id="sesion-chip" class="chip-sesion" hidden></span>
@@ -132,18 +141,7 @@
 
     <!-- Vista: modo estudio -->
     <section id="vista-estudio" hidden>
-      <div class="estudio-barra-sup">
-        <button type="button" id="btn-volver-estudio" class="link-btn btn-volver">← Salir del modo estudio</button>
-        <div class="estudio-utilidades">
-          <div class="estudio-timer" role="timer" aria-label="Cronómetro de estudio">
-            <span id="estudio-cronometro" class="mono">00:00</span>
-            <button type="button" id="btn-estudio-timer" class="link-btn" aria-pressed="false" title="Pausar o reanudar cronómetro">Pausar</button>
-            <button type="button" id="btn-estudio-timer-reset" class="link-btn" title="Reiniciar cronómetro">Reiniciar</button>
-          </div>
-          <button type="button" id="btn-estudio-enfoque" class="btn btn-sutil btn-peq" aria-pressed="false" title="Ocultar cabecera y filtros para concentrarte">Modo enfoque</button>
-        </div>
-      </div>
-
+      <button type="button" id="btn-volver-estudio" class="link-btn btn-volver">← Salir del modo estudio</button>
       <div class="encabezado">
         <div>
           <p id="estudio-ruta" class="ruta"></p>
@@ -151,45 +149,26 @@
         </div>
       </div>
 
-      <div class="toolbar estudio-filtros" aria-label="Opciones de estudio">
-        <select id="estudio-tema" aria-label="Filtrar por tema" hidden>
-          <option value="">Todos los temas</option>
-        </select>
+      <div class="toolbar" aria-label="Opciones de estudio">
         <select id="estudio-dif" aria-label="Dificultad">
           <option value="">Toda dificultad</option>
           <option value="baja">Baja</option>
           <option value="media">Media</option>
           <option value="alta">Alta</option>
         </select>
-        <select id="estudio-orden" aria-label="Orden de tarjetas">
-          <option value="aleatorio">Orden aleatorio</option>
-          <option value="dificultad">Dificultad creciente</option>
-          <option value="secuencial">Orden original</option>
-        </select>
         <label class="check-fav"><input type="checkbox" id="estudio-fav" /> ★ Solo favoritos</label>
         <button type="button" id="btn-estudio-barajar" class="btn btn-sutil">Barajar de nuevo</button>
       </div>
 
-      <div id="estudio-estado-bloque" class="estudio-estado-bloque">
-        <div class="estudio-metricas">
-          <p id="estudio-progreso" class="contador" aria-live="polite"></p>
-          <div class="estudio-contadores" aria-label="Resumen de la sesión">
-            <span class="chip">Pendientes: <strong id="est-stat-pendientes">0</strong></span>
-            <span class="chip">Por repasar: <strong id="est-stat-repasar">0</strong></span>
-            <span class="chip">Sabidos: <strong id="est-stat-sabidos">0</strong></span>
-          </div>
-        </div>
-        <progress id="estudio-barra" class="estudio-barra" max="100" value="0"></progress>
-      </div>
-
+      <p id="estudio-progreso" class="contador" aria-live="polite"></p>
       <div id="estudio-tarjeta" class="estudio-tarjeta"></div>
-      <p class="atajos">Atajos: <kbd>Espacio</kbd> mostrar/ocultar respuesta · <kbd>←</kbd> repasar de nuevo · <kbd>↓</kbd> saltar · <kbd>→</kbd> lo sabía · <kbd>F</kbd> favorito</p>
+      <p class="atajos">Atajos: <kbd>Espacio</kbd> muestra la respuesta · <kbd>←</kbd> repasar de nuevo · <kbd>→</kbd> lo sabía · <kbd>F</kbd> favorito</p>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="wrap">
-      Datos compartidos en Firebase · edición solo para cuentas autorizadas · Diagramas TikZ renderizados localmente · Fórmulas con <a href="https://www.mathjax.org/" target="_blank" rel="noopener">MathJax</a>
+      Los datos se guardan en Firebase y solo editan las cuentas autorizadas. Las fórmulas las dibuja <a href="https://www.mathjax.org/" target="_blank" rel="noopener">MathJax</a> y los diagramas TikZ, tu propio navegador.
     </div>
   </footer>
 
@@ -223,6 +202,7 @@
       </div>
     </form>
   </dialog>
+
 
   <!-- Diálogo: crear/editar problema, con vista previa en vivo -->
   <dialog id="dlg-problema" class="dlg-ancho" aria-labelledby="dp-titulo">
@@ -371,6 +351,6 @@
     </article>
   </template>
 
-  <script type="module" src="js/app.js?v=2026.11.22-mejoras"></script>
+  <script type="module" src="js/app.js?v=2026.11.22-diseno"></script>
 </body>
 </html>
