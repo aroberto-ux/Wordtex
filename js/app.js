@@ -1278,6 +1278,13 @@ function enlazarEventos() {
   dom.estudioFav.addEventListener('change', armarMazo);
   dom.estudioBarajar.addEventListener('click', armarMazo);
   document.addEventListener('keydown', teclasEstudio);
+  // «G» muestra u oculta la retícula de 12 columnas.
+  document.addEventListener('keydown', (e) => {
+    if ((e.key !== 'g' && e.key !== 'G') || e.ctrlKey || e.metaKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || document.querySelector('dialog[open]')) return;
+    document.body.dataset.rejilla = document.body.dataset.rejilla === 'si' ? 'no' : 'si';
+  });
 
   // Carga de JSON
   dom.dropzone.addEventListener('click', () => dom.fileInput.click());
